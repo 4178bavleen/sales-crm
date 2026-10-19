@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+dist/
+coverage/
+*.log
+
+# Generated Prisma client — ignore only if you intend to regenerate it
+# after installing dependencies
+src/generated/prisma/

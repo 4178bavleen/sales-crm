@@ -1,0 +1,827 @@
+// =====================================================================
+// Sales Dashboard & CRM - PostgreSQL + Prisma schema
+// Modules: Access | Master data | Leads | Customers | Tasks | Deals
+//          Meetings | Documents | Targets | Import | Audit/Notifications
+// Extra rules that Prisma cannot express (CHECK constraints, partial
+// unique indexes) are in DB_DESIGN.md -> add them in a raw SQL migration.
+// =====================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DISQUALIFIED
+  CONVERTED
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum StageKind {
+  OPEN
+  WON
+  LOST
+}
+
+enum ReasonType {
+  LEAD_DISQUALIFIED
+  DEAL_LOST
+  TASK_CANCELLED
+  NO_FOLLOWUP
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ActivityType {
+  CALL
+  MESSAGE
+  EMAIL
+  REMINDER
+  OTHER
+}
+
+enum MeetingStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum DocumentCategory {
+  PROPOSAL
+  CONTRACT
+  MEETING_NOTES
+  CUSTOMER_FILE
+  OTHER
+}
+
+enum TargetPeriod {
+  MONTHLY
+  QUARTERLY
+}
+
+enum ImportSource {
+  EXCEL
+  GOOGLE_SHEETS
+}
+
+enum ImportBatchStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ImportRowStatus {
+  IMPORTED
+  SKIPPED
+  FAILED
+}
+
+// ---------------------------------------------------------------------
+// 1. USERS & ACCESS
+// ---------------------------------------------------------------------
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique // ADMIN, SALES_MANAGER, SALES_EMPLOYEE, REPORT_VIEWER
+  description String?
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+// e.g. users.manage, records.delete, data.export, revenue.view, deals.edit_closed
+model Permission {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Team {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  managerId Int?
+  createdAt DateTime @default(now())
+
+  manager User?          @relation("TeamManager", fields: [managerId], references: [id])
+  members User[]         @relation("TeamMembers")
+  targets RevenueTarget[]
+
+  @@map("teams")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  phone        String?
+  roleId       Int
+  teamId       Int?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  role Role  @relation(fields: [roleId], references: [id])
+  team Team? @relation("TeamMembers", fields: [teamId], references: [id])
+
+  managedTeams Team[] @relation("TeamManager")
+
+  createdLeads        Lead[]             @relation("LeadCreatedBy")
+  ownedLeads          Lead[]             @relation("LeadOwner")
+  assignmentsReceived LeadAssignment[]   @relation("AssignedTo")
+  assignmentsMade     LeadAssignment[]   @relation("AssignedBy")
+  ownedCustomers      Customer[]         @relation("CustomerOwner")
+  ownedDeals          Deal[]             @relation("DealOwner")
+  createdDeals        Deal[]             @relation("DealCreatedBy")
+  stageChanges        DealStageHistory[]
+  assignedTasks       Task[]             @relation("TaskAssignee")
+  createdTasks        Task[]             @relation("TaskCreator")
+  completedTasks      Task[]             @relation("TaskCompleter")
+  activities          Activity[]
+  organizedMeetings   Meeting[]          @relation("MeetingOrganizer")
+  meetingsAttending   MeetingParticipant[]
+  uploadedDocuments   Document[]
+  documentVersions    DocumentVersion[]
+  targets             RevenueTarget[]    @relation("TargetEmployee")
+  targetsCreated      RevenueTarget[]    @relation("TargetCreator")
+  targetChanges       TargetChange[]
+  importBatches       ImportBatch[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+
+  @@index([roleId])
+  @@index([teamId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------
+// 2. MASTER DATA
+// ---------------------------------------------------------------------
+
+model LeadSource {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique // Website, Referral, Excel Import, Google Sheet, ...
+  isActive  Boolean @default(true)
+  leads     Lead[]
+
+  @@map("lead_sources")
+}
+
+model ProductService {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  isActive Boolean @default(true)
+  leads    Lead[]
+  deals    Deal[]
+
+  @@map("products_services")
+}
+
+// Predefined reasons for: disqualified lead, lost deal, cancelled task, "no follow-up needed"
+model Reason {
+  id       Int        @id @default(autoincrement())
+  type     ReasonType
+  name     String
+  isActive Boolean    @default(true)
+
+  disqualifiedLeads Lead[] @relation("LeadDisqualifyReason")
+  noFollowUpLeads   Lead[] @relation("LeadNoFollowUpReason")
+  lostDeals         Deal[] @relation("DealLostReason")
+  cancelledTasks    Task[] @relation("TaskCancelReason")
+
+  @@unique([type, name])
+  @@map("reasons")
+}
+
+model PipelineStage {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique // Qualified, Meeting/Demo, Proposal, Negotiation, Won, Lost
+  position Int       @unique
+  kind     StageKind @default(OPEN)
+  isActive Boolean   @default(true)
+
+  deals       Deal[]
+  historyFrom DealStageHistory[] @relation("StageFrom")
+  historyTo   DealStageHistory[] @relation("StageTo")
+
+  @@map("pipeline_stages")
+}
+
+// ---------------------------------------------------------------------
+// 3. COMPANIES, CONTACTS, CUSTOMERS
+// ---------------------------------------------------------------------
+
+model Company {
+  id             Int       @id @default(autoincrement())
+  name           String
+  normalizedName String // lower-case, trimmed, no suffixes (Pvt/Ltd) -> duplicate check
+  website        String?
+  industry       String?
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  contacts   Contact[]
+  customers  Customer[]
+  leads      Lead[]
+  tasks      Task[]
+  activities Activity[]
+  meetings   Meeting[]
+  documents  Document[]
+
+  @@index([normalizedName])
+  @@map("companies")
+}
+
+model Contact {
+  id              Int       @id @default(autoincrement())
+  companyId       Int?
+  fullName        String
+  jobTitle        String?
+  email           String?
+  normalizedEmail String? // lower-case
+  phone           String?
+  normalizedPhone String? // digits only
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  company          Company?             @relation(fields: [companyId], references: [id])
+  leads            Lead[]
+  primaryFor       Customer[]           @relation("CustomerPrimaryContact")
+  meetingsAttended MeetingParticipant[]
+
+  @@index([companyId])
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+  @@map("contacts")
+}
+
+// Created when a qualified lead is converted. The lead is kept (history stays).
+model Customer {
+  id               Int       @id @default(autoincrement())
+  companyId        Int?
+  primaryContactId Int?
+  ownerId          Int?
+  convertedAt      DateTime  @default(now())
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  company        Company? @relation(fields: [companyId], references: [id])
+  primaryContact Contact? @relation("CustomerPrimaryContact", fields: [primaryContactId], references: [id])
+  owner          User?    @relation("CustomerOwner", fields: [ownerId], references: [id])
+
+  convertedFromLeads Lead[]
+  deals              Deal[]
+  tasks              Task[]
+  activities         Activity[]
+  meetings           Meeting[]
+  documents          Document[]
+
+  @@index([companyId])
+  @@index([ownerId])
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------
+// 4. LEADS
+// ---------------------------------------------------------------------
+
+model Lead {
+  id               Int        @id @default(autoincrement())
+  contactName      String
+  companyName      String?
+  phone            String?
+  email            String?
+  normalizedPhone  String? // digits only
+  normalizedEmail  String? // lower-case
+  normalizedCompany String?
+
+  sourceId         Int?
+  productServiceId Int?
+  priority         Priority   @default(MEDIUM)
+  status           LeadStatus @default(NEW)
+  notes            String?
+
+  createdById      Int
+  ownerId          Int? // current assignee (full history in lead_assignments)
+
+  // disqualified leads need a reason (CHECK constraint in DB_DESIGN.md)
+  disqualifyReasonId Int?
+  disqualifyNote     String?
+  disqualifiedAt     DateTime?
+
+  // every active lead: next follow-up date OR a reason why none is needed
+  nextFollowUpAt     DateTime?
+  noFollowUpReasonId Int?
+
+  // links (filled as the lead matures)
+  contactId           Int?
+  companyId           Int?
+  convertedCustomerId Int?
+  convertedAt         DateTime?
+  importRowId         Int?      @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  source           LeadSource?     @relation(fields: [sourceId], references: [id])
+  productService   ProductService? @relation(fields: [productServiceId], references: [id])
+  createdBy        User            @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  owner            User?           @relation("LeadOwner", fields: [ownerId], references: [id])
+  disqualifyReason Reason?         @relation("LeadDisqualifyReason", fields: [disqualifyReasonId], references: [id])
+  noFollowUpReason Reason?         @relation("LeadNoFollowUpReason", fields: [noFollowUpReasonId], references: [id])
+  contact          Contact?        @relation(fields: [contactId], references: [id])
+  company          Company?        @relation(fields: [companyId], references: [id])
+  convertedCustomer Customer?      @relation(fields: [convertedCustomerId], references: [id])
+  importRow        ImportRow?      @relation("ImportRowLead", fields: [importRowId], references: [id])
+
+  assignments LeadAssignment[]
+  deals       Deal[]
+  tasks       Task[]
+  activities  Activity[]
+  meetings    Meeting[]
+  documents   Document[]
+
+  @@index([ownerId, status])
+  @@index([status, createdAt])
+  @@index([sourceId])
+  @@index([nextFollowUpAt])
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+  @@index([normalizedCompany])
+  @@map("leads")
+}
+
+// One row per assignment. The current one has unassignedAt = NULL.
+model LeadAssignment {
+  id           Int       @id @default(autoincrement())
+  leadId       Int
+  assignedToId Int
+  assignedById Int
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  note         String?
+
+  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedTo User @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedBy User @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@index([leadId, assignedAt])
+  @@index([assignedToId])
+  @@map("lead_assignments")
+}
+
+// ---------------------------------------------------------------------
+// 5. DEALS (Pipeline)
+// ---------------------------------------------------------------------
+
+model Deal {
+  id               Int        @id @default(autoincrement())
+  name             String
+  leadId           Int?
+  customerId       Int?
+  ownerId          Int
+  createdById      Int
+  productServiceId Int?
+  stageId          Int
+  status           DealStatus @default(OPEN) // kept separate from lead status
+
+  estimatedValue    Decimal   @db.Decimal(14, 2) // pipeline value, NOT revenue
+  expectedCloseDate DateTime? @db.Date
+
+  nextAction      String?
+  nextActionDueAt DateTime?
+  stageEnteredAt  DateTime  @default(now()) // for "time in stage" / stale-deal highlight
+  lastActivityAt  DateTime?
+
+  // closed revenue - only set when the agreed business rule is met
+  closedAt       DateTime?
+  closedRevenue  Decimal?  @db.Decimal(14, 2)
+  lostReasonId   Int?
+  lostNote       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  lead           Lead?           @relation(fields: [leadId], references: [id])
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+  owner          User            @relation("DealOwner", fields: [ownerId], references: [id])
+  createdBy      User            @relation("DealCreatedBy", fields: [createdById], references: [id])
+  productService ProductService? @relation(fields: [productServiceId], references: [id])
+  stage          PipelineStage   @relation(fields: [stageId], references: [id])
+  lostReason     Reason?         @relation("DealLostReason", fields: [lostReasonId], references: [id])
+
+  stageHistory DealStageHistory[]
+  tasks        Task[]
+  activities   Activity[]
+  meetings     Meeting[]
+  documents    Document[]
+
+  @@index([ownerId, status])
+  @@index([stageId, status])
+  @@index([status, closedAt])
+  @@index([leadId])
+  @@index([customerId])
+  @@index([expectedCloseDate])
+  @@map("deals")
+}
+
+model DealStageHistory {
+  id          Int      @id @default(autoincrement())
+  dealId      Int
+  fromStageId Int?
+  toStageId   Int
+  changedById Int
+  changedAt   DateTime @default(now())
+  note        String?
+
+  deal      Deal          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStage PipelineStage? @relation("StageFrom", fields: [fromStageId], references: [id])
+  toStage   PipelineStage  @relation("StageTo", fields: [toStageId], references: [id])
+  changedBy User           @relation(fields: [changedById], references: [id])
+
+  @@index([dealId, changedAt])
+  @@map("deal_stage_history")
+}
+
+// ---------------------------------------------------------------------
+// 6. TASKS & ACTIVITIES (follow-ups)
+// Exactly one of leadId / dealId / customerId / companyId is set
+// (CHECK constraint in DB_DESIGN.md).
+// ---------------------------------------------------------------------
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  assignedToId Int
+  createdById  Int
+  dueAt       DateTime
+  priority    Priority   @default(MEDIUM)
+  status      TaskStatus @default(OPEN)
+
+  completedAt    DateTime?
+  completedById  Int?
+  completionNote String?
+  cancelReasonId Int?
+  rescheduleCount Int      @default(0)
+
+  leadId     Int?
+  dealId     Int?
+  customerId Int?
+  companyId  Int?
+  meetingId  Int? // task created from a meeting
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedTo   User     @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdBy    User     @relation("TaskCreator", fields: [createdById], references: [id])
+  completedBy  User?    @relation("TaskCompleter", fields: [completedById], references: [id])
+  cancelReason Reason?  @relation("TaskCancelReason", fields: [cancelReasonId], references: [id])
+  lead         Lead?    @relation(fields: [leadId], references: [id])
+  deal         Deal?    @relation(fields: [dealId], references: [id])
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  company      Company? @relation(fields: [companyId], references: [id])
+  meeting      Meeting? @relation("MeetingFollowUpTasks", fields: [meetingId], references: [id])
+
+  activities Activity[]
+
+  @@index([assignedToId, status, dueAt]) // today / overdue / upcoming lists
+  @@index([leadId])
+  @@index([dealId])
+  @@index([customerId])
+  @@index([companyId])
+  @@map("tasks")
+}
+
+// Logged calls, messages, emails, reminders and their outcomes
+model Activity {
+  id            Int          @id @default(autoincrement())
+  type          ActivityType
+  outcome       String?
+  notes         String?
+  occurredAt    DateTime     @default(now())
+  performedById Int
+
+  leadId     Int?
+  dealId     Int?
+  customerId Int?
+  companyId  Int?
+  taskId     Int?
+
+  createdAt DateTime @default(now())
+
+  performedBy User      @relation(fields: [performedById], references: [id])
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+  deal        Deal?     @relation(fields: [dealId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  company     Company?  @relation(fields: [companyId], references: [id])
+  task        Task?     @relation(fields: [taskId], references: [id])
+
+  @@index([leadId, occurredAt])
+  @@index([dealId, occurredAt])
+  @@index([customerId, occurredAt])
+  @@index([performedById])
+  @@map("activities")
+}
+
+// ---------------------------------------------------------------------
+// 7. MEETINGS
+// ---------------------------------------------------------------------
+
+model Meeting {
+  id              Int           @id @default(autoincrement())
+  title           String
+  startsAt        DateTime
+  durationMinutes Int           @default(30)
+  location        String?
+  meetingLink     String?
+  organizerId     Int
+  status          MeetingStatus @default(PLANNED)
+  notes           String?
+  outcome         String?
+  nextSteps       String?
+  rescheduledFromId Int?        @unique
+
+  leadId     Int?
+  dealId     Int?
+  customerId Int?
+  companyId  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizer       User      @relation("MeetingOrganizer", fields: [organizerId], references: [id])
+  rescheduledFrom Meeting?  @relation("MeetingReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo   Meeting?  @relation("MeetingReschedule")
+  lead            Lead?     @relation(fields: [leadId], references: [id])
+  deal            Deal?     @relation(fields: [dealId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  company         Company?  @relation(fields: [companyId], references: [id])
+
+  participants  MeetingParticipant[]
+  followUpTasks Task[]               @relation("MeetingFollowUpTasks")
+
+  @@index([startsAt])
+  @@index([organizerId, startsAt])
+  @@index([dealId])
+  @@index([leadId])
+  @@map("meetings")
+}
+
+// Participant is an internal user OR an external contact
+model MeetingParticipant {
+  id        Int  @id @default(autoincrement())
+  meetingId Int
+  userId    Int?
+  contactId Int?
+
+  meeting Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+
+  @@index([meetingId])
+  @@index([userId])
+  @@map("meeting_participants")
+}
+
+// ---------------------------------------------------------------------
+// 8. DOCUMENTS (files live in S3/disk; DB stores metadata + storage key)
+// ---------------------------------------------------------------------
+
+model Document {
+  id             Int              @id @default(autoincrement())
+  name           String
+  category       DocumentCategory @default(OTHER)
+  uploadedById   Int
+  currentVersion Int              @default(1)
+
+  leadId     Int?
+  dealId     Int?
+  customerId Int?
+  companyId  Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+  lead       Lead?     @relation(fields: [leadId], references: [id])
+  deal       Deal?     @relation(fields: [dealId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  company    Company?  @relation(fields: [companyId], references: [id])
+
+  versions DocumentVersion[]
+
+  @@index([leadId])
+  @@index([dealId])
+  @@index([customerId])
+  @@index([companyId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id               Int      @id @default(autoincrement())
+  documentId       Int
+  versionNo        Int
+  storageKey       String // path / object key
+  originalFileName String
+  fileType         String // pdf, docx, xlsx, png ...
+  mimeType         String
+  sizeBytes        BigInt
+  checksum         String?
+  uploadedById     Int
+  uploadedAt       DateTime @default(now())
+  replaceNote      String?
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id])
+
+  @@unique([documentId, versionNo])
+  @@map("document_versions")
+}
+
+// ---------------------------------------------------------------------
+// 9. REVENUE TARGETS
+// Exactly one of userId / teamId is set (CHECK in DB_DESIGN.md)
+// ---------------------------------------------------------------------
+
+model RevenueTarget {
+  id          Int          @id @default(autoincrement())
+  userId      Int?
+  teamId      Int?
+  periodType  TargetPeriod
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  amount      Decimal      @db.Decimal(14, 2)
+  createdById Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  employee  User? @relation("TargetEmployee", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("TargetCreator", fields: [createdById], references: [id])
+
+  changes TargetChange[]
+
+  @@index([userId, periodStart])
+  @@index([teamId, periodStart])
+  @@map("revenue_targets")
+}
+
+model TargetChange {
+  id          Int      @id @default(autoincrement())
+  targetId    Int
+  oldAmount   Decimal  @db.Decimal(14, 2)
+  newAmount   Decimal  @db.Decimal(14, 2)
+  changedById Int
+  changedAt   DateTime @default(now())
+  reason      String?
+
+  target    RevenueTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  changedBy User          @relation(fields: [changedById], references: [id])
+
+  @@index([targetId, changedAt])
+  @@map("target_changes")
+}
+
+// ---------------------------------------------------------------------
+// 10. IMPORTS (Excel / Google Sheets)
+// ---------------------------------------------------------------------
+
+model ImportBatch {
+  id            Int               @id @default(autoincrement())
+  source        ImportSource
+  fileName      String?
+  sheetRef      String? // Google Sheet id / tab name
+  status        ImportBatchStatus @default(PROCESSING)
+  totalRows     Int               @default(0)
+  importedCount Int               @default(0)
+  skippedCount  Int               @default(0)
+  failedCount   Int               @default(0)
+  uploadedById  Int
+  startedAt     DateTime          @default(now())
+  completedAt   DateTime?
+
+  uploadedBy User        @relation(fields: [uploadedById], references: [id])
+  rows       ImportRow[]
+
+  @@index([uploadedById])
+  @@map("import_batches")
+}
+
+model ImportRow {
+  id        Int             @id @default(autoincrement())
+  batchId   Int
+  rowNumber Int
+  status    ImportRowStatus
+  reason    String? // why skipped / failed (duplicate of lead #12, invalid email, ...)
+  rawData   Json
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  lead  Lead?       @relation("ImportRowLead")
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+  @@map("import_rows")
+}
+
+// ---------------------------------------------------------------------
+// 11. NOTIFICATIONS & AUDIT
+// ---------------------------------------------------------------------
+
+model Notification {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  type       String // TASK_ASSIGNED, TASK_DUE, MEETING_REMINDER, ...
+  title      String
+  body       String?
+  entityType String? // lead | deal | task | meeting ...
+  entityId   Int?
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+// Append-only history: assignments, deal stages, task status, meeting outcomes, deal results
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    Int?
+  action     String // CREATE, UPDATE, DELETE, ASSIGN, STAGE_CHANGE, EXPORT, ...
+  entityType String
+  entityId   Int
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
