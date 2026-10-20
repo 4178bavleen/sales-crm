@@ -415,6 +415,17 @@ export default function Leads() {
     priorityFilter !== "ALL";
   const selectClass =
     "rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-600 outline-none hover:border-slate-300 focus:border-blue-500";
+  // Full-page create form replaces the list while open
+  if (showCreateModal) {
+    return (
+      <div className="-m-4 md:-m-8">
+        <CreateLeadModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={createLead}
+        />
+      </div>
+    );
+  }
   return (
     <div
       className="relative -m-4 min-h-[calc(100vh-64px)] bg-white text-slate-700 md:-m-8"
@@ -1118,13 +1129,6 @@ export default function Leads() {
             </div>
           </aside>
         </div>
-      )}
-      {/* Create lead modal */}
-      {showCreateModal && (
-        <CreateLeadModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={createLead}
-        />
       )}
     </div>
   );
