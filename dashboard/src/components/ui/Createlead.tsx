@@ -10,6 +10,19 @@ import {
 export type LeadStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "DISQUALIFIED" | "CONVERTED";
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
+// Matches the backend lead_sources lookup table (backend/prisma/schema.prisma).
+// Sent as a name at the API boundary; the backend maps it to LeadSource.id.
+export const LEAD_SOURCES: string[] = [
+  "Cold Call",
+  "Advertisement",
+  "Web Download",
+  "Seminar Partner",
+  "Online Store",
+  "Partner",
+  "External Referral",
+  "Social Media",
+];
+
 // Frontend view-model. At the API boundary:
 //   firstName + lastName -> Lead.contactName
 //   source (name)        -> Lead.sourceId   (lookup in lead_sources)
@@ -377,7 +390,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
               <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} type="tel" />
             </div>
             <div className={cellClass}>
-              <SelectField label="Lead Source" value={form.source} onChange={(v) => update("source", v)} options={["Cold Call", "Advertisement", "Web Download", "Seminar Partner", "Online Store", "Partner", "External Referral", "Social Media"]} />
+              <SelectField label="Lead Source" value={form.source} onChange={(v) => update("source", v)} options={LEAD_SOURCES} />
             </div>
             <div className={cellClass}>
               <SelectField label="Lead Status" value={form.status} onChange={(v) => update("status", v as FormValues["status"])} options={["NEW", "CONTACTED", "QUALIFIED", "DISQUALIFIED", "CONVERTED"]} required />

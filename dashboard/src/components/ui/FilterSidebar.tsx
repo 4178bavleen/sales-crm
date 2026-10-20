@@ -4,6 +4,10 @@ import { Search, ChevronDown } from "lucide-react";
 export type FilterCheckboxSection = {
   title: string;
   items: string[];
+  /** Currently checked items (controlled from the page) */
+  selected?: string[];
+  /** Called with the full new selection when a checkbox toggles */
+  onChange?: (selected: string[]) => void;
 };
 
 export type FilterSelect = {
@@ -19,14 +23,17 @@ const selectClass =
 function FilterSection({
   title,
   items,
+  selected = [],
+  onChange,
   query,
 }: {
   title: string;
   items: string[];
+  selected?: string[];
+  onChange?: (selected: string[]) => void;
   query: string;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const [selected, setSelected] = useState<string[]>([]);
   const normalized = query.trim().toLowerCase();
   const visible = normalized
     ? items.filter(item => item.toLowerCase().includes(normalized))
@@ -50,16 +57,16 @@ function FilterSection({
           {visible.map(item => (
             <label
               key={item}
-              className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              className="flex cursor-pointer select-none items-start gap-2 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50"
             >
               <input
                 type="checkbox"
                 checked={selected.includes(item)}
                 onChange={() =>
-                  setSelected(previous =>
-                    previous.includes(item)
-                      ? previous.filter(value => value !== item)
-                      : [...previous, item],
+                  onChange?.(
+                    selected.includes(item)
+                      ? selected.filter(value => value !== item)
+                      : [...selected, item],
                   )
                 }
                 className="mt-0.5 accent-blue-600"
@@ -116,6 +123,8 @@ export default function FilterSidebar({
             <FilterSection
               title={section.title}
               items={section.items}
+              selected={section.selected}
+              onChange={section.onChange}
               query={query}
             />
           </div>

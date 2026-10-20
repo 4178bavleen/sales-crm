@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   CheckSquare,
   Square,
-  SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -215,8 +214,8 @@ export default function DataTable<T>({
               </th>
             ))}
             {renderRowMenu && (
-              <th className="w-10 border-l border-slate-200 px-3 py-3">
-                <SlidersHorizontal size={14} className="text-slate-500" />
+              <th className="border-l border-slate-200 px-3 py-3 text-[11px] font-semibold text-slate-600">
+                Actions
               </th>
             )}
           </tr>

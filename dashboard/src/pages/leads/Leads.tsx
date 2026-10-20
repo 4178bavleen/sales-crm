@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -7,7 +7,6 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
-  SlidersHorizontal,
   X,
   Download,
   CalendarDays,
@@ -20,6 +19,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import CreateLeadModal, {
+  LEAD_SOURCES,
   type Lead,
   type LeadStatus,
   type Priority,
@@ -29,6 +29,7 @@ import DataTable, {
   TablePagination,
 } from "../../components/ui/DataTable";
 import FilterSidebar from "../../components/ui/FilterSidebar";
+import TableSettings from "../../components/ui/TableSettings";
 
 const initialLeads: Lead[] = [
   {
@@ -175,28 +176,16 @@ const priorityStyles: Record<Priority, string> = {
   HIGH: "text-orange-600",
   URGENT: "text-rose-600",
 };
-const systemFilters = [
-  "Activities",
-  "Cadences",
-  "Campaigns",
-  "Latest Email Status",
-  "Locked",
-  "Record Action",
-  "Related Records Action",
-  "Touched Records",
-  "Untouched Records",
+// Aligned with the backend schema (backend/prisma/schema.prisma):
+// LeadStatus and Priority enums, LeadSource lookup table, Lead.owner (User)
+const statusOptions: LeadStatus[] = [
+  "NEW",
+  "CONTACTED",
+  "QUALIFIED",
+  "DISQUALIFIED",
+  "CONVERTED",
 ];
-const fieldFilters = [
-  "Address",
-  "Address - City",
-  "Address - Country / Region",
-  "Lead Status",
-  "Lead Owner",
-  "Company",
-  "Lead Source",
-  "Priority",
-  "Created Time",
-];
+const priorityOptions: Priority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 function formatDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
     month: "short",
@@ -310,17 +299,28 @@ const leadColumns: DataTableColumn<Lead>[] = [
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sourceFilter, setSourceFilter] = useState("ALL");
-  const [priorityFilter, setPriorityFilter] = useState("ALL");
+  // Checkbox filters for the schema fields shown in FilterSidebar
+  const [statusChecks, setStatusChecks] = useState<string[]>([]);
+  const [priorityChecks, setPriorityChecks] = useState<string[]>([]);
+  const [sourceChecks, setSourceChecks] = useState<string[]>([]);
   const [sortNewest, setSortNewest] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   const [view, setView] = useState<"list" | "grid">("list");
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  // Esc closes the lead detail dialog
+  useEffect(() => {
+    if (!detailLead) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setDetailLead(null);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [detailLead]);
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return leads
@@ -336,9 +336,10 @@ export default function Leads() {
         ].some(value => value.toLowerCase().includes(query));
         return (
           matchesSearch &&
-          (statusFilter === "ALL" || lead.status === statusFilter) &&
-          (sourceFilter === "ALL" || lead.source === sourceFilter) &&
-          (priorityFilter === "ALL" || lead.priority === priorityFilter)
+          (statusChecks.length === 0 || statusChecks.includes(lead.status)) &&
+          (priorityChecks.length === 0 ||
+            priorityChecks.includes(lead.priority)) &&
+          (sourceChecks.length === 0 || sourceChecks.includes(lead.source))
         );
       })
       .sort((a, b) =>
@@ -346,7 +347,14 @@ export default function Leads() {
           ? b.createdAt.localeCompare(a.createdAt)
           : a.createdAt.localeCompare(b.createdAt),
       );
-  }, [leads, search, statusFilter, sourceFilter, priorityFilter, sortNewest]);
+  }, [
+    leads,
+    search,
+    statusChecks,
+    priorityChecks,
+    sourceChecks,
+    sortNewest,
+  ]);
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
@@ -355,9 +363,9 @@ export default function Leads() {
     setLeads(previous => [lead, ...previous]);
     setShowCreateModal(false);
     setSearch("");
-    setStatusFilter("ALL");
-    setSourceFilter("ALL");
-    setPriorityFilter("ALL");
+    setStatusChecks([]);
+    setPriorityChecks([]);
+    setSourceChecks([]);
     setPage(1);
   }
   function exportCsv() {
@@ -414,16 +422,19 @@ export default function Leads() {
   }
   function resetFilters() {
     setSearch("");
-    setStatusFilter("ALL");
-    setSourceFilter("ALL");
-    setPriorityFilter("ALL");
+    setStatusChecks([]);
+    setPriorityChecks([]);
+    setSourceChecks([]);
     setPage(1);
   }
   const hasActiveFilters =
     search !== "" ||
-    statusFilter !== "ALL" ||
-    sourceFilter !== "ALL" ||
-    priorityFilter !== "ALL";
+    statusChecks.length > 0 ||
+    priorityChecks.length > 0 ||
+    sourceChecks.length > 0;
+  const visibleLeadColumns = leadColumns.filter(
+    column => !hiddenColumns.includes(column.key),
+  );
   // Full-page create form replaces the list while open
   if (showCreateModal) {
     return (
@@ -479,19 +490,6 @@ export default function Leads() {
           </button>
         </div>
       </header>
-      {/* Saved view row */}
-      <div className="flex min-h-[42px] items-center justify-between border-b border-slate-200 px-5">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-        >
-          All Leads
-          <ChevronDown size={13} />
-        </button>
-        <span className="text-xs text-slate-400">
-          Sales Workspace
-        </span>
-      </div>
       {/* Action toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -559,13 +557,14 @@ export default function Leads() {
           >
             <Download size={15} />
           </button>
-          <button
-            type="button"
-            title="Table settings"
-            className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-          >
-            <SlidersHorizontal size={15} />
-          </button>
+          <TableSettings
+            columns={leadColumns.map(column => ({
+              key: column.key,
+              label: String(column.header),
+            }))}
+            hidden={hiddenColumns}
+            onChange={setHiddenColumns}
+          />
         </div>
       </div>
       {/* Main workspace */}
@@ -575,54 +574,23 @@ export default function Leads() {
           <FilterSidebar
             title="Filter Leads by"
             sections={[
-              { title: "System Defined Filters", items: systemFilters },
-              { title: "Filter By Fields", items: fieldFilters },
-            ]}
-            selects={[
               {
-                label: "Lead Status",
-                value: statusFilter,
-                options: [
-                  { value: "ALL", label: "All statuses" },
-                  { value: "NEW", label: "New" },
-                  { value: "CONTACTED", label: "Contacted" },
-                  { value: "QUALIFIED", label: "Qualified" },
-                  { value: "DISQUALIFIED", label: "Disqualified" },
-                  { value: "CONVERTED", label: "Converted" },
-                ],
-                onChange: value => {
-                  setStatusFilter(value);
-                  setPage(1);
-                },
+                title: "Lead Status",
+                items: statusOptions,
+                selected: statusChecks,
+                onChange: setStatusChecks,
               },
               {
-                label: "Lead Source",
-                value: sourceFilter,
-                options: [
-                  { value: "ALL", label: "All sources" },
-                  ...[...new Set(leads.map(lead => lead.source))].map(
-                    source => ({ value: source, label: source }),
-                  ),
-                ],
-                onChange: value => {
-                  setSourceFilter(value);
-                  setPage(1);
-                },
+                title: "Priority",
+                items: priorityOptions,
+                selected: priorityChecks,
+                onChange: setPriorityChecks,
               },
               {
-                label: "Priority",
-                value: priorityFilter,
-                options: [
-                  { value: "ALL", label: "All priorities" },
-                  { value: "LOW", label: "Low" },
-                  { value: "MEDIUM", label: "Medium" },
-                  { value: "HIGH", label: "High" },
-                  { value: "URGENT", label: "Urgent" },
-                ],
-                onChange: value => {
-                  setPriorityFilter(value);
-                  setPage(1);
-                },
+                title: "Lead Source",
+                items: LEAD_SOURCES,
+                selected: sourceChecks,
+                onChange: setSourceChecks,
               },
             ]}
           />
@@ -649,7 +617,7 @@ export default function Leads() {
           </div>
           {view === "list" ? (
             <DataTable<Lead>
-              columns={leadColumns}
+              columns={visibleLeadColumns}
               rows={pageLeads}
               getRowId={lead => lead.id}
               onRowClick={lead => setDetailLead(lead)}
@@ -784,17 +752,20 @@ export default function Leads() {
           />
         </section>
       </div>
-      {/* Lead detail panel */}
+      {/* Lead detail dialog (centered modal) */}
       {detailLead && (
         <div
-          className="fixed inset-0 z-40 flex justify-end bg-slate-950/20"
+          className="dialog-overlay-in fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 p-4"
           onClick={() => setDetailLead(null)}
         >
-          <aside
-            className="h-full w-full max-w-md overflow-y-auto border-l border-slate-200 bg-white shadow-2xl"
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Lead details"
+            className="dialog-enter flex h-[min(85vh,640px,90vw)] w-[min(85vh,640px,90vw)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
                 <p className="text-xs text-slate-500">Lead details</p>
                 <h2 className="mt-1 text-lg font-semibold text-slate-800">
@@ -810,7 +781,7 @@ export default function Leads() {
                 <X size={18} />
               </button>
             </div>
-            <div className="p-5">
+            <div className="overflow-y-auto p-5">
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
                   {detailLead.firstName[0]}
@@ -903,7 +874,7 @@ export default function Leads() {
                 </select>
               </label>
             </div>
-          </aside>
+          </div>
         </div>
       )}
     </div>

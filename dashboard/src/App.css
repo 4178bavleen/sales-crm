@@ -14,3 +14,31 @@
 .page-enter {
   animation: lead-page-in 0.25s ease-out;
 }
+
+@keyframes lead-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lead-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-overlay-in {
+  animation: lead-overlay-in 0.15s ease-out;
+}
+
+.dialog-enter {
+  animation: lead-dialog-in 0.2s ease-out;
+}
