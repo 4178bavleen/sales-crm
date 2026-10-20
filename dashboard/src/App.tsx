@@ -1,10 +1,12 @@
 
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Leads from "./pages/leads/Leads";
 import Contacts from "./pages/contacts/Contacts";
+import Companies from "./pages/companies/Companies";
+import NotFound from "./pages/NotFound";
 import "./App.css";
 
 export default function App() {
@@ -20,10 +22,8 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/contacts" element={<Contacts />} />
-            <Route
-              path="*"
-              element={<Navigate to="/" replace />}
-            />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>

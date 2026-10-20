@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { UserRound, BriefcaseBusiness, CalendarDays, ChevronDown } from "lucide-react";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
 import type { LeadStatus } from "../../types/lead";
+import { COMPANY_INDUSTRIES } from "../../types/company";
 import type { CreateLeadFormProps, FormValues } from "../../types/createLeadForm";
 import { cellClass, inputValid, labelClass } from "../../types/formControls";
 import {
@@ -168,7 +169,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
           <Field label="Website" value={form.website} onChange={v => update("website", v)} placeholder="https://" />
         </div>
         <div className={cellClass}>
-          <SelectField label="Industry" value={form.industry} onChange={v => update("industry", v)} options={["Technology", "Finance", "Healthcare", "Manufacturing", "Retail", "Education", "Other"]} />
+          <SelectField label="Industry" value={form.industry} onChange={v => update("industry", v)} options={COMPANY_INDUSTRIES} />
         </div>
         <div className={cellClass}>
           <TextAreaField label="Street" value={form.street} onChange={v => update("street", v)} placeholder="Street address" />
