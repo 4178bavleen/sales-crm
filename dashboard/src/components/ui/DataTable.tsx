@@ -3,7 +3,6 @@ import {
   CheckSquare,
   Square,
   SlidersHorizontal,
-  Search,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,

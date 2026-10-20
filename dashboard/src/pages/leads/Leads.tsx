@@ -5,14 +5,9 @@ import {
   Filter,
   ArrowUpDown,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   LayoutGrid,
   List,
   SlidersHorizontal,
-  MoreHorizontal,
-  Square,
-  CheckSquare,
   X,
   Download,
   CalendarDays,
@@ -29,6 +24,11 @@ import CreateLeadModal, {
   type LeadStatus,
   type Priority,
 } from "../../components/ui/Createlead";
+import DataTable, {
+  type DataTableColumn,
+  TablePagination,
+} from "../../components/ui/DataTable";
+import FilterSidebar from "../../components/ui/FilterSidebar";
 
 const initialLeads: Lead[] = [
   {
@@ -204,79 +204,109 @@ function formatDate(date: string) {
     year: "numeric",
   });
 }
-function Checkbox({
-checked,
-onChange,
-label,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      aria-label={label}
-      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 hover:text-blue-600"
-    >
-      {checked ? (
-        <CheckSquare size={16} className="text-blue-600" />
-      ) : (
-        <Square size={16} />
-      )}
-    </button>
-  );
-}
-function FilterSection({
-title,
-items,
-}: {
-  title: string;
-  items: string[];
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const [selected, setSelected] = useState<string[]>([]);
-  return (
-    <section>
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="mb-2 flex w-full items-center gap-2 text-left text-xs font-semibold text-slate-700"
-      >
-        <ChevronDown
-          size={14}
-          className={`transition-transform ${expanded ? "" : "-rotate-90"}`}
-        />
-        <span>{title}</span>
-      </button>
-      {expanded && (
-        <div className="space-y-1.5">
-          {items.map(item => (
-            <label
-              key={item}
-              className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(item)}
-                onChange={() =>
-                  setSelected(previous =>
-                    previous.includes(item)
-                      ? previous.filter(value => value !== item)
-                      : [...previous, item],
-                  )
-                }
-                className="mt-0.5 accent-blue-600"
-              />
-              <span>{item}</span>
-            </label>
-          ))}
+const leadColumns: DataTableColumn<Lead>[] = [
+  {
+    key: "name",
+    header: "Lead Name",
+    className: "min-w-[170px]",
+    cell: lead => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-700">
+          {lead.firstName[0]}
+          {lead.lastName[0]}
         </div>
-      )}
-    </section>
-  );
-}
+        <div>
+          <p className="text-xs font-medium text-blue-600 group-hover:text-blue-800">
+            {lead.firstName} {lead.lastName}
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-400">
+            Lead #{lead.id}
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: "company",
+    header: "Company",
+    className: "text-xs text-slate-600",
+    cell: lead => (
+      <div className="flex items-center gap-2">
+        <Building2 size={13} className="shrink-0 text-slate-400" />
+        {lead.company}
+      </div>
+    ),
+  },
+  {
+    key: "email",
+    header: "Email",
+    className: "text-xs text-slate-500",
+    cell: lead => (
+      <div className="flex max-w-[190px] items-center gap-2">
+        <Mail size={13} className="shrink-0 text-slate-400" />
+        <span className="truncate">{lead.email || "—"}</span>
+      </div>
+    ),
+  },
+  {
+    key: "phone",
+    header: "Phone",
+    className: "whitespace-nowrap text-xs text-slate-600",
+    cell: lead => (
+      <div className="flex items-center gap-2">
+        <Phone size={13} className="text-slate-400" />
+        {lead.phone || "—"}
+      </div>
+    ),
+  },
+  {
+    key: "source",
+    header: "Lead Source",
+    className: "whitespace-nowrap text-xs text-slate-600",
+    cell: lead => lead.source,
+  },
+  {
+    key: "owner",
+    header: "Lead Owner",
+    className: "whitespace-nowrap text-xs text-slate-600",
+    cell: lead => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-50 text-[9px] font-semibold text-violet-700">
+          GD
+        </div>
+        {lead.owner}
+      </div>
+    ),
+  },
+  {
+    key: "status",
+    header: "Lead Status",
+    cell: lead => (
+      <span
+        className={`whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium ${statusStyles[lead.status]}`}
+      >
+        {lead.status}
+      </span>
+    ),
+  },
+  {
+    key: "priority",
+    header: "Priority",
+    cell: lead => (
+      <span
+        className={`whitespace-nowrap text-[11px] font-medium ${priorityStyles[lead.priority]}`}
+      >
+        {lead.priority}
+      </span>
+    ),
+  },
+  {
+    key: "createdAt",
+    header: "Created Time",
+    className: "whitespace-nowrap text-xs text-slate-500",
+    cell: lead => formatDate(lead.createdAt),
+  },
+];
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState("");
@@ -290,7 +320,6 @@ export default function Leads() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [menuLeadId, setMenuLeadId] = useState<number | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -322,22 +351,6 @@ export default function Leads() {
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
   const pageLeads = filteredLeads.slice(startIndex, startIndex + pageSize);
-  const selectedOnPage = pageLeads.every(lead =>
-    selectedIds.includes(lead.id),
-  );
-  function toggleAll() {
-    if (selectedOnPage) {
-      setSelectedIds(previous =>
-        previous.filter(id => !pageLeads.some(lead => lead.id === id)),
-      );
-    } else {
-      setSelectedIds(previous =>
-        Array.from(
-          new Set([...previous, ...pageLeads.map(lead => lead.id)]),
-        ),
-      );
-    }
-  }
   function createLead(lead: Lead) {
     setLeads(previous => [lead, ...previous]);
     setShowCreateModal(false);
@@ -390,7 +403,6 @@ export default function Leads() {
     setLeads(previous =>
       previous.map(lead => (lead.id === id ? { ...lead, status } : lead)),
     );
-    setMenuLeadId(null);
     setDetailLead(previous =>
       previous?.id === id ? { ...previous, status } : previous,
     );
@@ -398,7 +410,6 @@ export default function Leads() {
   function deleteLead(id: number) {
     setLeads(previous => previous.filter(lead => lead.id !== id));
     setSelectedIds(previous => previous.filter(item => item !== id));
-    setMenuLeadId(null);
     setDetailLead(null);
   }
   function resetFilters() {
@@ -413,8 +424,6 @@ export default function Leads() {
     statusFilter !== "ALL" ||
     sourceFilter !== "ALL" ||
     priorityFilter !== "ALL";
-  const selectClass =
-    "rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-600 outline-none hover:border-slate-300 focus:border-blue-500";
   // Full-page create form replaces the list while open
   if (showCreateModal) {
     return (
@@ -427,12 +436,7 @@ export default function Leads() {
     );
   }
   return (
-    <div
-      className="relative -m-4 min-h-[calc(100vh-64px)] bg-white text-slate-700 md:-m-8"
-      onClick={() => {
-        if (menuLeadId !== null) setMenuLeadId(null);
-      }}
-    >
+    <div className="relative -m-4 min-h-[calc(100vh-64px)] bg-white text-slate-700 md:-m-8">
       {/* Page header */}
       <header className="flex min-h-[54px] flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
         <div className="flex items-center gap-3">
@@ -568,93 +572,65 @@ export default function Leads() {
       <div className="flex h-[calc(100vh-220px)] min-h-0 items-stretch overflow-hidden">
         {/* Filter sidebar */}
         {showFilters && (
-          <aside className="hidden h-full w-[210px] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 lg:flex">
-            <h2 className="mb-3 text-xs font-semibold text-slate-800">
-              Filter Leads by
-            </h2>
-            <div className="relative mb-5">
-              <Search
-                size={14}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                placeholder="Search filters"
-                className="w-full rounded-md border border-slate-200 py-2 pl-8 pr-2 text-xs outline-none focus:border-blue-400"
-              />
-            </div>
-            <div className="space-y-5">
-              <FilterSection
-                title="System Defined Filters"
-                items={systemFilters}
-              />
-              <div className="border-t border-slate-100 pt-4">
-                <FilterSection title="Filter By Fields" items={fieldFilters} />
-              </div>
-            </div>
-            <div className="mt-5 border-t border-slate-100 pt-4">
-              <p className="mb-3 text-xs font-semibold text-slate-700">
-                Quick Filters
-              </p>
-              <label className="mb-3 block text-[11px] text-slate-500">
-                Lead Status
-                <select
-                  value={statusFilter}
-                  onChange={e => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className={`${selectClass} mt-1.5 w-full`}
-                >
-                  <option value="ALL">All statuses</option>
-                  <option value="NEW">New</option>
-                  <option value="CONTACTED">Contacted</option>
-                  <option value="QUALIFIED">Qualified</option>
-                  <option value="DISQUALIFIED">Disqualified</option>
-                  <option value="CONVERTED">Converted</option>
-                </select>
-              </label>
-              <label className="mb-3 block text-[11px] text-slate-500">
-                Lead Source
-                <select
-                  value={sourceFilter}
-                  onChange={e => {
-                    setSourceFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className={`${selectClass} mt-1.5 w-full`}
-                >
-                  <option value="ALL">All sources</option>
-                  {[...new Set(leads.map(lead => lead.source))].map(
-                    source => (
-                      <option key={source}>{source}</option>
-                    ),
-                  )}
-                </select>
-              </label>
-              <label className="block text-[11px] text-slate-500">
-                Priority
-                <select
-                  value={priorityFilter}
-                  onChange={e => {
-                    setPriorityFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className={`${selectClass} mt-1.5 w-full`}
-                >
-                  <option value="ALL">All priorities</option>
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
-                </select>
-              </label>
-            </div>
-          </aside>
+          <FilterSidebar
+            title="Filter Leads by"
+            sections={[
+              { title: "System Defined Filters", items: systemFilters },
+              { title: "Filter By Fields", items: fieldFilters },
+            ]}
+            selects={[
+              {
+                label: "Lead Status",
+                value: statusFilter,
+                options: [
+                  { value: "ALL", label: "All statuses" },
+                  { value: "NEW", label: "New" },
+                  { value: "CONTACTED", label: "Contacted" },
+                  { value: "QUALIFIED", label: "Qualified" },
+                  { value: "DISQUALIFIED", label: "Disqualified" },
+                  { value: "CONVERTED", label: "Converted" },
+                ],
+                onChange: value => {
+                  setStatusFilter(value);
+                  setPage(1);
+                },
+              },
+              {
+                label: "Lead Source",
+                value: sourceFilter,
+                options: [
+                  { value: "ALL", label: "All sources" },
+                  ...[...new Set(leads.map(lead => lead.source))].map(
+                    source => ({ value: source, label: source }),
+                  ),
+                ],
+                onChange: value => {
+                  setSourceFilter(value);
+                  setPage(1);
+                },
+              },
+              {
+                label: "Priority",
+                value: priorityFilter,
+                options: [
+                  { value: "ALL", label: "All priorities" },
+                  { value: "LOW", label: "Low" },
+                  { value: "MEDIUM", label: "Medium" },
+                  { value: "HIGH", label: "High" },
+                  { value: "URGENT", label: "Urgent" },
+                ],
+                onChange: value => {
+                  setPriorityFilter(value);
+                  setPage(1);
+                },
+              },
+            ]}
+          />
         )}
         {/* Leads table */}
-        <section className="min-w-0 flex-1">
+        <section className="flex min-w-0 flex-1 flex-col">
           {/* Mobile search */}
-          <div className="border-b border-slate-100 p-3 sm:hidden">
+          <div className="shrink-0 border-b border-slate-100 p-3 sm:hidden">
             <div className="relative">
               <Search
                 size={15}
@@ -672,231 +648,77 @@ export default function Leads() {
             </div>
           </div>
           {view === "list" ? (
-            <div className="h-full overflow-auto">
-              <table className="w-full min-w-[1050px] border-collapse text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50">
-                  <tr className="border-b border-slate-200">
-                    <th className="w-10 px-3 py-3">
-                      <Checkbox
-                        checked={
-                          pageLeads.length > 0 && selectedOnPage
-                        }
-                        onChange={toggleAll}
-                        label="Select all visible leads"
-                      />
-                    </th>
-                    {[
-                      "Lead Name",
-                      "Company",
-                      "Email",
-                      "Phone",
-                      "Lead Source",
-                      "Lead Owner",
-                      "Lead Status",
-                      "Priority",
-                      "Created Time",
-                    ].map(heading => (
-                      <th
-                        key={heading}
-                        className="whitespace-nowrap border-l border-slate-200 px-3 py-3 text-[11px] font-semibold text-slate-600"
-                      >
-                        {heading}
-                      </th>
-                    ))}
-                    <th className="w-10 border-l border-slate-200 px-3 py-3">
-                      <SlidersHorizontal
-                        size={14}
-                        className="text-slate-500"
-                      />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageLeads.map((lead, index) => (
-                    <tr
-                      key={lead.id}
-                      onClick={() => setDetailLead(lead)}
-                      className={`group cursor-pointer border-b border-slate-100 transition-colors hover:bg-blue-50/50 ${
-                        index % 2 === 1 ? "bg-slate-50/30" : "bg-white"
-                      }`}
+            <DataTable<Lead>
+              columns={leadColumns}
+              rows={pageLeads}
+              getRowId={lead => lead.id}
+              onRowClick={lead => setDetailLead(lead)}
+              selectable
+              selectedIds={selectedIds}
+              onSelectionChange={ids => setSelectedIds(ids as number[])}
+              getRowLabel={lead => `${lead.firstName} ${lead.lastName}`}
+              renderRowMenu={lead => (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDetailLead(lead)}
+                    className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
+                  >
+                    View details
+                  </button>
+                  <div className="my-1 border-t border-slate-100" />
+                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    Update status
+                  </p>
+                  {(
+                    [
+                      "NEW",
+                      "CONTACTED",
+                      "QUALIFIED",
+                      "CONVERTED",
+                    ] as LeadStatus[]
+                  ).map(status => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => updateLeadStatus(lead.id, status)}
+                      className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
                     >
-                      <td
-                        className="px-3 py-3"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Checkbox
-                          checked={selectedIds.includes(lead.id)}
-                          onChange={() =>
-                            setSelectedIds(previous =>
-                              previous.includes(lead.id)
-                                ? previous.filter(id => id !== lead.id)
-                                : [...previous, lead.id],
-                            )
-                          }
-                          label={`Select ${lead.firstName} ${lead.lastName}`}
-                        />
-                      </td>
-                      <td className="min-w-[170px] px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-700">
-                            {lead.firstName[0]}
-                            {lead.lastName[0]}
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-blue-600 group-hover:text-blue-800">
-                              {lead.firstName} {lead.lastName}
-                            </p>
-                            <p className="mt-0.5 text-[10px] text-slate-400">
-                              Lead #{lead.id}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <Building2
-                            size={13}
-                            className="shrink-0 text-slate-400"
-                          />
-                          {lead.company}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-slate-500">
-                        <div className="flex max-w-[190px] items-center gap-2">
-                          <Mail
-                            size={13}
-                            className="shrink-0 text-slate-400"
-                          />
-                          <span className="truncate">{lead.email || "—"}</span>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <Phone
-                            size={13}
-                            className="text-slate-400"
-                          />
-                          {lead.phone || "—"}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
-                        {lead.source}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-50 text-[9px] font-semibold text-violet-700">
-                            GD
-                          </div>
-                          {lead.owner}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium ${statusStyles[lead.status]}`}
-                        >
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`whitespace-nowrap text-[11px] font-medium ${priorityStyles[lead.priority]}`}
-                        >
-                          {lead.priority}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-500">
-                        {formatDate(lead.createdAt)}
-                      </td>
-                      <td
-                        className="relative px-3 py-3"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMenuLeadId(
-                              menuLeadId === lead.id ? null : lead.id,
-                            )
-                          }
-                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                          aria-label="Lead actions"
-                        >
-                          <MoreHorizontal size={17} />
-                        </button>
-                        {menuLeadId === lead.id && (
-                          <div className="absolute right-8 top-8 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDetailLead(lead);
-                                setMenuLeadId(null);
-                              }}
-                              className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
-                            >
-                              View details
-                            </button>
-                            <div className="my-1 border-t border-slate-100" />
-                            <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                              Update status
-                            </p>
-                            {(
-                              [
-                                "NEW",
-                                "CONTACTED",
-                                "QUALIFIED",
-                                "CONVERTED",
-                              ] as LeadStatus[]
-                            ).map(status => (
-                              <button
-                                key={status}
-                                type="button"
-                                onClick={() =>
-                                  updateLeadStatus(lead.id, status)
-                                }
-                                className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
-                              >
-                                {status}
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => deleteLead(lead.id)}
-                              className="w-full rounded px-3 py-2 text-left text-xs text-rose-600 hover:bg-rose-50"
-                            >
-                              Delete lead
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                      {status}
+                    </button>
                   ))}
-                  {pageLeads.length === 0 && (
-                    <tr>
-                      <td colSpan={11} className="px-6 py-20 text-center">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                          <Search size={20} className="text-slate-400" />
-                        </div>
-                        <p className="mt-3 text-sm font-medium text-slate-700">
-                          No leads found
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Try changing your search or filters.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={resetFilters}
-                          className="mt-3 text-xs font-medium text-blue-600 hover:underline"
-                        >
-                          Clear filters
-                        </button>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => deleteLead(lead.id)}
+                    className="w-full rounded px-3 py-2 text-left text-xs text-rose-600 hover:bg-rose-50"
+                  >
+                    Delete lead
+                  </button>
+                </>
+              )}
+              empty={
+                <div>
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                    <Search size={20} className="text-slate-400" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-slate-700">
+                    No leads found
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Try changing your search or filters.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="mt-3 text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              }
+            />
           ) : (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="min-h-0 flex-1 overflow-auto grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
               {pageLeads.map(lead => (
                 <button
                   key={lead.id}
@@ -949,63 +771,17 @@ export default function Leads() {
             </div>
           )}
           {/* Pagination */}
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              <span>
-                Total Records{" "}
-                <strong className="font-semibold text-slate-800">
-                  {filteredLeads.length}
-                </strong>
-              </span>
-              {selectedIds.length > 0 && (
-                <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
-                  {selectedIds.length} selected
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
-                Rows
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="rounded border border-slate-200 bg-white px-2 py-1.5 outline-none"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </label>
-              <span className="whitespace-nowrap text-xs text-slate-500">
-                {filteredLeads.length === 0 ? 0 : startIndex + 1}–
-                {Math.min(startIndex + pageSize, filteredLeads.length)} of{" "}
-                {filteredLeads.length}
-              </span>
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setPage(previous => Math.max(1, previous - 1))}
-                className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Previous page"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() =>
-                  setPage(previous => Math.min(totalPages, previous + 1))
-                }
-                className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Next page"
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          </footer>
+          <TablePagination
+            total={filteredLeads.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={size => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            selectedCount={selectedIds.length}
+          />
         </section>
       </div>
       {/* Lead detail panel */}

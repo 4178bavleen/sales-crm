@@ -8,7 +8,6 @@ import {
   Settings,
   LogOut,
   Check,
-  Menu,
   X,
 } from "lucide-react";
 
@@ -39,16 +38,8 @@ export default function Topbar() {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-8">
-        {/* Left: Mobile menu and search */}
+        {/* Left: Search */}
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <button
-            type="button"
-            aria-label="Toggle navigation"
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
-          >
-            <Menu size={20} />
-          </button>
-
           <div className="hidden w-full max-w-md items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 transition focus-within:border-indigo-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-indigo-50 sm:flex">
             <Search size={18} className="shrink-0 text-slate-400" />
 
