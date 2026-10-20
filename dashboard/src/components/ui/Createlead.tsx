@@ -4,7 +4,6 @@ import {
   UserRound,
   BriefcaseBusiness,
   CalendarDays,
-  ChevronRight,
   ChevronDown,
 } from "lucide-react";
 
@@ -403,8 +402,8 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             <div className={cellClass}>
               <SelectField label="Industry" value={form.industry} onChange={(v) => update("industry", v)} options={["Technology", "Finance", "Healthcare", "Manufacturing", "Retail", "Education", "Other"]} />
             </div>
-            <div className={`${cellClass} sm:col-span-2 sm:items-start`}>
-              <label htmlFor="street" className={`${labelClass} sm:pt-2`}>
+            <div className={cellClass}>
+              <label htmlFor="street" className={labelClass}>
                 Street
               </label>
               <textarea
@@ -432,8 +431,8 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             title="Notes & Follow-up"
             description="Context for the team and the next step."
           >
-            <div className={`${cellClass} sm:col-span-2 sm:items-start`}>
-              <label htmlFor="notes" className={`${labelClass} sm:pt-2`}>
+            <div className={cellClass}>
+              <label htmlFor="notes" className={labelClass}>
                 Notes
               </label>
               <textarea
