@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Bell,
@@ -10,8 +11,20 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { getSession, signOut } from "../../lib/auth";
 
 export default function Topbar() {
+  const navigate = useNavigate();
+  const session = getSession();
+  const userName = session?.user.name ?? "Gabriel Deora";
+  const userRole = session?.user.role ?? "Sales Manager";
+  const initials = userName
+    .split(" ")
+    .map(part => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
   const [search, setSearch] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -162,14 +175,14 @@ export default function Topbar() {
               className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-slate-50"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 ring-2 ring-white">
-                GD
+                {initials || "GD"}
               </div>
 
               <div className="hidden text-left lg:block">
                 <p className="text-sm font-semibold text-slate-800">
-                  Gabriel Deora
+                  {userName}
                 </p>
-                <p className="text-xs text-slate-400">Sales Manager</p>
+                <p className="text-xs text-slate-400">{userRole}</p>
               </div>
 
               <ChevronDown
@@ -182,10 +195,10 @@ export default function Topbar() {
               <div className="absolute right-0 top-12 z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-200/60">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <p className="text-sm font-semibold text-slate-800">
-                    Gabriel Deora
+                    {userName}
                   </p>
                   <p className="mt-1 truncate text-xs text-slate-500">
-                    Sales Manager
+                    {userRole}
                   </p>
                 </div>
 
@@ -211,7 +224,11 @@ export default function Topbar() {
 
                 <button
                   type="button"
-                  onClick={() => setShowProfile(false)}
+                  onClick={() => {
+                    signOut();
+                    setShowProfile(false);
+                    navigate("/login", { replace: true });
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
                 >
                   <LogOut size={16} />
