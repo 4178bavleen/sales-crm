@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -24,29 +24,11 @@ import {
   CircleHelp,
   RotateCcw,
 } from "lucide-react";
-
-type LeadStatus =
-  | "NEW"
-  | "CONTACTED"
-  | "QUALIFIED"
-  | "DISQUALIFIED"
-  | "CONVERTED";
-
-type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-
-type Lead = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  company: string;
-  email: string;
-  phone: string;
-  source: string;
-  owner: string;
-  status: LeadStatus;
-  priority: Priority;
-  createdAt: string;
-};
+import CreateLeadModal, {
+  type Lead,
+  type LeadStatus,
+  type Priority,
+} from "../../components/ui/Createlead";
 
 const initialLeads: Lead[] = [
   {
@@ -180,7 +162,6 @@ const initialLeads: Lead[] = [
     createdAt: "2026-10-12",
   },
 ];
-
 const statusStyles: Record<LeadStatus, string> = {
   NEW: "bg-slate-100 text-slate-700",
   CONTACTED: "bg-blue-50 text-blue-700",
@@ -188,14 +169,12 @@ const statusStyles: Record<LeadStatus, string> = {
   DISQUALIFIED: "bg-rose-50 text-rose-700",
   CONVERTED: "bg-violet-50 text-violet-700",
 };
-
 const priorityStyles: Record<Priority, string> = {
   LOW: "text-slate-500",
   MEDIUM: "text-blue-600",
   HIGH: "text-orange-600",
   URGENT: "text-rose-600",
 };
-
 const systemFilters = [
   "Activities",
   "Cadences",
@@ -207,7 +186,6 @@ const systemFilters = [
   "Touched Records",
   "Untouched Records",
 ];
-
 const fieldFilters = [
   "Address",
   "Address - City",
@@ -219,7 +197,6 @@ const fieldFilters = [
   "Priority",
   "Created Time",
 ];
-
 function formatDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
     month: "short",
@@ -227,11 +204,10 @@ function formatDate(date: string) {
     year: "numeric",
   });
 }
-
 function Checkbox({
-  checked,
-  onChange,
-  label,
+checked,
+onChange,
+label,
 }: {
   checked: boolean;
   onChange: () => void;
@@ -252,17 +228,15 @@ function Checkbox({
     </button>
   );
 }
-
 function FilterSection({
-  title,
-  items,
+title,
+items,
 }: {
   title: string;
   items: string[];
 }) {
   const [expanded, setExpanded] = useState(true);
   const [selected, setSelected] = useState<string[]>([]);
-
   return (
     <section>
       <button
@@ -276,10 +250,9 @@ function FilterSection({
         />
         <span>{title}</span>
       </button>
-
       {expanded && (
         <div className="space-y-1.5">
-          {items.map((item) => (
+          {items.map(item => (
             <label
               key={item}
               className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50"
@@ -288,9 +261,9 @@ function FilterSection({
                 type="checkbox"
                 checked={selected.includes(item)}
                 onChange={() =>
-                  setSelected((previous) =>
+                  setSelected(previous =>
                     previous.includes(item)
-                      ? previous.filter((value) => value !== item)
+                      ? previous.filter(value => value !== item)
                       : [...previous, item],
                   )
                 }
@@ -304,208 +277,6 @@ function FilterSection({
     </section>
   );
 }
-
-function CreateLeadModal({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void;
-  onCreate: (lead: Lead) => void;
-}) {
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    company: "",
-    email: "",
-    phone: "",
-    source: "Web Download",
-    owner: "Gabriel Deora",
-    status: "NEW" as LeadStatus,
-    priority: "MEDIUM" as Priority,
-  });
-
-  function update<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K],
-  ) {
-    setForm((previous) => ({ ...previous, [key]: value }));
-  }
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    onCreate({
-      ...form,
-      id: Date.now(),
-      createdAt: new Date().toISOString().slice(0, 10),
-    });
-  }
-
-  const inputClass =
-    "mt-1.5 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800">
-              Create Lead
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Add a new lead to your CRM.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={submit} className="p-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-medium text-slate-600">
-              First name *
-              <input
-                required
-                value={form.firstName}
-                onChange={(e) => update("firstName", e.target.value)}
-                className={inputClass}
-                placeholder="First name"
-              />
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Last name *
-              <input
-                required
-                value={form.lastName}
-                onChange={(e) => update("lastName", e.target.value)}
-                className={inputClass}
-                placeholder="Last name"
-              />
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Company *
-              <input
-                required
-                value={form.company}
-                onChange={(e) => update("company", e.target.value)}
-                className={inputClass}
-                placeholder="Company name"
-              />
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Email
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                className={inputClass}
-                placeholder="name@company.com"
-              />
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Phone
-              <input
-                value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                className={inputClass}
-                placeholder="+1 555 555 5555"
-              />
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Lead source
-              <select
-                value={form.source}
-                onChange={(e) => update("source", e.target.value)}
-                className={inputClass}
-              >
-                {[
-                  "Cold Call",
-                  "Advertisement",
-                  "Web Download",
-                  "Seminar Partner",
-                  "Online Store",
-                  "Partner",
-                  "External Referral",
-                ].map((source) => (
-                  <option key={source}>{source}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Lead status
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  update("status", e.target.value as LeadStatus)
-                }
-                className={inputClass}
-              >
-                {(
-                  [
-                    "NEW",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "DISQUALIFIED",
-                    "CONVERTED",
-                  ] as LeadStatus[]
-                ).map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs font-medium text-slate-600">
-              Priority
-              <select
-                value={form.priority}
-                onChange={(e) =>
-                  update("priority", e.target.value as Priority)
-                }
-                className={inputClass}
-              >
-                {(["LOW", "MEDIUM", "HIGH", "URGENT"] as Priority[]).map(
-                  (priority) => (
-                    <option key={priority}>{priority}</option>
-                  ),
-                )}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Save Lead
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState("");
@@ -521,12 +292,10 @@ export default function Leads() {
   const [pageSize, setPageSize] = useState(10);
   const [menuLeadId, setMenuLeadId] = useState<number | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
-
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
-
     return leads
-      .filter((lead) => {
+      .filter(lead => {
         const matchesSearch = [
           lead.firstName,
           lead.lastName,
@@ -535,8 +304,7 @@ export default function Leads() {
           lead.phone,
           lead.owner,
           lead.source,
-        ].some((value) => value.toLowerCase().includes(query));
-
+        ].some(value => value.toLowerCase().includes(query));
         return (
           matchesSearch &&
           (statusFilter === "ALL" || lead.status === statusFilter) &&
@@ -550,31 +318,28 @@ export default function Leads() {
           : a.createdAt.localeCompare(b.createdAt),
       );
   }, [leads, search, statusFilter, sourceFilter, priorityFilter, sortNewest]);
-
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
   const pageLeads = filteredLeads.slice(startIndex, startIndex + pageSize);
-  const selectedOnPage = pageLeads.every((lead) =>
+  const selectedOnPage = pageLeads.every(lead =>
     selectedIds.includes(lead.id),
   );
-
   function toggleAll() {
     if (selectedOnPage) {
-      setSelectedIds((previous) =>
-        previous.filter((id) => !pageLeads.some((lead) => lead.id === id)),
+      setSelectedIds(previous =>
+        previous.filter(id => !pageLeads.some(lead => lead.id === id)),
       );
     } else {
-      setSelectedIds((previous) =>
+      setSelectedIds(previous =>
         Array.from(
-          new Set([...previous, ...pageLeads.map((lead) => lead.id)]),
+          new Set([...previous, ...pageLeads.map(lead => lead.id)]),
         ),
       );
     }
   }
-
   function createLead(lead: Lead) {
-    setLeads((previous) => [lead, ...previous]);
+    setLeads(previous => [lead, ...previous]);
     setShowCreateModal(false);
     setSearch("");
     setStatusFilter("ALL");
@@ -582,7 +347,6 @@ export default function Leads() {
     setPriorityFilter("ALL");
     setPage(1);
   }
-
   function exportCsv() {
     const headers = [
       "First Name",
@@ -596,8 +360,7 @@ export default function Leads() {
       "Priority",
       "Created At",
     ];
-
-    const rows = filteredLeads.map((lead) => [
+    const rows = filteredLeads.map(lead => [
       lead.firstName,
       lead.lastName,
       lead.company,
@@ -609,42 +372,35 @@ export default function Leads() {
       lead.priority,
       lead.createdAt,
     ]);
-
     const escapeCsv = (value: string) =>
       `"${value.replace(/"/g, '""')}"`;
-
     const csv = [headers, ...rows]
-      .map((row) => row.map(escapeCsv).join(","))
+      .map(row => row.map(escapeCsv).join(","))
       .join("\n");
-
     const url = URL.createObjectURL(
       new Blob([csv], { type: "text/csv;charset=utf-8;" }),
     );
-
     const link = document.createElement("a");
     link.href = url;
     link.download = "sales-crm-leads.csv";
     link.click();
     URL.revokeObjectURL(url);
   }
-
   function updateLeadStatus(id: number, status: LeadStatus) {
-    setLeads((previous) =>
-      previous.map((lead) => (lead.id === id ? { ...lead, status } : lead)),
+    setLeads(previous =>
+      previous.map(lead => (lead.id === id ? { ...lead, status } : lead)),
     );
     setMenuLeadId(null);
-    setDetailLead((previous) =>
+    setDetailLead(previous =>
       previous?.id === id ? { ...previous, status } : previous,
     );
   }
-
   function deleteLead(id: number) {
-    setLeads((previous) => previous.filter((lead) => lead.id !== id));
-    setSelectedIds((previous) => previous.filter((item) => item !== id));
+    setLeads(previous => previous.filter(lead => lead.id !== id));
+    setSelectedIds(previous => previous.filter(item => item !== id));
     setMenuLeadId(null);
     setDetailLead(null);
   }
-
   function resetFilters() {
     setSearch("");
     setStatusFilter("ALL");
@@ -652,16 +408,13 @@ export default function Leads() {
     setPriorityFilter("ALL");
     setPage(1);
   }
-
   const hasActiveFilters =
     search !== "" ||
     statusFilter !== "ALL" ||
     sourceFilter !== "ALL" ||
     priorityFilter !== "ALL";
-
   const selectClass =
     "rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-600 outline-none hover:border-slate-300 focus:border-blue-500";
-
   return (
     <div
       className="relative -m-4 min-h-[calc(100vh-64px)] bg-white text-slate-700 md:-m-8"
@@ -677,7 +430,6 @@ export default function Leads() {
             {filteredLeads.length} records
           </span>
         </div>
-
         <div className="flex items-center gap-2">
           <div className="relative hidden sm:block">
             <Search
@@ -686,7 +438,7 @@ export default function Leads() {
             />
             <input
               value={search}
-              onChange={(e) => {
+              onChange={e => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
@@ -694,7 +446,6 @@ export default function Leads() {
               className="w-48 rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white sm:w-56"
             />
           </div>
-
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
@@ -703,7 +454,6 @@ export default function Leads() {
             <Plus size={15} />
             Create Lead
           </button>
-
           <button
             type="button"
             onClick={exportCsv}
@@ -714,7 +464,6 @@ export default function Leads() {
           </button>
         </div>
       </header>
-
       {/* Saved view row */}
       <div className="flex min-h-[42px] items-center justify-between border-b border-slate-200 px-5">
         <button
@@ -724,12 +473,10 @@ export default function Leads() {
           All Leads
           <ChevronDown size={13} />
         </button>
-
         <span className="text-xs text-slate-400">
           Sales Workspace
         </span>
       </div>
-
       {/* Action toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -745,7 +492,6 @@ export default function Leads() {
             <Filter size={14} />
             Filter
           </button>
-
           <button
             type="button"
             onClick={() => setSortNewest(!sortNewest)}
@@ -754,7 +500,6 @@ export default function Leads() {
             <ArrowUpDown size={14} />
             {sortNewest ? "Newest first" : "Oldest first"}
           </button>
-
           {hasActiveFilters && (
             <button
               type="button"
@@ -766,7 +511,6 @@ export default function Leads() {
             </button>
           )}
         </div>
-
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -780,7 +524,6 @@ export default function Leads() {
           >
             <List size={15} />
           </button>
-
           <button
             type="button"
             onClick={() => setView("grid")}
@@ -793,7 +536,6 @@ export default function Leads() {
           >
             <LayoutGrid size={15} />
           </button>
-
           <button
             type="button"
             onClick={exportCsv}
@@ -802,7 +544,6 @@ export default function Leads() {
           >
             <Download size={15} />
           </button>
-
           <button
             type="button"
             title="Table settings"
@@ -812,16 +553,14 @@ export default function Leads() {
           </button>
         </div>
       </div>
-
       {/* Main workspace */}
-      <div className="flex min-h-[calc(100vh-220px)] items-stretch">
+      <div className="flex h-[calc(100vh-220px)] min-h-0 items-stretch overflow-hidden">
         {/* Filter sidebar */}
         {showFilters && (
-          <aside className="hidden w-[210px] shrink-0 border-r border-slate-200 bg-white p-4 lg:block">
+          <aside className="hidden h-full w-[210px] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 lg:flex">
             <h2 className="mb-3 text-xs font-semibold text-slate-800">
               Filter Leads by
             </h2>
-
             <div className="relative mb-5">
               <Search
                 size={14}
@@ -832,28 +571,24 @@ export default function Leads() {
                 className="w-full rounded-md border border-slate-200 py-2 pl-8 pr-2 text-xs outline-none focus:border-blue-400"
               />
             </div>
-
             <div className="space-y-5">
               <FilterSection
                 title="System Defined Filters"
                 items={systemFilters}
               />
-
               <div className="border-t border-slate-100 pt-4">
                 <FilterSection title="Filter By Fields" items={fieldFilters} />
               </div>
             </div>
-
             <div className="mt-5 border-t border-slate-100 pt-4">
               <p className="mb-3 text-xs font-semibold text-slate-700">
                 Quick Filters
               </p>
-
               <label className="mb-3 block text-[11px] text-slate-500">
                 Lead Status
                 <select
                   value={statusFilter}
-                  onChange={(e) => {
+                  onChange={e => {
                     setStatusFilter(e.target.value);
                     setPage(1);
                   }}
@@ -867,31 +602,29 @@ export default function Leads() {
                   <option value="CONVERTED">Converted</option>
                 </select>
               </label>
-
               <label className="mb-3 block text-[11px] text-slate-500">
                 Lead Source
                 <select
                   value={sourceFilter}
-                  onChange={(e) => {
+                  onChange={e => {
                     setSourceFilter(e.target.value);
                     setPage(1);
                   }}
                   className={`${selectClass} mt-1.5 w-full`}
                 >
                   <option value="ALL">All sources</option>
-                  {[...new Set(leads.map((lead) => lead.source))].map(
-                    (source) => (
+                  {[...new Set(leads.map(lead => lead.source))].map(
+                    source => (
                       <option key={source}>{source}</option>
                     ),
                   )}
                 </select>
               </label>
-
               <label className="block text-[11px] text-slate-500">
                 Priority
                 <select
                   value={priorityFilter}
-                  onChange={(e) => {
+                  onChange={e => {
                     setPriorityFilter(e.target.value);
                     setPage(1);
                   }}
@@ -907,7 +640,6 @@ export default function Leads() {
             </div>
           </aside>
         )}
-
         {/* Leads table */}
         <section className="min-w-0 flex-1">
           {/* Mobile search */}
@@ -919,7 +651,7 @@ export default function Leads() {
               />
               <input
                 value={search}
-                onChange={(e) => {
+                onChange={e => {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
@@ -928,11 +660,10 @@ export default function Leads() {
               />
             </div>
           </div>
-
           {view === "list" ? (
-            <div className="overflow-x-auto">
+            <div className="h-full overflow-auto">
               <table className="w-full min-w-[1050px] border-collapse text-left">
-                <thead className="bg-slate-50">
+                <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200">
                     <th className="w-10 px-3 py-3">
                       <Checkbox
@@ -943,7 +674,6 @@ export default function Leads() {
                         label="Select all visible leads"
                       />
                     </th>
-
                     {[
                       "Lead Name",
                       "Company",
@@ -954,7 +684,7 @@ export default function Leads() {
                       "Lead Status",
                       "Priority",
                       "Created Time",
-                    ].map((heading) => (
+                    ].map(heading => (
                       <th
                         key={heading}
                         className="whitespace-nowrap border-l border-slate-200 px-3 py-3 text-[11px] font-semibold text-slate-600"
@@ -962,7 +692,6 @@ export default function Leads() {
                         {heading}
                       </th>
                     ))}
-
                     <th className="w-10 border-l border-slate-200 px-3 py-3">
                       <SlidersHorizontal
                         size={14}
@@ -971,7 +700,6 @@ export default function Leads() {
                     </th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {pageLeads.map((lead, index) => (
                     <tr
@@ -983,21 +711,20 @@ export default function Leads() {
                     >
                       <td
                         className="px-3 py-3"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                       >
                         <Checkbox
                           checked={selectedIds.includes(lead.id)}
                           onChange={() =>
-                            setSelectedIds((previous) =>
+                            setSelectedIds(previous =>
                               previous.includes(lead.id)
-                                ? previous.filter((id) => id !== lead.id)
+                                ? previous.filter(id => id !== lead.id)
                                 : [...previous, lead.id],
                             )
                           }
                           label={`Select ${lead.firstName} ${lead.lastName}`}
                         />
                       </td>
-
                       <td className="min-w-[170px] px-3 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-700">
@@ -1014,7 +741,6 @@ export default function Leads() {
                           </div>
                         </div>
                       </td>
-
                       <td className="px-3 py-3 text-xs text-slate-600">
                         <div className="flex items-center gap-2">
                           <Building2
@@ -1024,7 +750,6 @@ export default function Leads() {
                           {lead.company}
                         </div>
                       </td>
-
                       <td className="px-3 py-3 text-xs text-slate-500">
                         <div className="flex max-w-[190px] items-center gap-2">
                           <Mail
@@ -1034,7 +759,6 @@ export default function Leads() {
                           <span className="truncate">{lead.email || "—"}</span>
                         </div>
                       </td>
-
                       <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
                         <div className="flex items-center gap-2">
                           <Phone
@@ -1044,11 +768,9 @@ export default function Leads() {
                           {lead.phone || "—"}
                         </div>
                       </td>
-
                       <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
                         {lead.source}
                       </td>
-
                       <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
                         <div className="flex items-center gap-2">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-50 text-[9px] font-semibold text-violet-700">
@@ -1057,7 +779,6 @@ export default function Leads() {
                           {lead.owner}
                         </div>
                       </td>
-
                       <td className="px-3 py-3">
                         <span
                           className={`whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium ${statusStyles[lead.status]}`}
@@ -1065,7 +786,6 @@ export default function Leads() {
                           {lead.status}
                         </span>
                       </td>
-
                       <td className="px-3 py-3">
                         <span
                           className={`whitespace-nowrap text-[11px] font-medium ${priorityStyles[lead.priority]}`}
@@ -1073,14 +793,12 @@ export default function Leads() {
                           {lead.priority}
                         </span>
                       </td>
-
                       <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-500">
                         {formatDate(lead.createdAt)}
                       </td>
-
                       <td
                         className="relative px-3 py-3"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                       >
                         <button
                           type="button"
@@ -1094,7 +812,6 @@ export default function Leads() {
                         >
                           <MoreHorizontal size={17} />
                         </button>
-
                         {menuLeadId === lead.id && (
                           <div className="absolute right-8 top-8 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
                             <button
@@ -1107,13 +824,10 @@ export default function Leads() {
                             >
                               View details
                             </button>
-
                             <div className="my-1 border-t border-slate-100" />
-
                             <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                               Update status
                             </p>
-
                             {(
                               [
                                 "NEW",
@@ -1121,7 +835,7 @@ export default function Leads() {
                                 "QUALIFIED",
                                 "CONVERTED",
                               ] as LeadStatus[]
-                            ).map((status) => (
+                            ).map(status => (
                               <button
                                 key={status}
                                 type="button"
@@ -1133,7 +847,6 @@ export default function Leads() {
                                 {status}
                               </button>
                             ))}
-
                             <button
                               type="button"
                               onClick={() => deleteLead(lead.id)}
@@ -1146,7 +859,6 @@ export default function Leads() {
                       </td>
                     </tr>
                   ))}
-
                   {pageLeads.length === 0 && (
                     <tr>
                       <td colSpan={11} className="px-6 py-20 text-center">
@@ -1174,7 +886,7 @@ export default function Leads() {
             </div>
           ) : (
             <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pageLeads.map((lead) => (
+              {pageLeads.map(lead => (
                 <button
                   key={lead.id}
                   type="button"
@@ -1202,7 +914,6 @@ export default function Leads() {
                       {lead.status}
                     </span>
                   </div>
-
                   <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
                     <p className="flex items-center gap-2">
                       <Mail size={13} />
@@ -1219,7 +930,6 @@ export default function Leads() {
                   </div>
                 </button>
               ))}
-
               {pageLeads.length === 0 && (
                 <p className="col-span-full py-16 text-center text-sm text-slate-500">
                   No leads match your filters.
@@ -1227,7 +937,6 @@ export default function Leads() {
               )}
             </div>
           )}
-
           {/* Pagination */}
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -1237,20 +946,18 @@ export default function Leads() {
                   {filteredLeads.length}
                 </strong>
               </span>
-
               {selectedIds.length > 0 && (
                 <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
                   {selectedIds.length} selected
                 </span>
               )}
             </div>
-
             <div className="flex items-center gap-2">
               <label className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
                 Rows
                 <select
                   value={pageSize}
-                  onChange={(e) => {
+                  onChange={e => {
                     setPageSize(Number(e.target.value));
                     setPage(1);
                   }}
@@ -1261,28 +968,25 @@ export default function Leads() {
                   <option value={50}>50</option>
                 </select>
               </label>
-
               <span className="whitespace-nowrap text-xs text-slate-500">
                 {filteredLeads.length === 0 ? 0 : startIndex + 1}–
                 {Math.min(startIndex + pageSize, filteredLeads.length)} of{" "}
                 {filteredLeads.length}
               </span>
-
               <button
                 type="button"
                 disabled={currentPage <= 1}
-                onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+                onClick={() => setPage(previous => Math.max(1, previous - 1))}
                 className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Previous page"
               >
                 <ChevronLeft size={15} />
               </button>
-
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() =>
-                  setPage((previous) => Math.min(totalPages, previous + 1))
+                  setPage(previous => Math.min(totalPages, previous + 1))
                 }
                 className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Next page"
@@ -1293,7 +997,6 @@ export default function Leads() {
           </footer>
         </section>
       </div>
-
       {/* Lead detail panel */}
       {detailLead && (
         <div
@@ -1302,7 +1005,7 @@ export default function Leads() {
         >
           <aside
             className="h-full w-full max-w-md overflow-y-auto border-l border-slate-200 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
@@ -1320,7 +1023,6 @@ export default function Leads() {
                 <X size={18} />
               </button>
             </div>
-
             <div className="p-5">
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
@@ -1341,11 +1043,9 @@ export default function Leads() {
                   </span>
                 </div>
               </div>
-
               <h3 className="mb-4 mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Contact information
               </h3>
-
               {[
                 {
                   label: "Company",
@@ -1388,12 +1088,11 @@ export default function Leads() {
                   </div>
                 </div>
               ))}
-
               <label className="mt-5 block text-xs font-medium text-slate-600">
                 Update lead status
                 <select
                   value={detailLead.status}
-                  onChange={(e) =>
+                  onChange={e =>
                     updateLeadStatus(
                       detailLead.id,
                       e.target.value as LeadStatus,
@@ -1409,7 +1108,7 @@ export default function Leads() {
                       "DISQUALIFIED",
                       "CONVERTED",
                     ] as LeadStatus[]
-                  ).map((status) => (
+                  ).map(status => (
                     <option key={status} value={status}>
                       {status}
                     </option>
@@ -1420,7 +1119,6 @@ export default function Leads() {
           </aside>
         </div>
       )}
-
       {/* Create lead modal */}
       {showCreateModal && (
         <CreateLeadModal
