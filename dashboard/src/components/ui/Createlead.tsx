@@ -1,21 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
-import {
-  Save,
-  UserRound,
-  BriefcaseBusiness,
-  CalendarDays,
-  ChevronDown,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { UserRound, BriefcaseBusiness, CalendarDays, ChevronDown } from "lucide-react";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
 import type { LeadStatus } from "../../types/lead";
-import type {
-  CreateLeadFormProps,
-  FieldMessageProps,
-  FieldProps,
-  FormValues,
-  SectionCardProps,
-  SelectFieldProps,
-} from "../../types/createLeadForm";
+import type { CreateLeadFormProps, FormValues } from "../../types/createLeadForm";
+import { cellClass, inputValid, labelClass } from "../../types/formControls";
+import {
+  Field,
+  FormSection,
+  FormShell,
+  SelectField,
+  TextAreaField,
+} from "./FormControls";
 
 const initialValues: FormValues = {
   owner: "Gabriel Deora",
@@ -37,134 +32,6 @@ const initialValues: FormValues = {
   state: "",
   country: "",
 };
-
-const inputBase =
-  "h-10 w-full rounded-md border bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-2";
-const inputValid = `${inputBase} border-slate-300 hover:border-slate-400 focus:border-indigo-500 focus:ring-indigo-100`;
-const inputInvalid = `${inputBase} border-rose-300 hover:border-rose-400 focus:border-rose-500 focus:ring-rose-100`;
-const labelClass = "flex items-center justify-end pr-4 text-sm text-slate-500 max-sm:justify-start max-sm:pr-0";
-const requiredClass = "after:ml-1 after:text-rose-500 after:content-['*']";
-const cellClass = "grid grid-cols-1 gap-y-2 sm:grid-cols-[minmax(115px,0.65fr)_minmax(0,1.5fr)] sm:items-center";
-
-function fieldId(label: string) {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-/** Inline validation message, shared by Field / SelectField. */
-function FieldMessage({ id, hint }: FieldMessageProps) {
-  if (!hint) return null;
-  return (
-    <p id={id} className="mt-1.5 text-xs text-rose-600">
-      {hint}
-    </p>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  required = false,
-  type = "text",
-  placeholder,
-  invalid = false,
-  hint,
-}: FieldProps) {
-  const id = fieldId(label);
-  const hintId = `${id}-hint`;
-  return (
-    <>
-      <label htmlFor={id} className={`${labelClass} ${required ? requiredClass : ""}`}>
-        {label}
-      </label>
-      <div>
-        <input
-          id={id}
-          className={invalid ? inputInvalid : inputValid}
-          type={type}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          required={required}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid && hint ? hintId : undefined}
-        />
-        {invalid && <FieldMessage id={hintId} hint={hint} />}
-      </div>
-    </>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  required = false,
-  invalid = false,
-  hint,
-}: SelectFieldProps) {
-  const id = fieldId(label);
-  const hintId = `${id}-hint`;
-  return (
-    <>
-      <label htmlFor={id} className={`${labelClass} ${required ? requiredClass : ""}`}>
-        {label}
-      </label>
-      <div>
-        <div className="relative">
-          <select
-            id={id}
-            className={`${invalid ? inputInvalid : inputValid} appearance-none pr-9`}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            required={required}
-            aria-invalid={invalid || undefined}
-            aria-describedby={invalid && hint ? hintId : undefined}
-          >
-            <option value="">-None-</option>
-            {options.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={15}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-        </div>
-        {invalid && <FieldMessage id={hintId} hint={hint} />}
-      </div>
-    </>
-  );
-}
-
-function SectionCard({
-  icon,
-  title,
-  description,
-  aside,
-  children,
-}: SectionCardProps) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-          {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
-        </div>
-        {aside && <span className="ml-auto shrink-0 text-xs text-slate-400">{aside}</span>}
-      </div>
-      <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-4 md:grid-cols-2 md:p-5">
-        {children}
-      </div>
-    </section>
-  );
-}
 
 export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormProps) {
   const [form, setForm] = useState<FormValues>(initialValues);
@@ -204,8 +71,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
         ? "Set a next follow-up date, or tick 'No follow-up needed'."
         : "";
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submit() {
     setShowErrors(true);
     if (requiredInvalid || emailInvalid || followUpInvalid) return;
 
@@ -234,218 +100,132 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
   }
 
   return (
-    <div className="page-enter min-h-[calc(100vh-64px)] bg-slate-100 text-slate-800">
-      <form onSubmit={submit} noValidate>
-        {/* Title + actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-100 px-5 py-3.5">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Create Lead</h1>
-            <p className="mt-0.5 text-sm text-slate-500">Add a new lead and its business details.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/40 active:translate-y-px"
+    <FormShell
+      title="Create Lead"
+      description="Add a new lead and its business details."
+      error={errorMessage}
+      dirty={dirty}
+      onClose={onClose}
+      onSubmit={submit}
+    >
+      {/* Maps to: Lead (contactName, email, phone, sourceId, status, priority) */}
+      <FormSection
+        icon={<UserRound size={17} />}
+        title="Lead Information"
+        description="Who owns this lead and how to reach them."
+        aside="* Required fields"
+      >
+        <div className={cellClass}>
+          <label htmlFor="lead-owner" className={labelClass}>
+            Lead Owner
+          </label>
+          <div className="relative">
+            <select
+              id="lead-owner"
+              className={`${inputValid} appearance-none pr-9`}
+              value={form.owner}
+              onChange={e => update("owner", e.target.value)}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-9 items-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 active:translate-y-px"
-            >
-              <Save size={15} /> Save
-            </button>
+              <option>Gabriel Deora</option>
+              <option>Unassigned</option>
+            </select>
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
         </div>
+        <div className={cellClass}>
+          <Field label="First Name" value={form.firstName} onChange={v => update("firstName", v)} required placeholder="First name" invalid={showErrors && !firstName} hint="First name is required." />
+        </div>
+        <div className={cellClass}>
+          <Field label="Last Name" value={form.lastName} onChange={v => update("lastName", v)} required placeholder="Last name" invalid={showErrors && !lastName} hint="Last name is required." />
+        </div>
+        <div className={cellClass}>
+          <Field label="Email" value={form.email} onChange={v => update("email", v)} type="email" placeholder="name@company.com" invalid={showErrors && emailInvalid} hint="Enter a valid email address." />
+        </div>
+        <div className={cellClass}>
+          <Field label="Phone" value={form.phone} onChange={v => update("phone", v)} type="tel" />
+        </div>
+        <div className={cellClass}>
+          <SelectField label="Lead Source" value={form.source} onChange={v => update("source", v)} options={LEAD_SOURCES} />
+        </div>
+        <div className={cellClass}>
+          <SelectField label="Lead Status" value={form.status} onChange={v => update("status", v as FormValues["status"])} options={LEAD_STATUSES} required />
+        </div>
+        <div className={cellClass}>
+          <SelectField label="Priority" value={form.priority} onChange={v => update("priority", v as FormValues["priority"])} options={LEAD_PRIORITIES} />
+        </div>
+      </FormSection>
 
-        <main className="space-y-4 p-4 sm:p-5">
-          {showErrors && errorMessage && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-            >
-              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-700">
-                !
-              </span>
-              {errorMessage}
-            </div>
-          )}
+      {/* Maps to: linked Company (name, website, industry, address, city, state, country) */}
+      <FormSection
+        icon={<BriefcaseBusiness size={17} />}
+        title="Company Information"
+        description="Where this lead's organization is based."
+      >
+        <div className={cellClass}>
+          <Field label="Company" value={form.company} onChange={v => update("company", v)} required invalid={showErrors && !company} hint="Company is required." />
+        </div>
+        <div className={cellClass}>
+          <Field label="Website" value={form.website} onChange={v => update("website", v)} placeholder="https://" />
+        </div>
+        <div className={cellClass}>
+          <SelectField label="Industry" value={form.industry} onChange={v => update("industry", v)} options={["Technology", "Finance", "Healthcare", "Manufacturing", "Retail", "Education", "Other"]} />
+        </div>
+        <div className={cellClass}>
+          <TextAreaField label="Street" value={form.street} onChange={v => update("street", v)} placeholder="Street address" />
+        </div>
+        <div className={cellClass}>
+          <Field label="City" value={form.city} onChange={v => update("city", v)} />
+        </div>
+        <div className={cellClass}>
+          <Field label="State / Province" value={form.state} onChange={v => update("state", v)} />
+        </div>
+        <div className={cellClass}>
+          <Field label="Country" value={form.country} onChange={v => update("country", v)} />
+        </div>
+      </FormSection>
 
-          {/* Maps to: Lead (contactName, email, phone, sourceId, status, priority) */}
-          <SectionCard
-            icon={<UserRound size={17} />}
-            title="Lead Information"
-            description="Who owns this lead and how to reach them."
-            aside="* Required fields"
-          >
-            <div className={cellClass}>
-              <label htmlFor="lead-owner" className={labelClass}>
-                Lead Owner
-              </label>
-              <div className="relative">
-                <select
-                  id="lead-owner"
-                  className={`${inputValid} appearance-none pr-9`}
-                  value={form.owner}
-                  onChange={(e) => update("owner", e.target.value)}
-                >
-                  <option>Gabriel Deora</option>
-                  <option>Unassigned</option>
-                </select>
-                <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              </div>
-            </div>
-            <div className={cellClass}>
-              <Field label="First Name" value={form.firstName} onChange={(v) => update("firstName", v)} required placeholder="First name" invalid={showErrors && !firstName} hint="First name is required." />
-            </div>
-            <div className={cellClass}>
-              <Field label="Last Name" value={form.lastName} onChange={(v) => update("lastName", v)} required placeholder="Last name" invalid={showErrors && !lastName} hint="Last name is required." />
-            </div>
-            <div className={cellClass}>
-              <Field label="Email" value={form.email} onChange={(v) => update("email", v)} type="email" placeholder="name@company.com" invalid={showErrors && emailInvalid} hint="Enter a valid email address." />
-            </div>
-            <div className={cellClass}>
-              <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} type="tel" />
-            </div>
-            <div className={cellClass}>
-              <SelectField label="Lead Source" value={form.source} onChange={(v) => update("source", v)} options={LEAD_SOURCES} />
-            </div>
-            <div className={cellClass}>
-              <SelectField label="Lead Status" value={form.status} onChange={(v) => update("status", v as FormValues["status"])} options={LEAD_STATUSES} required />
-            </div>
-            <div className={cellClass}>
-              <SelectField label="Priority" value={form.priority} onChange={(v) => update("priority", v as FormValues["priority"])} options={LEAD_PRIORITIES} />
-            </div>
-          </SectionCard>
-
-          {/* Maps to: linked Company (name, website, industry, address, city, state, country) */}
-          <SectionCard
-            icon={<BriefcaseBusiness size={17} />}
-            title="Company Information"
-            description="Where this lead's organization is based."
-          >
-            <div className={cellClass}>
-              <Field label="Company" value={form.company} onChange={(v) => update("company", v)} required invalid={showErrors && !company} hint="Company is required." />
-            </div>
-            <div className={cellClass}>
-              <Field label="Website" value={form.website} onChange={(v) => update("website", v)} placeholder="https://" />
-            </div>
-            <div className={cellClass}>
-              <SelectField label="Industry" value={form.industry} onChange={(v) => update("industry", v)} options={["Technology", "Finance", "Healthcare", "Manufacturing", "Retail", "Education", "Other"]} />
-            </div>
-            <div className={cellClass}>
-              <label htmlFor="street" className={labelClass}>
-                Street
-              </label>
-              <textarea
-                id="street"
-                value={form.street}
-                onChange={(e) => update("street", e.target.value)}
-                placeholder="Street address"
-                className={`${inputValid} h-20 resize-y py-2`}
-              />
-            </div>
-            <div className={cellClass}>
-              <Field label="City" value={form.city} onChange={(v) => update("city", v)} />
-            </div>
-            <div className={cellClass}>
-              <Field label="State / Province" value={form.state} onChange={(v) => update("state", v)} />
-            </div>
-            <div className={cellClass}>
-              <Field label="Country" value={form.country} onChange={(v) => update("country", v)} />
-            </div>
-          </SectionCard>
-
-          {/* Maps to: Lead.notes, Lead.nextFollowUpAt / Lead.noFollowUpReasonId */}
-          <SectionCard
-            icon={<CalendarDays size={17} />}
-            title="Notes & Follow-up"
-            description="Context for the team and the next step."
-          >
-            <div className={cellClass}>
-              <label htmlFor="notes" className={labelClass}>
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                value={form.notes}
-                onChange={(e) => update("notes", e.target.value)}
-                placeholder="Context, requirements, or anything the team should know."
-                className={`${inputValid} h-20 resize-y py-2`}
-              />
-            </div>
-            {!form.noFollowUp && (
-              <div className={cellClass}>
-                <Field
-                  label="Next follow-up"
-                  value={form.followUpDate}
-                  onChange={(v) => update("followUpDate", v)}
-                  type="date"
-                  required
-                  invalid={showErrors && followUpInvalid}
-                  hint="Choose a date, or tick 'No follow-up needed'."
-                />
-              </div>
-            )}
-            <div className={cellClass}>
-              <label htmlFor="no-follow-up" className={labelClass}>
-                No follow-up needed
-              </label>
-              <label
-                id="no-follow-up"
-                htmlFor="no-follow-up-checkbox"
-                className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600"
-              >
-                <input
-                  id="no-follow-up-checkbox"
-                  type="checkbox"
-                  checked={form.noFollowUp}
-                  onChange={(e) => update("noFollowUp", e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
-                />
-                This lead does not need a follow-up
-              </label>
-            </div>
-          </SectionCard>
-        </main>
-
-        {/* Sticky footer */}
-        <footer className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            {dirty ? (
-              <span className="flex items-center gap-1.5 font-medium text-amber-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                Unsaved changes
-              </span>
-            ) : (
-              <span className="text-slate-400">No changes yet</span>
-            )}
-            <span className="text-slate-400">
-              Press{" "}
-              <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                Esc
-              </kbd>{" "}
-              to go back
-            </span>
+      {/* Maps to: Lead.notes, Lead.nextFollowUpAt / Lead.noFollowUpReasonId */}
+      <FormSection
+        icon={<CalendarDays size={17} />}
+        title="Notes & Follow-up"
+        description="Context for the team and the next step."
+      >
+        <div className={cellClass}>
+          <TextAreaField label="Notes" value={form.notes} onChange={v => update("notes", v)} placeholder="Context, requirements, or anything the team should know." />
+        </div>
+        {!form.noFollowUp && (
+          <div className={cellClass}>
+            <Field
+              label="Next follow-up"
+              value={form.followUpDate}
+              onChange={v => update("followUpDate", v)}
+              type="date"
+              required
+              invalid={showErrors && followUpInvalid}
+              hint="Choose a date, or tick 'No follow-up needed'."
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/40 active:translate-y-px"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-9 items-center gap-2 rounded-md bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 active:translate-y-px"
-            >
-              <Save size={15} /> Save
-            </button>
-          </div>
-        </footer>
-      </form>
-    </div>
+        )}
+        <div className={cellClass}>
+          <label htmlFor="no-follow-up" className={labelClass}>
+            No follow-up needed
+          </label>
+          <label
+            id="no-follow-up"
+            htmlFor="no-follow-up-checkbox"
+            className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600"
+          >
+            <input
+              id="no-follow-up-checkbox"
+              type="checkbox"
+              checked={form.noFollowUp}
+              onChange={e => update("noFollowUp", e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+            />
+            This lead does not need a follow-up
+          </label>
+        </div>
+      </FormSection>
+    </FormShell>
   );
 }

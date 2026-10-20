@@ -1,5 +1,12 @@
-import type { ReactNode } from "react";
 import type { Lead, LeadStatus, Priority } from "./lead";
+
+export type {
+  FieldMessageProps,
+  FieldProps,
+  FormSectionProps,
+  SelectFieldProps,
+  TextAreaFieldProps,
+} from "./formControls";
 
 export type CreateLeadFormProps = {
   onClose: () => void;
@@ -25,38 +32,4 @@ export type FormValues = {
   city: string;
   state: string;
   country: string;
-};
-
-export type FieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  type?: string;
-  placeholder?: string;
-  invalid?: boolean;
-  hint?: string;
-};
-
-export type SelectFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  required?: boolean;
-  invalid?: boolean;
-  hint?: string;
-};
-
-export type FieldMessageProps = {
-  id: string;
-  hint?: string;
-};
-
-export type SectionCardProps = {
-  icon: ReactNode;
-  title: string;
-  description?: string;
-  aside?: ReactNode;
-  children: ReactNode;
 };

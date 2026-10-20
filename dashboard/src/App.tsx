@@ -4,6 +4,7 @@ import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Leads from "./pages/leads/Leads";
+import Contacts from "./pages/contacts/Contacts";
 import "./App.css";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
+            <Route path="/contacts" element={<Contacts />} />
             <Route
               path="*"
               element={<Navigate to="/" replace />}
