@@ -1,14 +1,9 @@
 import { X } from "lucide-react";
-import type { Lead, LeadStatus } from "../../types/lead";
+import type { LeadStatus } from "../../types/lead";
 import { LEAD_STATUSES } from "../../types/lead";
+import type { LeadDetailDialogProps } from "../../types/leadUi";
 import { formatDate, leadDetailFields } from "../../data/leadColumns";
 import { PriorityText, StatusBadge } from "./LeadBadges";
-
-type LeadDetailDialogProps = {
-  lead: Lead;
-  onClose: () => void;
-  onStatusChange: (status: LeadStatus) => void;
-};
 
 /**
  * Centered modal showing a single lead's details.

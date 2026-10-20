@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Save,
   UserRound,
@@ -6,34 +6,16 @@ import {
   CalendarDays,
   ChevronDown,
 } from "lucide-react";
-import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
-
-type CreateLeadFormProps = {
-  onClose: () => void;
-  onCreate: (lead: Lead) => void;
-};
-
-type FormValues = {
-  owner: string;
-  firstName: string;
-  lastName: string;
-  company: string;
-  email: string;
-  phone: string;
-  source: string;
-  status: LeadStatus | "";
-  priority: Priority;
-  notes: string;
-  followUpDate: string;
-  noFollowUp: boolean;
-  website: string;
-  industry: string;
-  street: string;
-  city: string;
-  state: string;
-  country: string;
-};
+import type { LeadStatus } from "../../types/lead";
+import type {
+  CreateLeadFormProps,
+  FieldMessageProps,
+  FieldProps,
+  FormValues,
+  SectionCardProps,
+  SelectFieldProps,
+} from "../../types/createLeadForm";
 
 const initialValues: FormValues = {
   owner: "Gabriel Deora",
@@ -69,7 +51,7 @@ function fieldId(label: string) {
 }
 
 /** Inline validation message, shared by Field / SelectField. */
-function FieldMessage({ id, hint }: { id: string; hint?: string }) {
+function FieldMessage({ id, hint }: FieldMessageProps) {
   if (!hint) return null;
   return (
     <p id={id} className="mt-1.5 text-xs text-rose-600">
@@ -87,16 +69,7 @@ function Field({
   placeholder,
   invalid = false,
   hint,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  type?: string;
-  placeholder?: string;
-  invalid?: boolean;
-  hint?: string;
-}) {
+}: FieldProps) {
   const id = fieldId(label);
   const hintId = `${id}-hint`;
   return (
@@ -130,15 +103,7 @@ function SelectField({
   required = false,
   invalid = false,
   hint,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  required?: boolean;
-  invalid?: boolean;
-  hint?: string;
-}) {
+}: SelectFieldProps) {
   const id = fieldId(label);
   const hintId = `${id}-hint`;
   return (
@@ -181,13 +146,7 @@ function SectionCard({
   description,
   aside,
   children,
-}: {
-  icon: ReactNode;
-  title: string;
-  description?: string;
-  aside?: ReactNode;
-  children: ReactNode;
-}) {
+}: SectionCardProps) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5">

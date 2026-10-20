@@ -1,21 +1,15 @@
 import { useState } from "react";
 import { Search, ChevronDown } from "lucide-react";
+import type {
+  FilterSectionProps,
+  FilterSidebarProps,
+} from "../../types/filterSidebar";
 
-export type FilterCheckboxSection = {
-  title: string;
-  items: string[];
-  /** Currently checked items (controlled from the page) */
-  selected?: string[];
-  /** Called with the full new selection when a checkbox toggles */
-  onChange?: (selected: string[]) => void;
-};
-
-export type FilterSelect = {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-};
+export type {
+  FilterCheckboxSection,
+  FilterSelect,
+  FilterSidebarProps,
+} from "../../types/filterSidebar";
 
 const selectClass =
   "rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-600 outline-none hover:border-slate-300 focus:border-blue-500";
@@ -26,13 +20,7 @@ function FilterSection({
   selected = [],
   onChange,
   query,
-}: {
-  title: string;
-  items: string[];
-  selected?: string[];
-  onChange?: (selected: string[]) => void;
-  query: string;
-}) {
+}: FilterSectionProps) {
   const [expanded, setExpanded] = useState(true);
   const normalized = query.trim().toLowerCase();
   const visible = normalized
@@ -79,16 +67,6 @@ function FilterSection({
     </section>
   );
 }
-
-type FilterSidebarProps = {
-  /** Heading, e.g. "Filter Leads by" */
-  title?: string;
-  /** Collapsible checkbox groups (dividers added between them) */
-  sections?: FilterCheckboxSection[];
-  /** Quick-filter dropdowns rendered under a "Quick Filters" heading */
-  selects?: FilterSelect[];
-  className?: string;
-};
 
 export default function FilterSidebar({
   title = "Filter by",

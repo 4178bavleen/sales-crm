@@ -1,9 +1,8 @@
-import type { Lead, LeadStatus, Priority } from "../types/lead";
+import type { Lead } from "../types/lead";
+import type { SeedRow } from "../types/leadUi";
 
 // Seed rows, kept compact as [firstName, lastName, company, source, status, priority, createdAt].
 // Every row shares the same phone and owner, so those live in the defaults below.
-type SeedRow = [string, string, string, string, LeadStatus, Priority, string];
-
 const seedRows: SeedRow[] = [
   ["Christopher", "Maclead", "Rangoni Of Florence", "Cold Call", "NEW", "MEDIUM", "2026-10-19"],
   ["Carissa", "Kidman", "Oh My Goodknits Inc", "Advertisement", "CONTACTED", "HIGH", "2026-10-19"],

@@ -7,8 +7,8 @@ import {
   Phone,
   UserRound,
 } from "lucide-react";
-import type { DataTableColumn } from "../components/ui/DataTable";
-import type { Lead, LeadStatus, Priority } from "../types/lead";
+import type { LeadStatus, Priority } from "../types/lead";
+import type { LeadColumn, LeadCsvField, LeadField } from "../types/leadUi";
 
 export const statusStyles: Record<LeadStatus, string> = {
   NEW: "bg-slate-100 text-slate-700",
@@ -34,11 +34,7 @@ export function formatDate(date: string) {
 }
 
 /** Read-only fields shown in the lead detail dialog and the CSV export. */
-export const leadDetailFields: {
-  label: string;
-  Icon: typeof Mail;
-  get: (lead: Lead) => string;
-}[] = [
+export const leadDetailFields: LeadField[] = [
   { label: "Company", Icon: Building2, get: lead => lead.company },
   { label: "Email", Icon: Mail, get: lead => lead.email || "—" },
   { label: "Phone", Icon: Phone, get: lead => lead.phone || "—" },
@@ -49,7 +45,7 @@ export const leadDetailFields: {
 ];
 
 /** Flat string fields for the CSV export (cell() returns JSX, so it can't be reused here). */
-export const leadCsvFields: { label: string; get: (lead: Lead) => string }[] = [
+export const leadCsvFields: LeadCsvField[] = [
   { label: "First Name", get: lead => lead.firstName },
   { label: "Last Name", get: lead => lead.lastName },
   { label: "Company", get: lead => lead.company },
@@ -62,7 +58,7 @@ export const leadCsvFields: { label: string; get: (lead: Lead) => string }[] = [
   { label: "Created At", get: lead => lead.createdAt },
 ];
 
-export const leadColumns: DataTableColumn<Lead>[] = [
+export const leadColumns: LeadColumn[] = [
   {
     key: "name",
     header: "Lead Name",

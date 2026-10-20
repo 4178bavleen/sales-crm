@@ -1,21 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import type { TableSettingsProps } from "../../types/tableSettings";
 
-export type TableSettingsColumn = {
-  key: string;
-  label: string;
-};
-
-type TableSettingsProps = {
-  /** All columns available on the table */
-  columns: TableSettingsColumn[];
-  /** Keys of the currently hidden columns */
-  hidden: string[];
-  /** Called with the new hidden-keys list when a checkbox toggles */
-  onChange: (hidden: string[]) => void;
-  /** Tooltip / aria-label for the trigger button */
-  title?: string;
-};
+export type {
+  TableSettingsColumn,
+  TableSettingsProps,
+} from "../../types/tableSettings";
 
 /**
  * Toolbar button + popover for toggling table column visibility.

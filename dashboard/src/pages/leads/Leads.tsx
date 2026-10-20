@@ -20,6 +20,7 @@ import {
   leadColumnOptions,
   leadCsvFields,
 } from "../../data/leadColumns";
+import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable, {
   TablePagination,
@@ -32,11 +33,6 @@ import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import { StatusBadge } from "../../components/ui/LeadBadges";
 
 // Filter state as one object: one setter, one reset, one dependency.
-type LeadsFilter = {
-  status: string[];
-  priority: string[];
-  source: string[];
-};
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
 
 const toolbarButtonClass =
