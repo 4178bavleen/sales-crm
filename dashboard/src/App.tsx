@@ -7,6 +7,7 @@ import Leads from "./pages/leads/Leads";
 import Contacts from "./pages/contacts/Contacts";
 import Companies from "./pages/companies/Companies";
 import Customers from "./pages/customers/Customers";
+import Deals from "./pages/deals/Deals";
 import NotFound from "./pages/NotFound";
 import "./App.css";
 
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/deals" element={<Deals />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
