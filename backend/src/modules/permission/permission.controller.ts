@@ -27,7 +27,6 @@ function handleError(
     })
     return
   }
-
   if (error instanceof PermissionServiceError) {
     res.status(error.statusCode).json({
       success: false,
