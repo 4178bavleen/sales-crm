@@ -1,262 +1,178 @@
 import { useState } from "react";
-import {
-  ArrowRight,
-  Check,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Sparkles,
-  UserRound,
-} from "lucide-react";
-import type { LoginFormProps, LoginFormValues } from "../../types/auth";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "../../types/auth";
+import { Check, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import type { LoginFormProps } from "../../types/auth";
 
-/**
- * Light input styling, matching the app's indigo form accents.
- *
- * The `peer` class on each input plus the `peer-focus:` rules on the leading
- * icon let the icon pick up the indigo tint while the field is focused, which
- * ties the two together without any JS.
- */
-const inputClass =
-  "peer block w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
-const inputInvalidClass =
-  "peer block w-full rounded-xl border border-rose-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 hover:border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-100";
-const iconClass =
-  "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors peer-focus:text-indigo-500";
-const iconInvalidClass =
-  "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-rose-400 transition-colors";
-const labelClass =
-  "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600";
+/** Shared field-shell styling: light fill, blue ring on focus. */
+const fieldShell =
+  "relative flex items-center rounded-xl border border-[#dae2f4] bg-[#edf3fa] transition-all focus-within:border-[#005bfd] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#005bfd]/12";
+const fieldIcon = "pointer-events-none flex pl-4 text-[#8a9bb2]";
+const fieldInput =
+  "w-full bg-transparent py-3.5 pl-3 text-[15px] text-[#1e293b] placeholder-[#94a3b8] outline-none";
+const fieldLabel = "mb-2 block text-[13px] font-semibold text-[#28406e]";
 
-/** The demo account shown in the credentials hint. */
-const demo = DEMO_ACCOUNTS[0];
-
-/**
- * The login form.
- *
- * Collects a single `identifier` (matched against `User.email` or `User.name`),
- * a password, and a remember-me choice. Validation and submission live in the
- * page; this component only reports what the user typed.
- *
- * The demo block at the bottom is a development convenience: the backend auth
- * module has no implementation, so the only working credentials are the seeded
- * ones. It fills the fields through React state (never by writing `.value`),
- * so the form behaves exactly as if the user had typed them.
- */
 export default function LoginForm({
   onSubmit,
   error,
   pending = false,
 }: LoginFormProps) {
-  const [form, setForm] = useState<LoginFormValues>({
-    identifier: "",
-    password: "",
-    remember: true,
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
-  const [filled, setFilled] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [localError, setLocalError] = useState("");
+  const [touched, setTouched] = useState(false);
 
-  const identifierInvalid = form.identifier.trim() === "";
-  const passwordInvalid = form.password === "";
-  const clientError =
-    showErrors && identifierInvalid
-      ? "Please enter your username or email."
-      : showErrors && passwordInvalid
-        ? "Please enter your password."
-        : "";
-  const message = clientError || error || "";
+  const emailInvalid = touched && email.trim() === "";
+  const passwordInvalid = touched && password === "";
 
-  function update<K extends keyof LoginFormValues>(
-    key: K,
-    value: LoginFormValues[K],
-  ) {
-    setForm(previous => ({ ...previous, [key]: value }));
+  function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setTouched(true);
+    setLocalError("");
+
+    const identifier = email.trim();
+    if (!identifier) {
+      setLocalError("Please enter your email address.");
+      return;
+    }
+    if (!password) {
+      setLocalError("Please enter your password.");
+      return;
+    }
+
+    onSubmit({ identifier, password, remember });
   }
 
-  function submit() {
-    setShowErrors(true);
-    if (identifierInvalid || passwordInvalid || pending) return;
-    onSubmit(form);
-  }
-
-  /** Copy the seeded demo account into the fields, via React state. */
-  function autoFill() {
-    if (!demo) return;
-    setForm(previous => ({
-      ...previous,
-      identifier: demo.email,
-      password: demo.password,
-    }));
-    setShowErrors(false);
-    setFilled(true);
-  }
-
-  const showIdentifierInvalid = showErrors && identifierInvalid;
-  const showPasswordInvalid = showErrors && passwordInvalid;
+  const displayError = localError || error;
 
   return (
-    <form
-      onSubmit={event => {
-        event.preventDefault();
-        submit();
-      }}
-      noValidate
-    >
-      {/* Error banner: client validation or a failed sign-in attempt. */}
-      {message && (
+    <div className="w-full">
+      <h1 className="text-[25px] font-bold tracking-tight text-[#0f2a5e]">
+        Sign in
+      </h1>
+      <p className="mt-1.5 text-[13.5px] text-[#5a719b]">
+        Use your work email to continue.
+      </p>
+
+      {/* Error alert */}
+      {displayError && (
         <div
           role="alert"
-          className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 transition-all duration-300"
+          className="mt-6 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700"
         >
-          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-700">
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-700">
             !
           </span>
-          <span>{message}</span>
+          <span>{displayError}</span>
         </div>
       )}
 
-      {/* Identifier */}
-      <div className="mb-4 space-y-1.5">
-        <label htmlFor="identifier" className={labelClass}>
-          Username or email
-        </label>
-        <div className="relative rounded-xl">
-          <UserRound
-            size={16}
-            className={showIdentifierInvalid ? iconInvalidClass : iconClass}
-          />
-          <input
-            id="identifier"
-            name="identifier"
-            type="text"
-            autoComplete="username"
-            autoFocus
-            value={form.identifier}
-            onChange={event => {
-              update("identifier", event.target.value);
-              setFilled(false);
-            }}
-            placeholder="gabriel@salesflow.example.com"
-            aria-invalid={showIdentifierInvalid ? true : undefined}
-            className={showIdentifierInvalid ? inputInvalidClass : inputClass}
-          />
-        </div>
-      </div>
-
-      {/* Password */}
-      <div className="mb-4 space-y-1.5">
-        <label htmlFor="password" className={labelClass}>
-          Password
-        </label>
-        <div className="relative rounded-xl">
-          <Lock
-            size={16}
-            className={showPasswordInvalid ? iconInvalidClass : iconClass}
-          />
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            value={form.password}
-            onChange={event => {
-              update("password", event.target.value);
-              setFilled(false);
-            }}
-            placeholder="Enter your password"
-            aria-invalid={showPasswordInvalid ? true : undefined}
-            className={`${
-              showPasswordInvalid ? inputInvalidClass : inputClass
-            } pr-11`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(previous => !previous)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            title={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center rounded-md pr-3.5 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      <form onSubmit={handleSubmit} className="mt-7">
+        {/* Email */}
+        <div>
+          <label htmlFor="login-email" className={fieldLabel}>
+            Email address
+          </label>
+          <div
+            className={`${fieldShell} ${
+              emailInvalid ? "border-rose-300 focus-within:border-rose-400 focus-within:ring-rose-100" : ""
+            }`}
           >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Remember me — aligned with the submit button's rhythm below. */}
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <label className="flex cursor-pointer select-none items-center gap-2.5 text-xs text-slate-600 sm:text-sm">
-          <input
-            id="remember_me"
-            name="remember_me"
-            type="checkbox"
-            checked={form.remember}
-            onChange={event => update("remember", event.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600 focus:ring-indigo-500"
-          />
-          Remember me
-        </label>
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={pending}
-        className={`group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-150 hover:from-indigo-500 hover:to-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 active:scale-[0.99] ${
-          pending ? "cursor-not-allowed opacity-80" : ""
-        }`}
-      >
-        {pending ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            Verifying workspace session...
-          </>
-        ) : (
-          <>
-            Sign In to Workspace
-            <ArrowRight
-              size={16}
-              className="transition-transform group-hover:translate-x-1"
+            <span className={fieldIcon}>
+              <Mail className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              aria-invalid={emailInvalid || undefined}
+              className={`${fieldInput} pr-4`}
             />
-          </>
-        )}
-      </button>
+          </div>
+        </div>
 
-      {/* Demo credentials — the seeded account, since the auth API is unwired. */}
-      {demo && (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <Sparkles size={12} className="text-indigo-500" />
-                Demo credentials
-              </p>
-              <p className="mt-1 truncate text-[11px] text-slate-500">
-                {demo.email} · {DEMO_PASSWORD}
-              </p>
-            </div>
+        {/* Password */}
+        <div className="mt-5">
+          <label htmlFor="login-password" className={fieldLabel}>
+            Password
+          </label>
+          <div
+            className={`${fieldShell} ${
+              passwordInvalid ? "border-rose-300 focus-within:border-rose-400 focus-within:ring-rose-100" : ""
+            }`}
+          >
+            <span className={fieldIcon}>
+              <Lock className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <input
+              id="login-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              aria-invalid={passwordInvalid || undefined}
+              className={`${fieldInput} pr-12`}
+            />
             <button
               type="button"
-              onClick={autoFill}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                filled
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-slate-300 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600"
-              }`}
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-2 pr-3.5 text-[#8a9bb2] transition-colors hover:text-[#28406e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#005bfd]"
             >
-              {filled ? (
-                <>
-                  <Check size={13} />
-                  Filled
-                </>
+              {showPassword ? (
+                <Eye className="h-5 w-5" strokeWidth={1.8} />
               ) : (
-                "Auto-fill"
+                <EyeOff className="h-5 w-5" strokeWidth={1.8} />
               )}
             </button>
           </div>
         </div>
-      )}
-    </form>
+
+        {/* Remember me */}
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={remember}
+            onClick={() => setRemember(!remember)}
+            className="group flex cursor-pointer select-none items-center gap-2.5 text-[13.5px] text-[#41598a]"
+          >
+            <span
+              className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
+                remember
+                  ? "border-[#005bfd] bg-[#005bfd] text-white"
+                  : "border-[#c3d2ea] bg-white group-hover:border-[#8a9bb2]"
+              }`}
+            >
+              {remember && <Check className="h-3.5 w-3.5" strokeWidth={3.2} />}
+            </span>
+            Remember me
+          </button>
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={pending}
+          className="mt-7 flex w-full cursor-pointer items-center justify-center rounded-xl bg-[#005bfd] px-6 py-3.5 text-[16px] font-semibold text-white shadow-[0_8px_20px_-4px_rgba(0,91,253,0.35)] transition-all hover:bg-[#004ed6] hover:shadow-[0_10px_24px_-4px_rgba(0,91,253,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#005bfd] focus-visible:ring-offset-2 active:bg-[#0042b5] disabled:cursor-not-allowed disabled:opacity-75"
+        >
+          {pending ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
+        </button>
+      </form>
+    </div>
   );
 }

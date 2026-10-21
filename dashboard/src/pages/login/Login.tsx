@@ -1,65 +1,43 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowUpRight,
-  BellRing,
-  Building2,
-  CheckCircle2,
-  ShieldCheck,
-  TrendingUp,
-  Users,
-} from "lucide-react";
+import { Building2, ShieldCheck, TrendingUp } from "lucide-react";
 import type { LoginFormValues } from "../../types/auth";
 import { signIn } from "../../lib/auth";
 import LoginForm from "../../components/ui/LoginForm";
 
-/** Current year, computed once at module load rather than during render. */
-const CURRENT_YEAR = new Date().getFullYear();
-
-/** The three core pillars listed under the showcase. */
-const PILLARS = [
-  {
-    Icon: TrendingUp,
-    title: "Pipeline in one place",
-    text: "Track deals by stage and see pipeline value at a glance.",
-  },
-  {
-    Icon: Users,
-    title: "Every contact connected",
-    text: "Leads, contacts, companies and customers kept in sync.",
-  },
-  {
-    Icon: BellRing,
-    title: "Follow-ups that happen",
-    text: "Tasks with due dates, priorities and overdue alerts.",
-  },
-];
-
 /**
- * The modules the workspace covers, shown as a compact checklist.
+ * What the workspace covers, shown as plain lines on the left.
  *
- * Deliberately qualitative rather than numeric — quoting figures like "$4.2M"
- * would be inventing data for a build with no live backend behind it.
+ * Deliberately text-only — a row of icon tiles turned the pitch into a spec
+ * sheet and competed with the card. Each line maps to a real module.
  */
-const MODULES = [
-  { Icon: TrendingUp, label: "Deals" },
-  { Icon: Users, label: "Leads & contacts" },
-  { Icon: Building2, label: "Companies" },
-  { Icon: BellRing, label: "Tasks" },
+const COVERAGE = [
+  "Deals grouped by stage, with a running pipeline value",
+  "Leads, contacts, companies and customers in one place",
+  "Tasks with due dates, priorities and overdue alerts",
 ];
 
-/** Small trust markers under the pillars. */
-const ASSURANCES = [
-  { Icon: ShieldCheck, text: "Role-based access" },
-  { Icon: CheckCircle2, text: "No account created" },
+/** Header facts shown under the divider. Icons live here only — the coverage
+ *  lines above deliberately stay text-only. */
+const FACTS = [
+  { Icon: ShieldCheck, label: "Role-based access" },
+  { Icon: Building2, label: "Built for sales teams" },
 ];
 
 /**
  * Full-bleed login page.
  *
  * Rendered outside the app shell (no sidebar or topbar), since there is no
- * signed-in user yet. Submitting calls the local `signIn` stub and, on success,
- * navigates to the dashboard.
+ * signed-in user yet. One card sits on a light blue background image and holds
+ * both halves: a soft panel with the product pitch on the left, the form on the
+ * right, split by a hairline divider. The right half is fixed-width so the form
+ * never stretches. Below `lg` the pitch drops away and the form fills the card.
+ * Submitting calls the local `signIn` stub and, on success, navigates to the
+ * dashboard.
+ *
+ * The pitch panel is tinted rather than left transparent: the background is
+ * brightest on the left, so bare dark text loses contrast where the gradient
+ * deepens.
  */
 export default function Login() {
   const navigate = useNavigate();
@@ -80,160 +58,88 @@ export default function Login() {
   }
 
   return (
-    <div className="login-canvas relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-slate-50 text-slate-900">
-      {/* Ambient tint — decorative only. */}
-      <div
-        aria-hidden="true"
-        className="login-glow-conic pointer-events-none fixed inset-0"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed -top-40 left-1/2 h-[450px] w-[700px] -translate-x-1/2 rounded-full bg-indigo-300/30 blur-[140px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed -right-20 bottom-0 h-96 w-96 rounded-full bg-indigo-300/25 blur-[120px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-24 top-1/2 h-80 w-80 rounded-full bg-cyan-200/30 blur-[130px]"
-      />
+    <div
+      className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#f0f6fd]"
+      style={{
+        backgroundImage: "url('/login-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="w-full max-w-[1060px] mx-auto px-6 sm:px-10 lg:px-12 py-8 lg:py-12">
+        {/* One card holding both halves: pitch on the left, form on the right.
+            A single white surface reads as one product, not two boxes.
 
-      {/* Floating centred experience */}
-      <div className="relative z-10 flex w-full flex-grow items-center justify-center p-4 sm:p-6 lg:p-10">
-        <div className="login-glass-card w-full max-w-6xl rounded-3xl p-6 transition-all duration-300 sm:p-8 lg:p-10">
-          {/* Header bar */}
-          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6 sm:pb-7">
+            Height: `min-h` stops it hugging its content and leaving a wide band
+            of empty background, while `max-h-...vh` guarantees it can never
+            overflow a short viewport — on a 720px-tall window the card shrinks
+            back toward its content height instead of forcing a scrollbar. */}
+        <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/90 shadow-[0_24px_60px_-10px_rgba(18,52,122,0.16),0_10px_24px_-6px_rgba(18,52,122,0.1)] backdrop-blur-2xl flex flex-col lg:flex-row lg:min-h-[640px] xl:min-h-[700px] lg:max-h-[calc(100vh-6rem)]">
+
+          {/* Left: product pitch. Hidden below lg, where the form leads. */}
+          <div className="hidden lg:flex lg:flex-1 flex-col justify-center border-r border-[#e6eefa] bg-[#f7fafe] p-9 xl:p-11 overflow-y-auto">
+            {/* Brand — one icon only, on the mark itself */}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white shadow-lg shadow-indigo-500/25">
-                <TrendingUp size={20} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#005bfd] text-white shadow-[0_8px_20px_-4px_rgba(0,91,253,0.45)]">
+                <TrendingUp className="h-[22px] w-[22px]" strokeWidth={2.2} />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold leading-tight tracking-tight text-slate-900">
+                <span className="text-[19px] font-bold leading-tight tracking-tight text-[#0f2a5e]">
                   SalesFlow
                 </span>
-                <span className="text-[11px] font-medium leading-tight text-slate-500">
+                <span className="text-[12px] font-medium leading-tight text-[#4a6a9e]">
                   Workspace CRM
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <span>All systems operational</span>
+            <h2 className="mt-8 text-[29px] xl:text-[32px] font-extrabold leading-[1.18] tracking-tight text-[#0f2a5e]">
+              The sales workspace your team{" "}
+              <span className="text-[#005bfd]">actually keeps up with.</span>
+            </h2>
+
+            <p className="mt-4 text-[14.5px] leading-relaxed text-[#3c5480]">
+              One home for every stage of the pipeline, so nothing slips through
+              the cracks.
+            </p>
+
+            {/* Coverage — plain text, no icon tiles */}
+            <ul className="mt-7 space-y-3">
+              {COVERAGE.map(line => (
+                <li
+                  key={line}
+                  className="border-l-2 border-[#005bfd]/30 pl-3.5 text-[14px] leading-snug text-[#28406e]"
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
+
+            {/* Facts — the one place icons return, since these are badges */}
+            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#dfe8fb] pt-4">
+              {FACTS.map(({ Icon, label }) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#3c5480]"
+                >
+                  <Icon className="h-[14px] w-[14px] shrink-0 text-[#005bfd]" strokeWidth={2.2} />
+                  {label}
+                </span>
+              ))}
             </div>
-          </header>
+          </div>
 
-          {/* Inner split: showcase + sign-in console */}
-          <div className="grid grid-cols-1 items-center gap-8 pt-8 lg:grid-cols-12 lg:gap-12">
-            {/* Left: narrative + feature showcase (7 cols) */}
-            <div className="flex flex-col justify-center space-y-6 lg:col-span-7">
-              <div>
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
-                  <TrendingUp size={14} className="text-indigo-500" />
-                  Unified Revenue Pipeline
-                </div>
-
-                <h1 className="text-3xl font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-4xl lg:text-[2.7rem]">
-                  The sales workspace your team{" "}
-                  <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 bg-clip-text text-transparent">
-                    actually keeps up with.
-                  </span>
-                </h1>
-
-                <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                  Leads, contacts, companies, customers, deals and tasks — one
-                  consistent home for the whole pipeline.
-                </p>
-              </div>
-
-              {/* What the workspace covers */}
-              <ul className="grid grid-cols-2 gap-2 sm:max-w-md">
-                {MODULES.map(({ Icon, label }) => (
-                  <li
-                    key={label}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-xs font-medium text-slate-600"
-                  >
-                    <Icon size={14} className="shrink-0 text-indigo-500" />
-                    {label}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Three core pillars */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {PILLARS.map(({ Icon, title, text }) => (
-                  <div
-                    key={title}
-                    className="login-inner-bento-subtle group flex h-full flex-col rounded-xl p-3.5 transition-colors hover:border-indigo-300"
-                  >
-                    <div className="mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-transform duration-200 group-hover:scale-105">
-                      <Icon size={16} />
-                    </div>
-                    <h2 className="text-xs font-semibold text-slate-900">
-                      {title}
-                    </h2>
-                    <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                      {text}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Trust markers */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                {ASSURANCES.map(({ Icon, text }) => (
-                  <span
-                    key={text}
-                    className="inline-flex items-center gap-1.5 text-xs text-slate-500"
-                  >
-                    <Icon size={14} className="text-emerald-600" />
-                    {text}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: sign-in console (5 cols) */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-7 lg:col-span-5">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Welcome back
-                </h2>
-                <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-                  Enter your credentials to access your pipeline.
-                </p>
-              </div>
-
-              <LoginForm
-                onSubmit={handleSubmit}
-                error={error}
-                pending={pending}
-              />
-
-              {/* Pointer to the other workspace activity */}
-              {!error && (
-                <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-                  <ArrowUpRight size={12} />
-                  Sessions are held locally in this build.
-                </p>
-              )}
-            </div>
+          {/* Right: the form */}
+          <div className="w-full lg:w-[460px] xl:w-[480px] shrink-0 flex flex-col justify-center p-8 sm:p-10 lg:p-11">
+            <LoginForm
+              onSubmit={handleSubmit}
+              error={error}
+              pending={pending}
+            />
           </div>
         </div>
       </div>
-
-      {/* Centred compact footer */}
-      <footer className="relative z-10 border-t border-slate-200 py-5">
-        <div className="mx-auto max-w-6xl px-4 text-center text-xs text-slate-500">
-          <p>
-            © {CURRENT_YEAR} Vibrantick Infotech Solutions. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

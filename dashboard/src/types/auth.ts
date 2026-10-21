@@ -22,6 +22,7 @@ export type LoginFormValues = {
   identifier: string;
   password: string;
   remember: boolean;
+  phone?: string;
 };
 
 /** The signed-in user as the frontend knows it. */
@@ -30,6 +31,8 @@ export type AuthUser = {
   name: string;
   /** User.email */
   email: string;
+  /** User.phone */
+  phone?: string;
   /** User.role.name, resolved through the Role relation. */
   role: string;
 };
@@ -53,21 +56,18 @@ export type LoginFormProps = {
 
 /**
  * Demo accounts, standing in for real `users` rows.
- *
- * The backend database is migrated but empty and the auth module has no
- * implementation, so there is nothing real to authenticate against. Each entry
- * pairs the two identifiers a `User` row can be found by — `name` and `email` —
- * with the role that would come from its Role relation.
  */
 export const DEMO_ACCOUNTS: {
   name: string;
   email: string;
+  phone: string;
   role: string;
   password: string;
 }[] = [
   {
     name: "Gabriel Deora",
     email: "gabriel@salesflow.example.com",
+    phone: "15602228456",
     role: "Sales Manager",
     password: "salesflow",
   },
@@ -75,3 +75,4 @@ export const DEMO_ACCOUNTS: {
 
 /** The demo password, surfaced as a hint on the login page. */
 export const DEMO_PASSWORD = DEMO_ACCOUNTS[0]?.password ?? "";
+
