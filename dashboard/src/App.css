@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Typography. A single family is used everywhere: Plus Jakarta Sans.
+   It is fetched via <link rel="stylesheet"> in index.html (a <link> lets the
+   browser start the font request while parsing the head, in parallel with the
+   app bundle; a CSS @import would be serial). Registering it under @theme makes
+   Tailwind emit the `font-sans` utility and sets the app-wide default. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
 @keyframes lead-page-in {
   from {
     opacity: 0;
