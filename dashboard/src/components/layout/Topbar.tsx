@@ -219,7 +219,10 @@ export default function Topbar() {
 
                 <button
                   type="button"
-                  onClick={() => setShowProfile(false)}
+                  onClick={() => {
+                    setShowProfile(false);
+                    navigate("/settings");
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50"
                 >
                   <Settings size={16} />

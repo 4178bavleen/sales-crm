@@ -174,7 +174,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
       <header>
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">
