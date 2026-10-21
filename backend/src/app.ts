@@ -8,6 +8,9 @@ import { env } from './config/env.js'
 import { notFoundMiddleware } from './common/middleware/not-found.middleware.js'
 import { errorMiddleware } from './common/middleware/error.middleware.js'
 
+import authRoutes from './modules/auth/auth.routes.js'
+import userRoutes from './modules/users/user.routes.js'
+
 const app = express()
 
 app.disable('x-powered-by')
@@ -31,7 +34,8 @@ app.get('/api/v1/health', (_req, res) => {
     message: 'Sales CRM API is running',
   })
 })
-
+app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/users', userRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
