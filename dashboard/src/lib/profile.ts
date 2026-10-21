@@ -1,79 +1,88 @@
-import type { ProfileFormValues, UserProfile } from "../types/profile";
-import { permissionsForRole } from "../types/profile";
-import { initialProfile } from "../data/profile";
-import { getSession, updateSessionUser } from "./auth";
+import type { UserProfile } from "../types/profile";
+import { ApiError, request } from "./api";
+import { ENDPOINTS } from "./endpoints";
+import { getSession } from "./auth";
 
 /**
- * Local store for the signed-in user's profile.
+ * Profile data comes from the backend, never from local seeds.
  *
- * Stands in for `GET /users/me` until the users API exists. Only the fields the
- * profile form can change (name, phone) are persisted; identity and
- * role-derived data come from the session and the seeded record, so there is a
- * single source of truth for each.
+ *   GET   /api/v1/auth/me      -> { id, name, email, phone, role }
+ *   GET   /api/v1/users/:id    -> adds isActive, createdAt, updatedAt, role.id
+ *
+ * The richer `/users/:id` row is preferred (it carries `isActive` and the
+ * timestamps the Account card shows); if it is unavailable the session user is
+ * used as a fallback so the page still renders something real.
  */
 
-const PROFILE_KEY = "salesflow.profile";
+/** Shape of the nested role on GET /users/:id. */
+type ApiRole = { id: number; name: string } | string | null;
 
-function isBrowser() {
-  return typeof window !== "undefined" && !!window.localStorage;
+/** Shape of a users-module row. */
+type ApiUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  role?: ApiRole;
+};
+
+/** Response of GET /users/:id. */
+type UserResponse = { user: ApiUser };
+
+function roleName(role: ApiRole | undefined): string {
+  if (!role) return "";
+  return typeof role === "string" ? role : role.name;
 }
 
-/** Fields persisted locally (everything else is derived). */
-type StoredProfile = Pick<UserProfile, "name" | "phone">;
-
-function readStored(): Partial<StoredProfile> {
-  if (!isBrowser()) return {};
-  try {
-    const raw = window.localStorage.getItem(PROFILE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Partial<StoredProfile>;
-    return typeof parsed === "object" && parsed !== null ? parsed : {};
-  } catch {
-    return {};
-  }
+function roleId(role: ApiRole | undefined): number {
+  if (!role || typeof role === "string") return 0;
+  return role.id;
 }
 
-/**
- * The current profile.
- *
- * Session identity (name/email/role) wins over both the stored copy and the
- * seed, so the profile page and the topbar can never disagree. Permissions are
- * always re-derived from the role.
- */
-export function getProfile(): UserProfile {
-  const stored = readStored();
-  const session = getSession();
-
-  const name = session?.user.name ?? stored.name ?? initialProfile.name;
-  const email = session?.user.email ?? initialProfile.email;
-  const role = session?.user.role ?? initialProfile.role;
-
+/** Normalise an API user (flat from /auth/me or nested from /users/:id). */
+function toProfile(user: ApiUser): UserProfile {
   return {
-    ...initialProfile,
-    ...stored,
-    name,
-    email,
-    role,
-    permissions: permissionsForRole(role),
+    id: user.id,
+    name: user.name ?? "",
+    email: user.email ?? "",
+    phone: user.phone ?? "",
+    role: roleName(user.role),
+    roleId: roleId(user.role),
+    isActive: user.isActive ?? true,
+    createdAt: user.createdAt ?? "",
+    updatedAt: user.updatedAt ?? "",
   };
 }
 
 /**
- * Save the editable fields.
+ * Fetch the signed-in user's profile.
  *
- * Mirrors `PATCH /users/me`. Updating the name also patches the session so the
- * topbar re-renders immediately via `useSession`.
+ * Throws `ApiError` on failure so the page can show a real error instead of
+ * invented data.
  */
-export function saveProfile(values: ProfileFormValues): UserProfile {
-  const trimmed = {
-    name: values.name.trim(),
-    phone: values.phone.trim(),
-  };
+export async function fetchProfile(): Promise<UserProfile> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
 
-  if (isBrowser()) {
-    window.localStorage.setItem(PROFILE_KEY, JSON.stringify(trimmed));
+  try {
+    const data = await request<UserResponse>(ENDPOINTS.users.byId(session.user.id), {
+      token: session.token,
+    });
+    if (data?.user) return toProfile(data.user);
+  } catch (error) {
+    // A 404/403 on /users/:id is possible for a non-admin viewer; the session
+    // user is still genuine data from the login response, so fall back to it.
+    if (!(error instanceof ApiError)) throw error;
   }
-  updateSessionUser({ name: trimmed.name });
 
-  return getProfile();
+  return toProfile({
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    phone: session.user.phone,
+    role: session.user.role,
+  });
 }
