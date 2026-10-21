@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* Typography. A single family is used everywhere: Plus Jakarta Sans.
+   It is fetched via <link rel="stylesheet"> in index.html (a <link> lets the
+   browser start the font request while parsing the head, in parallel with the
+   app bundle; a CSS @import would be serial). Registering it under @theme makes
+   Tailwind emit the `font-sans` utility and sets the app-wide default. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Login page surfaces: an ambient radial tint and the frosted panels the
+   sign-in console is built from. Light theme. */
+.login-glow-conic {
+  background: radial-gradient(
+    circle at 50% 30%,
+    rgba(129, 140, 248, 0.18) 0%,
+    rgba(199, 210, 254, 0.1) 50%,
+    transparent 75%
+  );
+}
+
+.login-glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 25px 50px -12px rgba(15, 23, 42, 0.3),
+    0 12px 24px -8px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.login-inner-bento {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.login-inner-bento-subtle {
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.login-canvas {
+  color-scheme: light;
+}
+
+@keyframes lead-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: lead-page-in 0.25s ease-out;
+}
+
+@keyframes lead-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lead-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-overlay-in {
+  animation: lead-overlay-in 0.15s ease-out;
+}
+
+.dialog-enter {
+  animation: lead-dialog-in 0.2s ease-out;
+}

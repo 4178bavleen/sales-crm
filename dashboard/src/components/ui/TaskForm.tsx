@@ -1,0 +1,350 @@
+import { useEffect, useState } from "react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  CheckSquare,
+  Handshake,
+  XCircle,
+} from "lucide-react";
+import type { Priority, TaskFormValues, TaskStatus } from "../../types/task";
+import {
+  TASK_ASSIGNEES,
+  TASK_CANCEL_REASONS,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+} from "../../types/task";
+import type { TaskFormProps } from "../../types/taskForm";
+import { cellClass } from "../../types/formControls";
+import { initialLeads } from "../../data/leads";
+import { initialDeals } from "../../data/deals";
+import { initialCustomers } from "../../data/customers";
+import { initialCompanies } from "../../data/companies";
+import {
+  Field,
+  FormSection,
+  FormShell,
+  SelectField,
+  TextAreaField,
+} from "./FormControls";
+
+const emptyValues: TaskFormValues = {
+  title: "",
+  description: "",
+  assignedTo: TASK_ASSIGNEES[0] ?? "",
+  dueAt: "",
+  priority: "MEDIUM",
+  status: "OPEN",
+  completedAt: "",
+  completedBy: TASK_ASSIGNEES[0] ?? "",
+  completionNote: "",
+  cancelReason: "",
+  lead: "",
+  deal: "",
+  customer: "",
+  company: "",
+  meeting: "",
+};
+
+/** Human labels for the enum selects, so the UI isn't shouting raw values. */
+const STATUS_LABELS: Record<TaskStatus, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const PRIORITY_LABELS: Record<Priority, string> = {
+  URGENT: "Urgent",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
+
+/** Map a label back to its enum value (selects deal in strings). */
+function statusFromLabel(label: string): TaskStatus {
+  const found = TASK_STATUSES.find(status => STATUS_LABELS[status] === label);
+  return found ?? "OPEN";
+}
+
+function priorityFromLabel(label: string): Priority {
+  const found = TASK_PRIORITIES.find(item => PRIORITY_LABELS[item] === label);
+  return found ?? "MEDIUM";
+}
+
+/** Today's ISO day, used to default the completion date. */
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Full-page create/edit form for a task.
+ *
+ * Maps onto the backend `Task` model. Completion fields (completedAt,
+ * completedBy, completionNote) appear only when status = COMPLETED, and the
+ * cancel reason only when status = CANCELLED — matching the schema's rule that
+ * those columns are set only in that state.
+ *
+ * The five related-record selects map to the optional Task.*Id relations.
+ * No meeting options are offered because no meetings exist yet; the field is
+ * kept in the type so wiring it later needs no shape change.
+ */
+export default function TaskForm({
+  mode,
+  values,
+  onClose,
+  onSubmit,
+}: TaskFormProps) {
+  const initialValues: TaskFormValues = values ?? emptyValues;
+  const [form, setForm] = useState<TaskFormValues>(initialValues);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const isEdit = mode === "edit";
+  const dirty = (Object.keys(initialValues) as (keyof TaskFormValues)[]).some(
+    key => form[key] !== initialValues[key],
+  );
+
+  function update<K extends keyof TaskFormValues>(
+    key: K,
+    value: TaskFormValues[K],
+  ) {
+    setForm(previous => ({ ...previous, [key]: value }));
+  }
+
+  // Esc closes the form (same as the cancel button)
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const leadOptions = initialLeads.map(
+    lead => `${lead.firstName} ${lead.lastName}`,
+  );
+  const dealOptions = initialDeals.map(deal => deal.name);
+  const customerOptions = initialCustomers.map(customer => customer.company);
+  const companyOptions = initialCompanies.map(company => company.name);
+
+  const title = form.title.trim();
+  const titleInvalid = !title;
+  const dueInvalid = !form.dueAt;
+  const errorMessage = titleInvalid
+    ? "Please enter the task title before saving."
+    : dueInvalid
+      ? "Please set a due date before saving."
+      : "";
+
+  function submit() {
+    setShowErrors(true);
+    if (titleInvalid || dueInvalid) return;
+
+    // Status-dependent fields are cleared when they don't apply, so a task
+    // never carries a completion note while cancelled (or vice versa).
+    const isCompleted = form.status === "COMPLETED";
+    const isCancelled = form.status === "CANCELLED";
+
+    onSubmit({
+      title,
+      description: form.description.trim(),
+      assignedTo: form.assignedTo,
+      dueAt: form.dueAt,
+      priority: form.priority,
+      status: form.status,
+      completedAt: isCompleted ? form.completedAt || todayIso() : "",
+      completedBy: isCompleted ? form.completedBy : "",
+      completionNote: isCompleted ? form.completionNote.trim() : "",
+      cancelReason: isCancelled ? form.cancelReason : "",
+      lead: form.lead,
+      deal: form.deal,
+      customer: form.customer,
+      company: form.company,
+      meeting: form.meeting,
+    });
+  }
+
+  return (
+    <FormShell
+      title={isEdit ? "Edit Task" : "Create Task"}
+      description={
+        isEdit
+          ? "Update this task's details, status, and assignment."
+          : "Assign a task with a due date and priority."
+      }
+      error={errorMessage}
+      dirty={dirty}
+      onClose={onClose}
+      onSubmit={submit}
+    >
+      {/* Maps to: Task (title, description, assignedToId, dueAt, priority, status) */}
+      <FormSection
+        icon={<CheckSquare size={17} />}
+        title="Task Information"
+        description="What needs doing, and by when."
+        aside="* Required fields"
+      >
+        <div className={cellClass}>
+          <Field
+            label="Title"
+            value={form.title}
+            onChange={value => update("title", value)}
+            required
+            placeholder="e.g. Call Christopher about the rollout"
+            invalid={showErrors && titleInvalid}
+            hint="Task title is required."
+          />
+        </div>
+        <div className={cellClass}>
+          <Field
+            label="Due At"
+            value={form.dueAt}
+            onChange={value => update("dueAt", value)}
+            type="date"
+            required
+            invalid={showErrors && dueInvalid}
+            hint="A due date is required."
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Assignee"
+            value={form.assignedTo}
+            onChange={value => update("assignedTo", value)}
+            options={TASK_ASSIGNEES}
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Priority"
+            value={PRIORITY_LABELS[form.priority]}
+            onChange={value => update("priority", priorityFromLabel(value))}
+            options={TASK_PRIORITIES.map(item => PRIORITY_LABELS[item])}
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Status"
+            value={STATUS_LABELS[form.status]}
+            onChange={value => update("status", statusFromLabel(value))}
+            options={TASK_STATUSES.map(status => STATUS_LABELS[status])}
+          />
+        </div>
+        <div className={cellClass}>
+          <TextAreaField
+            label="Description"
+            value={form.description}
+            onChange={value => update("description", value)}
+            placeholder="Any detail the assignee needs."
+            rows={2}
+          />
+        </div>
+      </FormSection>
+
+      {/* Maps to: Task.leadId / dealId / customerId / companyId / meetingId */}
+      <FormSection
+        icon={<Handshake size={17} />}
+        title="Related To"
+        description="Optionally link this task to a record. Leave blank for a standalone task."
+      >
+        <div className={cellClass}>
+          <SelectField
+            label="Lead"
+            value={form.lead}
+            onChange={value => update("lead", value)}
+            options={leadOptions}
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Deal"
+            value={form.deal}
+            onChange={value => update("deal", value)}
+            options={dealOptions}
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Customer"
+            value={form.customer}
+            onChange={value => update("customer", value)}
+            options={customerOptions}
+          />
+        </div>
+        <div className={cellClass}>
+          <SelectField
+            label="Company"
+            value={form.company}
+            onChange={value => update("company", value)}
+            options={companyOptions}
+          />
+        </div>
+      </FormSection>
+
+      {/* Maps to: Task.completedAt / completedById / completionNote — only when COMPLETED */}
+      {form.status === "COMPLETED" && (
+        <FormSection
+          icon={<CheckCircle2 size={17} />}
+          title="Completion"
+          description="Recorded because this task is marked Completed."
+        >
+          <div className={cellClass}>
+            <Field
+              label="Completed At"
+              value={form.completedAt}
+              onChange={value => update("completedAt", value)}
+              type="date"
+            />
+          </div>
+          <div className={cellClass}>
+            <SelectField
+              label="Completed By"
+              value={form.completedBy}
+              onChange={value => update("completedBy", value)}
+              options={TASK_ASSIGNEES}
+            />
+          </div>
+          <div className={cellClass}>
+            <TextAreaField
+              label="Completion Note"
+              value={form.completionNote}
+              onChange={value => update("completionNote", value)}
+              placeholder="What was the outcome?"
+              rows={2}
+            />
+          </div>
+        </FormSection>
+      )}
+
+      {/* Maps to: Task.cancelReasonId -> Reason (type TASK_CANCELLED) — only when CANCELLED */}
+      {form.status === "CANCELLED" && (
+        <FormSection
+          icon={<XCircle size={17} />}
+          title="Cancellation"
+          description="Recorded because this task is marked Cancelled."
+        >
+          <div className={cellClass}>
+            <SelectField
+              label="Cancel Reason"
+              value={form.cancelReason}
+              onChange={value => update("cancelReason", value)}
+              options={TASK_CANCEL_REASONS}
+            />
+          </div>
+        </FormSection>
+      )}
+
+      {/* Read-only note about what the due date drives */}
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <CalendarClock size={17} />
+          </div>
+          <p className="text-xs text-slate-500">
+            The due date drives the Overdue, Due today, and Upcoming filters on
+            the tasks list.
+          </p>
+        </div>
+      </section>
+    </FormShell>
+  );
+}
