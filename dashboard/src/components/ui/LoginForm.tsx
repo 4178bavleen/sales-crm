@@ -1,22 +1,19 @@
 import { useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  LogIn,
-  UserRound,
-} from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Loader2, Lock, UserRound } from "lucide-react";
 import type { LoginFormProps, LoginFormValues } from "../../types/auth";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "../../types/auth";
-import { primaryButtonClass } from "../../types/formControls";
 
-/** Shared input styling — matches the app's indigo form accents. */
+/** Light input styling, matching the app's indigo form accents. */
 const inputClass =
-  "h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+  "block w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
 const inputInvalidClass =
-  "h-11 w-full rounded-lg border border-rose-300 bg-white pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-100";
-const labelClass = "mb-1.5 block text-sm font-medium text-slate-700";
+  "block w-full rounded-xl border border-rose-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 hover:border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-100";
+const labelClass =
+  "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600";
+
+/** Compact inline notice used for both errors and success feedback. */
+const noticeBase =
+  "mb-5 flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all duration-300";
 
 /**
  * The login form.
@@ -37,6 +34,7 @@ export default function LoginForm({
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [filled, setFilled] = useState(false);
 
   const identifierInvalid = form.identifier.trim() === "";
   const passwordInvalid = form.password === "";
@@ -55,11 +53,25 @@ export default function LoginForm({
     setForm(previous => ({ ...previous, [key]: value }));
   }
 
+  /** Fill in the demo account, mirroring the design's "Auto-fill" affordance. */
+  function autoFill() {
+    setForm(previous => ({
+      ...previous,
+      identifier: DEMO_ACCOUNTS[0]?.email ?? "",
+      password: DEMO_PASSWORD,
+    }));
+    setShowErrors(false);
+    setFilled(true);
+    window.setTimeout(() => setFilled(false), 2500);
+  }
+
   function submit() {
     setShowErrors(true);
     if (identifierInvalid || passwordInvalid || pending) return;
     onSubmit(form);
   }
+
+  const demo = DEMO_ACCOUNTS[0];
 
   return (
     <form
@@ -69,28 +81,17 @@ export default function LoginForm({
       }}
       noValidate
     >
-      {/* Error banner */}
-      {message && (
-        <div
-          role="alert"
-          className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700"
-        >
-          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-700">
-            !
-          </span>
-          <span>{message}</span>
-        </div>
-      )}
+      
 
       {/* Identifier */}
-      <div className="mb-4">
+      <div className="mb-4 space-y-1.5">
         <label htmlFor="identifier" className={labelClass}>
           Username or email
         </label>
-        <div className="relative">
+        <div className="relative rounded-xl">
           <UserRound
-            size={17}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             id="identifier"
@@ -102,20 +103,22 @@ export default function LoginForm({
             onChange={event => update("identifier", event.target.value)}
             placeholder="gabriel@salesflow.example.com"
             aria-invalid={showErrors && identifierInvalid ? true : undefined}
-            className={showErrors && identifierInvalid ? inputInvalidClass : inputClass}
+            className={
+              showErrors && identifierInvalid ? inputInvalidClass : inputClass
+            }
           />
         </div>
       </div>
 
       {/* Password */}
-      <div className="mb-4">
+      <div className="mb-4 space-y-1.5">
         <label htmlFor="password" className={labelClass}>
           Password
         </label>
-        <div className="relative">
+        <div className="relative rounded-xl">
           <Lock
-            size={17}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             id="password"
@@ -126,14 +129,16 @@ export default function LoginForm({
             onChange={event => update("password", event.target.value)}
             placeholder="Enter your password"
             aria-invalid={showErrors && passwordInvalid ? true : undefined}
-            className={`${showErrors && passwordInvalid ? inputInvalidClass : inputClass} pr-11`}
+            className={`${
+              showErrors && passwordInvalid ? inputInvalidClass : inputClass
+            } pr-11`}
           />
           <button
             type="button"
             onClick={() => setShowPassword(previous => !previous)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             title={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center pr-3.5 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none"
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
@@ -141,14 +146,19 @@ export default function LoginForm({
       </div>
 
       {/* Remember me */}
-      <div className="mb-5">
-        <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={form.remember}
-            onChange={event => update("remember", event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
-          />
+      <div className="flex items-center pt-1">
+        <input
+          id="remember_me"
+          name="remember_me"
+          type="checkbox"
+          checked={form.remember}
+          onChange={event => update("remember", event.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 accent-indigo-600 focus:ring-indigo-500"
+        />
+        <label
+          htmlFor="remember_me"
+          className="ml-2.5 block select-none text-xs text-slate-600 sm:text-sm"
+        >
           Remember me
         </label>
       </div>
@@ -157,45 +167,25 @@ export default function LoginForm({
       <button
         type="submit"
         disabled={pending}
-        className={`${primaryButtonClass} h-11 w-full justify-center text-sm ${
-          pending ? "cursor-not-allowed opacity-70" : ""
+        className={`group mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-150 hover:from-indigo-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:scale-[0.99] ${
+          pending ? "cursor-not-allowed opacity-80" : ""
         }`}
       >
         {pending ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Signing in...
+            Verifying workspace session...
           </>
         ) : (
           <>
-            <LogIn size={16} />
-            Sign In
+            Sign In to Workspace
+            <ArrowRight
+              size={16}
+              className="transition-transform group-hover:translate-x-1"
+            />
           </>
         )}
       </button>
-
-      {/* Demo credentials hint */}
-      <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          Demo credentials
-        </p>
-        <div className="mt-1.5 space-y-0.5 text-xs text-slate-500">
-          <p>
-            Username{" "}
-            <span className="font-medium text-slate-700">
-              {DEMO_ACCOUNTS[0]?.name ?? "—"}
-            </span>{" "}
-            or email{" "}
-            <span className="font-medium text-slate-700">
-              {DEMO_ACCOUNTS[0]?.email ?? "—"}
-            </span>
-          </p>
-          <p>
-            Password{" "}
-            <span className="font-medium text-slate-700">{DEMO_PASSWORD}</span>
-          </p>
-        </div>
-      </div>
     </form>
   );
 }

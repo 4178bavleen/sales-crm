@@ -10,6 +10,7 @@ import Companies from "./pages/companies/Companies";
 import Customers from "./pages/customers/Customers";
 import Deals from "./pages/deals/Deals";
 import Tasks from "./pages/tasks/Tasks";
+import Profile from "./pages/profile/Profile";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 import "./App.css";
@@ -32,6 +33,7 @@ function AppShell() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/deals" element={<Deals />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

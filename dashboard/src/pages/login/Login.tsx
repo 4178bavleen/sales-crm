@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Handshake, ShieldCheck, TrendingUp, Users } from "lucide-react";
+import {
+  BellRing,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import type { LoginFormValues } from "../../types/auth";
 import { signIn } from "../../lib/auth";
 import LoginForm from "../../components/ui/LoginForm";
@@ -8,24 +12,29 @@ import LoginForm from "../../components/ui/LoginForm";
 /** Current year, computed once at module load rather than during render. */
 const CURRENT_YEAR = new Date().getFullYear();
 
-/** Value props shown on the left panel, hidden on small screens. */
-const HIGHLIGHTS = [
+
+/** The three core pillars listed under the showcase. */
+const PILLARS = [
   {
     Icon: TrendingUp,
+    tone: "bg-indigo-50 text-indigo-600",
     title: "Pipeline in one place",
     text: "Track deals by stage and see pipeline value at a glance.",
   },
   {
     Icon: Users,
+    tone: "bg-indigo-50 text-indigo-600",
     title: "Every contact connected",
     text: "Leads, contacts, companies and customers kept in sync.",
   },
   {
-    Icon: Handshake,
+    Icon: BellRing,
+    tone: "bg-cyan-50 text-cyan-600",
     title: "Follow-ups that happen",
     text: "Tasks with due dates, priorities and overdue alerts.",
   },
 ];
+
 
 /**
  * Full-bleed login page.
@@ -53,110 +62,107 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Left: brand + value props (large screens only) */}
-      <aside className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-slate-950 p-10 lg:flex xl:p-14">
-        {/* Layered depth: a soft radial wash, a faint grid, and two glows.
-            All decorative, so they are hidden from assistive tech. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_0%,rgba(79,70,229,0.28),transparent_55%)]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:56px_56px]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-28 -top-24 h-80 w-80 rounded-full bg-indigo-600/35 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 -right-20 h-96 w-96 rounded-full bg-blue-500/25 blur-3xl"
-        />
-        {/* A hairline divider against the light form side */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 w-px bg-white/10"
-        />
+    <div className="login-canvas relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-slate-50 text-slate-900">
+      {/* Ambient tint — decorative only. */}
+      <div aria-hidden="true" className="login-glow-conic pointer-events-none fixed inset-0" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -top-40 left-1/2 h-[450px] w-[700px] -translate-x-1/2 rounded-full bg-indigo-300/30 blur-[140px]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -right-20 bottom-0 h-96 w-96 rounded-full bg-indigo-300/25 blur-[120px]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -left-24 top-1/2 h-80 w-80 rounded-full bg-cyan-200/30 blur-[130px]"
+      />
 
-        <div className="relative">
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-4 backdrop-blur">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/30">
-              <TrendingUp size={15} />
+      {/* Floating centred bento experience */}
+      <div className="relative z-10 flex w-full flex-grow items-center justify-center p-4 sm:p-6 lg:p-10">
+        <div className="login-glass-card w-full max-w-6xl rounded-3xl p-6 transition-all duration-300 sm:p-8 lg:p-10">
+          {/* Bento portal header bar */}
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6 sm:pb-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white shadow-lg shadow-indigo-500/25">
+                <TrendingUp size={20} />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-lg font-bold tracking-tight text-slate-900">
+                  SalesFlow
+                </span>
+              </div>
             </div>
-            <span className="text-sm font-semibold tracking-tight text-white">
-              SalesFlow
-            </span>
-          </div>
+          </header>
 
-          <h1 className="mt-12 max-w-md text-3xl font-semibold leading-tight tracking-tight text-white xl:text-4xl">
-            The sales workspace your team{" "}
-            <span className="bg-gradient-to-r from-indigo-300 to-blue-200 bg-clip-text text-transparent">
-              actually keeps up with
-            </span>
-            .
-          </h1>
-          <p className="mt-4 max-w-md text-sm leading-6 text-slate-400">
-            Leads, contacts, companies, customers, deals and tasks — one
-            consistent home for the whole pipeline.
-          </p>
+          {/* Bento inner split: showcase + sign-in console */}
+          <div className="grid grid-cols-1 items-start gap-8 pt-8 lg:grid-cols-12 lg:gap-10">
+            {/* Left: narrative + live pipeline deck (7 cols) */}
+            <div className="flex flex-col justify-between space-y-6 lg:col-span-7">
+              <div>
 
-          <ul className="mt-10 space-y-3">
-            {HIGHLIGHTS.map(({ Icon, title, text }) => (
-              <li
-                key={title}
-                className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 backdrop-blur-sm transition-colors hover:border-white/15 hover:bg-white/[0.06]"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300 ring-1 ring-inset ring-indigo-400/20">
-                  <Icon size={16} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{title}</p>
-                  <p className="mt-0.5 text-xs leading-5 text-slate-400">
-                    {text}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+                <h1 className="text-3xl font-extrabold leading-[1.18] tracking-tight text-slate-900 sm:text-4xl lg:text-[2.65rem]">
+                  The sales workspace your team{" "}
+                  <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 bg-clip-text text-transparent">
+                    actually keeps up with.
+                  </span>
+                </h1>
 
-        <p className="relative text-xs text-slate-500">
-          © {CURRENT_YEAR} Vibrantick Infotech Solutions. All rights reserved.
-        </p>
-      </aside>
+                <p className="mt-4 max-w-xl text-sm font-normal leading-relaxed text-slate-600 sm:text-base">
+                  Leads, contacts, companies, customers, deals and tasks — one
+                  consistent home for the whole pipeline.
+                </p>
+              </div>
 
-      {/* Right: the form */}
-      <main className="flex w-full flex-col items-center justify-center px-5 py-10 lg:w-1/2">
-        <div className="w-full max-w-sm">
-          {/* Brand, for small screens where the left panel is hidden */}
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">
-              <TrendingUp size={18} />
+              {/* Three core pillars */}
+              <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
+                {PILLARS.map(({ Icon, tone, title, text }) => (
+                  <div
+                    key={title}
+                    className="login-inner-bento-subtle flex flex-col justify-between rounded-xl p-3.5 transition-colors hover:border-indigo-300"
+                  >
+                    <div
+                      className={`mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg ${tone}`}
+                    >
+                      <Icon size={16} />
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-semibold text-slate-900">
+                        {title}
+                      </h2>
+                      <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                        {text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
             </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-800">
-              SalesFlow
-            </span>
+
+            {/* Right: sign-in console (5 cols) */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-7 lg:col-span-5">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Welcome back
+                </h2>
+                <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
+                  Enter your credentials to access your pipeline.
+                </p>
+              </div>
+
+              <LoginForm onSubmit={handleSubmit} error={error} pending={pending} />
+            </div>
           </div>
-
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-800">
-            Sign in
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Welcome back. Enter your details to continue.
-          </p>
-
-          <div className="mt-7">
-            <LoginForm onSubmit={handleSubmit} error={error} pending={pending} />
-          </div>
-
-          <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-            <ShieldCheck size={14} />
-            Demo build — sign-in is simulated locally, no account is created.
-          </p>
         </div>
-      </main>
+      </div>
+
+      {/* Centred compact footer */}
+      <footer className="relative z-10 border-t border-slate-200 py-5 text-center text-xs text-slate-500">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
+          <p>© {CURRENT_YEAR} Vibrantick Infotech Solutions. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }

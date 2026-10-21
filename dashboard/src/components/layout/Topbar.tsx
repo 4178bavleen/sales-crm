@@ -11,11 +11,14 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { getSession, signOut } from "../../lib/auth";
+import { signOut } from "../../lib/auth";
+import { useSession } from "../../lib/useSession";
 
 export default function Topbar() {
   const navigate = useNavigate();
-  const session = getSession();
+  // Subscribing (rather than reading getSession once) means a profile name
+  // change re-renders the topbar immediately.
+  const session = useSession();
   const userName = session?.user.name ?? "Gabriel Deora";
   const userRole = session?.user.role ?? "Sales Manager";
   const initials = userName
@@ -204,7 +207,10 @@ export default function Topbar() {
 
                 <button
                   type="button"
-                  onClick={() => setShowProfile(false)}
+                  onClick={() => {
+                    setShowProfile(false);
+                    navigate("/profile");
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50"
                 >
                   <UserRound size={16} />

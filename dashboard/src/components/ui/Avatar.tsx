@@ -28,10 +28,14 @@ export default function Avatar({
   size = 32,
   className = "",
 }: AvatarProps) {
+  // Scale the initials only for large circles (the profile hero uses 64px).
+  // Smaller sizes keep the original 10px so existing lists/dialogs are
+  // untouched.
+  const textSize = size >= 56 ? "text-lg" : "text-[10px]";
   return (
     <div
       style={{ width: size, height: size }}
-      className={`flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${textSize} ${
         avatarTints[seed % avatarTints.length]
       } ${className}`}
     >

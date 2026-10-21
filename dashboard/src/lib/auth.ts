@@ -1,4 +1,4 @@
-import type { AuthSession, LoginFormValues } from "../types/auth";
+import type { AuthSession, AuthUser, LoginFormValues } from "../types/auth";
 import { DEMO_ACCOUNTS } from "../types/auth";
 
 /**
@@ -9,6 +9,10 @@ import { DEMO_ACCOUNTS } from "../types/auth";
  * so there is nothing to authenticate against yet. When the real endpoint
  * lands, `signIn` becomes an API call and `getSession`/`signOut` read/write
  * whatever the server issues instead of localStorage.
+ *
+ * The session is cached in a module variable so `getSession` returns a stable
+ * reference — required by `useSyncExternalStore` (see src/lib/useSession.ts),
+ * which lets the topbar re-render as soon as the profile changes the name.
  */
 
 const SESSION_KEY = "salesflow.session";
@@ -17,8 +21,7 @@ function isBrowser() {
   return typeof window !== "undefined" && !!window.localStorage;
 }
 
-/** Read the stored session, or null when signed out. */
-export function getSession(): AuthSession | null {
+function readStored(): AuthSession | null {
   if (!isBrowser()) return null;
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
@@ -32,16 +35,56 @@ export function getSession(): AuthSession | null {
   }
 }
 
-/** Persist a session. */
-function setSession(session: AuthSession) {
-  if (!isBrowser()) return;
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+/** Cached snapshot of the session (undefined = not read yet). */
+let cached: AuthSession | null | undefined;
+
+/** Read the stored session, or null when signed out. */
+export function getSession(): AuthSession | null {
+  if (cached === undefined) cached = readStored();
+  return cached;
+}
+
+type SessionListener = () => void;
+const listeners = new Set<SessionListener>();
+
+/** Subscribe to session changes. Returns an unsubscribe function. */
+export function subscribeSession(listener: SessionListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function emit() {
+  for (const listener of listeners) listener();
+}
+
+/** Persist (or clear) a session and notify subscribers. */
+function writeSession(session: AuthSession | null) {
+  cached = session;
+  if (isBrowser()) {
+    if (session) {
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } else {
+      window.localStorage.removeItem(SESSION_KEY);
+    }
+  }
+  emit();
+}
+
+/**
+ * Patch the signed-in user's own fields (e.g. after a profile edit) without
+ * touching the auth token. Keeps the topbar in sync immediately.
+ */
+export function updateSessionUser(patch: Partial<AuthUser>) {
+  const session = getSession();
+  if (!session) return;
+  writeSession({ ...session, user: { ...session.user, ...patch } });
 }
 
 /** Clear the session. */
 export function signOut() {
-  if (!isBrowser()) return;
-  window.localStorage.removeItem(SESSION_KEY);
+  writeSession(null);
 }
 
 /**
@@ -87,6 +130,6 @@ export async function signIn(values: LoginFormValues): Promise<SignInResult> {
     signedInAt: new Date().toISOString(),
     remember: values.remember,
   };
-  setSession(session);
+  writeSession(session);
   return { ok: true, session };
 }
