@@ -1,6 +1,16 @@
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, UserRound } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import type { LoginFormProps, LoginFormValues } from "../../types/auth";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "../../types/auth";
 
 /**
  * Light input styling, matching the app's indigo form accents.
@@ -20,9 +30,8 @@ const iconInvalidClass =
 const labelClass =
   "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600";
 
-/** Compact inline notice used for both errors and success feedback. */
-const noticeBase =
-  "mb-5 flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all duration-300";
+/** The demo account shown in the credentials hint. */
+const demo = DEMO_ACCOUNTS[0];
 
 /**
  * The login form.
@@ -30,6 +39,11 @@ const noticeBase =
  * Collects a single `identifier` (matched against `User.email` or `User.name`),
  * a password, and a remember-me choice. Validation and submission live in the
  * page; this component only reports what the user typed.
+ *
+ * The demo block at the bottom is a development convenience: the backend auth
+ * module has no implementation, so the only working credentials are the seeded
+ * ones. It fills the fields through React state (never by writing `.value`),
+ * so the form behaves exactly as if the user had typed them.
  */
 export default function LoginForm({
   onSubmit,
@@ -43,6 +57,7 @@ export default function LoginForm({
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [filled, setFilled] = useState(false);
 
   const identifierInvalid = form.identifier.trim() === "";
   const passwordInvalid = form.password === "";
@@ -67,6 +82,18 @@ export default function LoginForm({
     onSubmit(form);
   }
 
+  /** Copy the seeded demo account into the fields, via React state. */
+  function autoFill() {
+    if (!demo) return;
+    setForm(previous => ({
+      ...previous,
+      identifier: demo.email,
+      password: demo.password,
+    }));
+    setShowErrors(false);
+    setFilled(true);
+  }
+
   const showIdentifierInvalid = showErrors && identifierInvalid;
   const showPasswordInvalid = showErrors && passwordInvalid;
 
@@ -82,7 +109,7 @@ export default function LoginForm({
       {message && (
         <div
           role="alert"
-          className={`${noticeBase} border-rose-200 bg-rose-50 text-rose-700`}
+          className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 transition-all duration-300"
         >
           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-700">
             !
@@ -108,12 +135,13 @@ export default function LoginForm({
             autoComplete="username"
             autoFocus
             value={form.identifier}
-            onChange={event => update("identifier", event.target.value)}
+            onChange={event => {
+              update("identifier", event.target.value);
+              setFilled(false);
+            }}
             placeholder="gabriel@salesflow.example.com"
             aria-invalid={showIdentifierInvalid ? true : undefined}
-            className={
-              showIdentifierInvalid ? inputInvalidClass : inputClass
-            }
+            className={showIdentifierInvalid ? inputInvalidClass : inputClass}
           />
         </div>
       </div>
@@ -134,7 +162,10 @@ export default function LoginForm({
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             value={form.password}
-            onChange={event => update("password", event.target.value)}
+            onChange={event => {
+              update("password", event.target.value);
+              setFilled(false);
+            }}
             placeholder="Enter your password"
             aria-invalid={showPasswordInvalid ? true : undefined}
             className={`${
@@ -191,6 +222,41 @@ export default function LoginForm({
           </>
         )}
       </button>
+
+      {/* Demo credentials — the seeded account, since the auth API is unwired. */}
+      {demo && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <Sparkles size={12} className="text-indigo-500" />
+                Demo credentials
+              </p>
+              <p className="mt-1 truncate text-[11px] text-slate-500">
+                {demo.email} · {DEMO_PASSWORD}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={autoFill}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                filled
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-300 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600"
+              }`}
+            >
+              {filled ? (
+                <>
+                  <Check size={13} />
+                  Filled
+                </>
+              ) : (
+                "Auto-fill"
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
