@@ -1,6 +1,7 @@
 
 import { createAdmin } from './admin.seed.js'
 import { seedRoles } from './role.seed.js'
+import {seedPermissions} from './permission.seed.js'
 
 import { prisma } from '../../src/config/database.js'
 
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
  
   await createAdmin()
   await seedRoles()
+  await seedPermissions()
 
   console.log('✅ Database seed completed.')
 }

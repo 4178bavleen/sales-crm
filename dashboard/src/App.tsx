@@ -1,4 +1,3 @@
-
 import { Route, Routes } from "react-router-dom";
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
@@ -48,7 +47,8 @@ export default function App() {
   return (
     <Routes>
       {/* Full-bleed, outside the shell: there is no signed-in user yet. */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<Login initialMode="login" />} />
+      <Route path="/forgot-password" element={<Login initialMode="forgot" />} />
 
       {/* Everything else requires a session. */}
       <Route

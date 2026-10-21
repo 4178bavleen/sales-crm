@@ -10,6 +10,9 @@ import { errorMiddleware } from './common/middleware/error.middleware.js'
 
 import authRoutes from './modules/auth/auth.routes.js'
 import userRoutes from './modules/users/user.routes.js'
+import leadRoutes from './modules/leads/lead.routes.js'
+import permissionRoutes from './modules/permission/permission.routes.js'
+import taskRoutes from './modules/tasks/task.routes.js'
 
 const app = express()
 
@@ -36,6 +39,9 @@ app.get('/api/v1/health', (_req, res) => {
 })
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/users', userRoutes)
+app.use('/api/v1/leads', leadRoutes)
+app.use('/api/v1/permissions', permissionRoutes)
+app.use('/api/v1/tasks', taskRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 

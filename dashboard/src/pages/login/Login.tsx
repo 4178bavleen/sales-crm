@@ -1,60 +1,34 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Building2, ShieldCheck, TrendingUp } from "lucide-react";
 import type { LoginFormValues } from "../../types/auth";
 import { signIn } from "../../lib/auth";
 import LoginForm from "../../components/ui/LoginForm";
+import ForgotPasswordForm from "../../components/ui/ForgotPasswordForm";
+import SalesCrmLogo from "../../components/ui/SalesCrmLogo";
 
-/**
- * What the workspace covers, shown as plain lines on the left.
- *
- * Deliberately text-only — a row of icon tiles turned the pitch into a spec
- * sheet and competed with the card. Each line maps to a real module.
- */
-const COVERAGE = [
-  "Deals grouped by stage, with a running pipeline value",
-  "Leads, contacts, companies and customers in one place",
-  "Tasks with due dates, priorities and overdue alerts",
-];
+export type AuthMode = "login" | "forgot";
 
-/** Header facts shown under the divider. Icons live here only — the coverage
- *  lines above deliberately stay text-only. */
-const FACTS = [
-  { Icon: ShieldCheck, label: "Role-based access" },
-  { Icon: Building2, label: "Built for sales teams" },
-];
+interface LoginProps {
+  initialMode?: AuthMode;
+}
 
-/**
- * Full-bleed login page.
- *
- * Rendered outside the app shell (no sidebar or topbar), since there is no
- * signed-in user yet. One card sits on a light blue background image and holds
- * both halves: a soft panel with the product pitch on the left, the form on the
- * right, split by a hairline divider. The right half is fixed-width so the form
- * never stretches. Below `lg` the pitch drops away and the form fills the card.
- * Submitting calls the local `signIn` stub and, on success, navigates to the
- * dashboard.
- *
- * The pitch panel is tinted rather than left transparent: the background is
- * brightest on the left, so bare dark text loses contrast where the gradient
- * deepens.
- */
-export default function Login() {
+export default function Login({ initialMode }: LoginProps) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Derive mode directly from location path or initialMode
+  const mode: AuthMode = initialMode
+    ? initialMode
+    : location.pathname === "/forgot-password"
+    ? "forgot"
+    : "login";
+
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
-  /**
-   * Where to land after a successful sign-in.
-   *
-   * `RequireAuth` redirects here with the blocked path in `location.state.from`,
-   * so a user who follows a deep link while signed out ends up there instead of
-   * the dashboard root.
-   */
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
-  async function handleSubmit(values: LoginFormValues) {
+  async function handleLoginSubmit(values: LoginFormValues) {
     setPending(true);
     setError("");
     const result = await signIn(values);
@@ -67,90 +41,73 @@ export default function Login() {
     setError(result.error);
   }
 
+  function handleSwitchMode(nextMode: AuthMode) {
+    setError("");
+    const nextPath = nextMode === "login" ? "/login" : "/forgot-password";
+    navigate(nextPath, { replace: true, state: location.state });
+  }
+
   return (
-    <div
-      className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#f0f6fd]"
-      style={{
-        backgroundImage: "url('/login-bg.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      <div className="w-full max-w-[1060px] mx-auto px-6 sm:px-10 lg:px-12 py-8 lg:py-12">
-        {/* One card holding both halves: pitch on the left, form on the right.
-            A single white surface reads as one product, not two boxes.
+    <div className="relative min-h-screen w-full flex flex-col justify-between items-center bg-gradient-to-br from-[#dfeafd] via-[#edf4fe] to-[#d5e5fc] px-4 py-8 sm:py-12 overflow-x-hidden selection:bg-blue-600 selection:text-white">
+      {/* Dynamic ambient color glow spheres */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-20 w-[550px] h-[550px] rounded-full bg-blue-500/20 blur-[130px] -z-0"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/3 -right-24 w-[600px] h-[600px] rounded-full bg-indigo-500/18 blur-[140px] -z-0"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-36 left-1/4 w-[500px] h-[500px] rounded-full bg-sky-400/25 blur-[120px] -z-0"
+      />
 
-            Height: derived from the viewport so the card fills a normal desktop
-            without ever exceeding a short window. A fixed `min-h` cannot work
-            here — `min-height` beats `max-height` when they conflict, so a
-            700px minimum would still overflow a 720px-tall window. `h-...vh`
-            scales continuously and the inner columns centre their content. */}
-        <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/90 shadow-[0_24px_60px_-10px_rgba(18,52,122,0.16),0_10px_24px_-6px_rgba(18,52,122,0.1)] backdrop-blur-2xl flex flex-col lg:flex-row lg:h-[calc(100vh-7rem)] lg:min-h-[560px] lg:max-h-[760px]">
+      {/* Subtle modern dot-grid texture */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.35] -z-0"
+        style={{
+          backgroundImage: "radial-gradient(rgba(24, 64, 150, 0.16) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
 
-          {/* Left: product pitch. Hidden below lg, where the form leads. */}
-          <div className="hidden lg:flex lg:flex-1 flex-col justify-center border-r border-[#e6eefa] bg-[#f7fafe] p-9 xl:p-11 overflow-y-auto">
-            {/* Brand — one icon only, on the mark itself */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#005bfd] text-white shadow-[0_8px_20px_-4px_rgba(0,91,253,0.45)]">
-                <TrendingUp className="h-[22px] w-[22px]" strokeWidth={2.2} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[19px] font-bold leading-tight tracking-tight text-[#0f2a5e]">
-                  SalesFlow
-                </span>
-                <span className="text-[12px] font-medium leading-tight text-[#4a6a9e]">
-                  Workspace CRM
-                </span>
-              </div>
-            </div>
+      {/* Invisible spacer so the card centers perfectly vertically */}
+      <div className="h-4 sm:h-8" />
 
-            <h2 className="mt-8 text-[29px] xl:text-[32px] font-extrabold leading-[1.18] tracking-tight text-[#0f2a5e]">
-              The sales workspace your team{" "}
-              <span className="text-[#005bfd]">actually keeps up with.</span>
-            </h2>
+      {/* Main Centered Login Section */}
+      <main className="relative z-10 w-full max-w-[440px] flex flex-col items-center my-auto">
+        {/* Brand Logo centered prominently above the card */}
+        <div className="mb-6 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => handleSwitchMode("login")}
+            className="focus:outline-none cursor-pointer flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          >
+            <SalesCrmLogo className="scale-120" />
+          </button>
+        </div>
 
-            <p className="mt-4 text-[14.5px] leading-relaxed text-[#3c5480]">
-              One home for every stage of the pipeline, so nothing slips through
-              the cracks.
-            </p>
-
-            {/* Coverage — plain text, no icon tiles */}
-            <ul className="mt-7 space-y-3">
-              {COVERAGE.map(line => (
-                <li
-                  key={line}
-                  className="border-l-2 border-[#005bfd]/30 pl-3.5 text-[14px] leading-snug text-[#28406e]"
-                >
-                  {line}
-                </li>
-              ))}
-            </ul>
-
-            {/* Facts — the one place icons return, since these are badges */}
-            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#dfe8fb] pt-4">
-              {FACTS.map(({ Icon, label }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#3c5480]"
-                >
-                  <Icon className="h-[14px] w-[14px] shrink-0 text-[#005bfd]" strokeWidth={2.2} />
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: the form */}
-          <div className="w-full lg:w-[460px] xl:w-[480px] shrink-0 flex flex-col justify-center p-8 sm:p-10 lg:p-11">
+        {/* Focused Elevated Card */}
+        <div className="w-full rounded-2xl bg-white/95 p-7 sm:p-9 shadow-[0_24px_60px_-12px_rgba(20,55,120,0.18),0_8px_24px_-6px_rgba(20,55,120,0.08)] border border-white/90 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+          {mode === "login" ? (
             <LoginForm
-              onSubmit={handleSubmit}
+              onSubmit={handleLoginSubmit}
+              onSwitchMode={handleSwitchMode}
               error={error}
               pending={pending}
             />
-          </div>
+          ) : (
+            <ForgotPasswordForm onSwitchMode={handleSwitchMode} />
+          )}
         </div>
-      </div>
+      </main>
+
+      {/* Clean centered footer */}
+      <footer className="relative z-10 w-full py-4 text-center text-xs text-slate-500 font-medium">
+        &copy; 2026 Sales CRM. All rights reserved.
+      </footer>
     </div>
   );
 }

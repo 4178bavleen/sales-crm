@@ -54,7 +54,9 @@ export const leadIdSchema = z.coerce.number().int().positive()
 
 export const assignLeadSchema = z.object({
   ownerId: z.number().int().positive().nullable(),
+  note: z.string().trim().max(1000).optional(),
 })
+
 
 export const updateLeadStatusSchema = z.object({
   status: z.enum([
@@ -66,7 +68,20 @@ export const updateLeadStatusSchema = z.object({
   ]),
   disqualifyReasonId: z.number().int().positive().nullable().optional(),
   disqualifyNote: z.string().trim().max(2000).nullable().optional(),
+}).superRefine((data, ctx) => {
+  if (
+    data.status === 'DISQUALIFIED' &&
+    data.disqualifyReasonId == null &&
+    !data.disqualifyNote?.trim()
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['disqualifyReasonId'],
+      message: 'Provide a disqualification reason or note',
+    })
+  }
 })
+
 
 export type CreateLeadInput = z.infer<typeof createLeadSchema>
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>

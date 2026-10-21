@@ -28,6 +28,8 @@ export class ApiError extends Error {
   }
 }
 
+
+
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;

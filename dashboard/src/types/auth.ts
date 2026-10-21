@@ -4,11 +4,6 @@
 //   POST /api/v1/auth/login  { email, password } -> { token, user }
 //   GET  /api/v1/auth/me     (Bearer)            -> { user }
 //   POST /api/v1/auth/logout (Bearer)            -> message
-//
-// The backend's `loginSchema` (backend/src/modules/auth/auth.validation.ts)
-// accepts exactly `email` and `password` and looks the user up with
-// `prisma.user.findUnique({ where: { email } })`. There is no username or
-// `identifier` field, so the form sends `email`.
 
 /**
  * What the login form collects.
@@ -20,6 +15,10 @@ export type LoginFormValues = {
   email: string;
   password: string;
   remember: boolean;
+};
+
+export type ForgotPasswordValues = {
+  email: string;
 };
 
 /** The signed-in user as the API returns it (`auth.service.ts`). */
@@ -64,6 +63,7 @@ export type AuthSession = {
 
 export type LoginFormProps = {
   onSubmit: (values: LoginFormValues) => void;
+  onSwitchMode?: (mode: "login" | "forgot") => void;
   /** Message shown when the previous attempt failed. */
   error?: string;
   /** True while the request is in flight. */
