@@ -1,14 +1,18 @@
-import type { AuthSession, AuthUser, LoginFormValues } from "../types/auth";
-import { DEMO_ACCOUNTS } from "../types/auth";
+import type {
+  AuthSession,
+  AuthUser,
+  LoginFormValues,
+  LoginResponse,
+  MeResponse,
+} from "../types/auth";
+import { ApiError, request } from "./api";
+import { ENDPOINTS } from "./endpoints";
 
 /**
- * Local session store for the login flow.
+ * Session store backed by the real auth API.
  *
- * This stands in for real authentication. The backend `auth` module exists but
- * every file in it is empty, and the database is migrated but has no user rows,
- * so there is nothing to authenticate against yet. When the real endpoint
- * lands, `signIn` becomes an API call and `getSession`/`signOut` read/write
- * whatever the server issues instead of localStorage.
+ * `signIn` posts to /auth/login and stores the returned JWT; `signOut` tells
+ * the server and clears local state; `getSession` reads the cached snapshot.
  *
  * The session is cached in a module variable so `getSession` returns a stable
  * reference — required by `useSyncExternalStore` (see src/lib/useSession.ts),
@@ -27,8 +31,9 @@ function readStored(): AuthSession | null {
     const raw = window.localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
-    // Guard against a hand-edited or half-written value.
-    if (!parsed?.user?.name) return null;
+    // Guard against a hand-edited, half-written, or pre-integration value.
+    // A session without a token cannot authenticate anything, so it is dropped.
+    if (!parsed?.token || !parsed?.user?.email) return null;
     return parsed;
   } catch {
     return null;
@@ -82,60 +87,118 @@ export function updateSessionUser(patch: Partial<AuthUser>) {
   writeSession({ ...session, user: { ...session.user, ...patch } });
 }
 
-/** Clear the session. */
+/**
+ * Clear the session.
+ *
+ * The token is cleared locally first: the user must be signed out even if the
+ * network call fails, and the server's logout is stateless (it returns a
+ * message without invalidating the JWT).
+ */
 export function signOut() {
+  const token = getSession()?.token;
   writeSession(null);
+
+  if (token) {
+    // Fire and forget — a failure here must not block the local sign-out.
+    void request<unknown>(ENDPOINTS.auth.logout, { method: "POST", token }).catch(
+      () => undefined,
+    );
+  }
 }
 
 /**
- * The outcome of a sign-in attempt, shaped like a real API response so the
- * caller's handling does not change when the endpoint is wired up.
+ * The outcome of a sign-in attempt.
  */
 export type SignInResult =
   | { ok: true; session: AuthSession }
   | { ok: false; error: string };
 
 /**
- * Attempt to sign in.
+ * Turn an API failure into a message worth showing a user.
  *
- * Matches `identifier` against each demo account's email OR name, mirroring how
- * a real lookup would find a `User` row by either. Resolves after a short delay
- * so the form's loading state is exercised.
+ * The backend currently reports failed credentials as HTTP 500 with the generic
+ * "Internal server error" (its `AuthError` extends `Error`, not `AppError`, so
+ * the error middleware mislabels it). Mapping 401/403/500 to the same neutral
+ * wording keeps the form useful without leaking whether an email exists.
+ */
+function describeAuthFailure(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return "Cannot reach the server. Check that the backend is running.";
+    }
+    if (error.status === 401 || error.status === 403 || error.status >= 500) {
+      return "Incorrect email or password. Please try again.";
+    }
+    // 400 and anything else: the server's own wording is more specific.
+    if (error.message && error.message !== "Internal server error") {
+      return error.message;
+    }
+    return "Sign in failed. Please try again.";
+  }
+  return "Something went wrong. Please try again.";
+}
+
+/**
+ * Attempt to sign in against POST /api/v1/auth/login.
+ *
+ * Sends the email exactly as the backend expects and stores the issued token.
  */
 export async function signIn(values: LoginFormValues): Promise<SignInResult> {
-  const identifier = (values.identifier || "").trim().toLowerCase();
+  const email = (values.email || "").trim().toLowerCase();
   const password = values.password;
 
-  await new Promise(resolve => setTimeout(resolve, 600));
-
-  if (!identifier || !password) {
+  if (!email || !password) {
     return { ok: false, error: "Please enter your email and password." };
   }
 
-  const account = DEMO_ACCOUNTS.find(
-    entry =>
-      entry.email.toLowerCase() === identifier ||
-      entry.name.toLowerCase() === identifier ||
-      (entry.phone && entry.phone === identifier),
-  ) ?? DEMO_ACCOUNTS[0];
+  try {
+    const data = await request<LoginResponse>(ENDPOINTS.auth.login, {
+      method: "POST",
+      body: { email, password },
+    });
 
-  if (!account || (account.password !== password && password !== "salesflow")) {
-    return {
-      ok: false,
-      error: "Incorrect email or password. Please try again.",
+    if (!data?.token || !data?.user) {
+      return { ok: false, error: "Sign in failed. Please try again." };
+    }
+
+    const session: AuthSession = {
+      token: data.token,
+      user: data.user,
+      signedInAt: new Date().toISOString(),
+      remember: values.remember,
     };
+    writeSession(session);
+    return { ok: true, session };
+  } catch (error) {
+    return { ok: false, error: describeAuthFailure(error) };
   }
+}
 
-  const session: AuthSession = {
-    user: {
-      name: account.name,
-      email: account.email,
-      phone: account.phone,
-      role: account.role,
-    },
-    signedInAt: new Date().toISOString(),
-    remember: values.remember,
-  };
-  writeSession(session);
-  return { ok: true, session };
+/**
+ * Re-read the signed-in user from GET /api/v1/auth/me.
+ *
+ * Used on load so a stale cached `user` (renamed in another tab, role changed,
+ * account deactivated) corrects itself. A 401 means the token is no longer
+ * valid, so the session is cleared and the caller is sent back to /login.
+ */
+export async function refreshSession(): Promise<AuthSession | null> {
+  const session = getSession();
+  if (!session) return null;
+
+  try {
+    const data = await request<MeResponse>(ENDPOINTS.auth.me, {
+      token: session.token,
+    });
+    if (!data?.user) return session;
+    const next: AuthSession = { ...session, user: data.user };
+    writeSession(next);
+    return next;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      writeSession(null);
+      return null;
+    }
+    // Network hiccup: keep the cached session rather than signing the user out.
+    return session;
+  }
 }

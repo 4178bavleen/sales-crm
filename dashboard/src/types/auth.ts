@@ -1,44 +1,60 @@
 // Domain types for the Login feature.
-// Mirrors the backend Prisma `User` model for the fields a login touches
-// (backend/prisma/schema.prisma).
 //
-// API boundary notes (for when the auth API is wired up):
-//   identifier -> matched against User.email (unique) OR User.name
-//   password   -> verified server-side against User.passwordHash.
-//                 The hash is never sent to the client, so this is the only
-//                 User field the login form handles that has no client copy.
-//   session    -> a real API would return a token/session; here it is a
-//                 locally stored flag (see auth.ts) because the backend auth
-//                 module has no implementation yet.
+// These mirror the live auth API, not the Prisma model directly:
+//   POST /api/v1/auth/login  { email, password } -> { token, user }
+//   GET  /api/v1/auth/me     (Bearer)            -> { user }
+//   POST /api/v1/auth/logout (Bearer)            -> message
+//
+// The backend's `loginSchema` (backend/src/modules/auth/auth.validation.ts)
+// accepts exactly `email` and `password` and looks the user up with
+// `prisma.user.findUnique({ where: { email } })`. There is no username or
+// `identifier` field, so the form sends `email`.
 
 /**
  * What the login form collects.
  *
- * `identifier` is deliberately a single field: the `User` model has no
- * `username` column, identifying people by `email` (unique) and `name`. This
- * accepts either, so a user can sign in with a name or an email address.
+ * `email` matches the backend field name exactly — no client-side renaming —
+ * so the request body is built without translation.
  */
 export type LoginFormValues = {
-  identifier: string;
+  email: string;
   password: string;
   remember: boolean;
-  phone?: string;
 };
 
-/** The signed-in user as the frontend knows it. */
+/** The signed-in user as the API returns it (`auth.service.ts`). */
 export type AuthUser = {
+  /** User.id */
+  id: number;
   /** User.name — also the display name in the topbar. */
   name: string;
   /** User.email */
   email: string;
   /** User.phone */
-  phone?: string;
-  /** User.role.name, resolved through the Role relation. */
+  phone: string | null;
+  /** Role.name, resolved through the Role relation. */
   role: string;
 };
 
-/** The locally stored session (stands in for a real token). */
+/** Response body of POST /auth/login. */
+export type LoginResponse = {
+  token: string;
+  user: AuthUser;
+};
+
+/** Response body of GET /auth/me. */
+export type MeResponse = {
+  user: AuthUser;
+};
+
+/**
+ * The client-side session: the issued JWT plus the user it belongs to.
+ *
+ * The token is the real credential; `user` is cached alongside it so the
+ * topbar can render immediately on reload without waiting for /auth/me.
+ */
 export type AuthSession = {
+  token: string;
   user: AuthUser;
   /** ISO timestamp of when the session was created. */
   signedInAt: string;
@@ -50,29 +66,6 @@ export type LoginFormProps = {
   onSubmit: (values: LoginFormValues) => void;
   /** Message shown when the previous attempt failed. */
   error?: string;
-  /** True while the (simulated) request is in flight. */
+  /** True while the request is in flight. */
   pending?: boolean;
 };
-
-/**
- * Demo accounts, standing in for real `users` rows.
- */
-export const DEMO_ACCOUNTS: {
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  password: string;
-}[] = [
-  {
-    name: "Gabriel Deora",
-    email: "gabriel@salesflow.example.com",
-    phone: "15602228456",
-    role: "Sales Manager",
-    password: "salesflow",
-  },
-];
-
-/** The demo password, surfaced as a hint on the login page. */
-export const DEMO_PASSWORD = DEMO_ACCOUNTS[0]?.password ?? "";
-

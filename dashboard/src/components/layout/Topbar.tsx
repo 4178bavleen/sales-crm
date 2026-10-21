@@ -19,8 +19,8 @@ export default function Topbar() {
   // Subscribing (rather than reading getSession once) means a profile name
   // change re-renders the topbar immediately.
   const session = useSession();
-  const userName = session?.user.name ?? "Gabriel Deora";
-  const userRole = session?.user.role ?? "Sales Manager";
+  const userName = session?.user.name ?? "Signed in";
+  const userRole = session?.user.role ?? "—";
   const initials = userName
     .split(" ")
     .map(part => part[0])

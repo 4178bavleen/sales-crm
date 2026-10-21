@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useSession } from "../../lib/useSession";
 
 const navigationGroups = [
   {
@@ -47,6 +48,20 @@ const navigationGroups = [
 ];
 
 export default function Sidebar() {
+  // Mirror the topbar: read the live session so the sidebar identity is always
+  // the signed-in user, never a hardcoded placeholder.
+  const session = useSession();
+  const userName = session?.user.name ?? "Signed in";
+  const userRole = session?.user.role ?? "—";
+  const initials =
+    userName
+      .split(" ")
+      .map(part => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "–";
+
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
       {/* Logo */}
@@ -117,15 +132,15 @@ export default function Sidebar() {
       <div className="shrink-0 border-t border-slate-100 p-3">
         <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 ring-2 ring-white">
-            GD
+            {initials}
           </div>
 
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800">
-              Gabriel Deora
+              {userName}
             </p>
             <p className="mt-0.5 truncate text-xs text-slate-400">
-              Sales Manager
+              {userRole}
             </p>
           </div>
 

@@ -15,14 +15,14 @@ export default function LoginForm({
   error,
   pending = false,
 }: LoginFormProps) {
-  const [email, setEmail] = useState("");
+  const [emailValue, setEmailValue] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [localError, setLocalError] = useState("");
   const [touched, setTouched] = useState(false);
 
-  const emailInvalid = touched && email.trim() === "";
+  const emailInvalid = touched && emailValue.trim() === "";
   const passwordInvalid = touched && password === "";
 
   function handleSubmit(e?: React.FormEvent) {
@@ -30,8 +30,8 @@ export default function LoginForm({
     setTouched(true);
     setLocalError("");
 
-    const identifier = email.trim();
-    if (!identifier) {
+    const email = emailValue.trim();
+    if (!email) {
       setLocalError("Please enter your email address.");
       return;
     }
@@ -40,7 +40,7 @@ export default function LoginForm({
       return;
     }
 
-    onSubmit({ identifier, password, remember });
+    onSubmit({ email, password, remember });
   }
 
   const displayError = localError || error;
@@ -86,8 +86,8 @@ export default function LoginForm({
               name="email"
               type="email"
               autoComplete="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={emailValue}
+              onChange={e => setEmailValue(e.target.value)}
               placeholder="you@company.com"
               aria-invalid={emailInvalid || undefined}
               className={`${fieldInput} pr-4`}

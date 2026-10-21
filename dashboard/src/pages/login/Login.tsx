@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Building2, ShieldCheck, TrendingUp } from "lucide-react";
 import type { LoginFormValues } from "../../types/auth";
 import { signIn } from "../../lib/auth";
@@ -41,8 +41,18 @@ const FACTS = [
  */
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  /**
+   * Where to land after a successful sign-in.
+   *
+   * `RequireAuth` redirects here with the blocked path in `location.state.from`,
+   * so a user who follows a deep link while signed out ends up there instead of
+   * the dashboard root.
+   */
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   async function handleSubmit(values: LoginFormValues) {
     setPending(true);
@@ -51,7 +61,7 @@ export default function Login() {
     setPending(false);
 
     if (result.ok) {
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
       return;
     }
     setError(result.error);
@@ -71,11 +81,12 @@ export default function Login() {
         {/* One card holding both halves: pitch on the left, form on the right.
             A single white surface reads as one product, not two boxes.
 
-            Height: `min-h` stops it hugging its content and leaving a wide band
-            of empty background, while `max-h-...vh` guarantees it can never
-            overflow a short viewport — on a 720px-tall window the card shrinks
-            back toward its content height instead of forcing a scrollbar. */}
-        <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/90 shadow-[0_24px_60px_-10px_rgba(18,52,122,0.16),0_10px_24px_-6px_rgba(18,52,122,0.1)] backdrop-blur-2xl flex flex-col lg:flex-row lg:min-h-[640px] xl:min-h-[700px] lg:max-h-[calc(100vh-6rem)]">
+            Height: derived from the viewport so the card fills a normal desktop
+            without ever exceeding a short window. A fixed `min-h` cannot work
+            here — `min-height` beats `max-height` when they conflict, so a
+            700px minimum would still overflow a 720px-tall window. `h-...vh`
+            scales continuously and the inner columns centre their content. */}
+        <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/90 shadow-[0_24px_60px_-10px_rgba(18,52,122,0.16),0_10px_24px_-6px_rgba(18,52,122,0.1)] backdrop-blur-2xl flex flex-col lg:flex-row lg:h-[calc(100vh-7rem)] lg:min-h-[560px] lg:max-h-[760px]">
 
           {/* Left: product pitch. Hidden below lg, where the form leads. */}
           <div className="hidden lg:flex lg:flex-1 flex-col justify-center border-r border-[#e6eefa] bg-[#f7fafe] p-9 xl:p-11 overflow-y-auto">

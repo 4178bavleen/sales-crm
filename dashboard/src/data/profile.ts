@@ -9,30 +9,31 @@ import {
 } from "lucide-react";
 import type { ProfileField, ProfileStat, UserProfile } from "../types/profile";
 import { permissionsForRole } from "../types/profile";
-import { DEMO_ACCOUNTS } from "../types/auth";
 import { initialCustomers } from "./customers";
 import { initialDeals } from "./deals";
 import { initialTasks } from "./tasks";
 
 /**
- * The signed-in user's record, mirroring a `users` row.
+ * Fallback profile record, mirroring a `users` row.
  *
- * The backend database is migrated but empty and the auth module has no
- * implementation, so this is seeded from the demo account rather than fetched.
- * `permissions` is resolved through Role -> RolePermission -> Permission.
+ * Identity (name/email/role) is NOT taken from here at runtime — `getProfile`
+ * in src/lib/profile.ts overrides those from the live session, which is the
+ * single source of truth now that /auth/login is wired up. These empty defaults
+ * only apply before a session exists, so no fake account can leak into the UI.
+ *
+ * `team`, `memberSince` and `lastLoginAt` have no equivalent in the auth
+ * payload, so they stay placeholder values until `GET /users/me` exists.
  */
-const demo = DEMO_ACCOUNTS[0];
-
 export const initialProfile: UserProfile = {
-  name: demo?.name ?? "",
-  email: demo?.email ?? "",
-  phone: "555-100-1001",
-  role: demo?.role ?? "",
+  name: "",
+  email: "",
+  phone: "",
+  role: "",
   team: "Inside Sales",
   isActive: true,
   lastLoginAt: "2026-10-20T09:14:00.000Z",
   memberSince: "2024-03-11",
-  permissions: permissionsForRole(demo?.role ?? ""),
+  permissions: permissionsForRole(""),
 };
 
 export function formatProfileDate(date: string) {
