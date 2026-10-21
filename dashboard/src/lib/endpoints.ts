@@ -12,10 +12,8 @@
 export const API_URL = import.meta.env.VITE_API_URL;
 
 if (!API_URL) {
-  // Fail loudly at startup rather than firing requests at `undefined/auth/login`.
   throw new Error(
-    "VITE_API_URL is not set. Add it to dashboard/.env, e.g.\n" +
-      "VITE_API_URL=http://localhost:5000/api/v1",
+    "VITE_API_URL is not set. Add it to dashboard/.env"
   );
 }
 
@@ -34,6 +32,11 @@ export const ENDPOINTS = {
     me: "/auth/me",
     logout: "/auth/logout",
   },
+  /** Current user's own profile (no admin needed). */
+  profile: {
+    me: "/auth/me",
+  },
+  /** Admin-only user management. */
   users: {
     list: "/users",
     /** GET / PATCH / DELETE — the method is chosen by the caller. */

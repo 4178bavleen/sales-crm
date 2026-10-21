@@ -31,6 +31,23 @@ export type UserRow = {
   role: UserRole;
 };
 
+/** The `pagination` block returned alongside the user list. */
+export type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+/** Response of GET /api/v1/users. */
+export type UserListResponse = {
+  users: UserRow[];
+  pagination: Pagination;
+};
+
+/** Response of PATCH /api/v1/users/:id. */
+export type UserUpdateResponse = { user: UserRow };
+
 /** The four role names the backend accepts. */
 export type RoleName =
   | "ADMIN"
