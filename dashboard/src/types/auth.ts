@@ -17,10 +17,6 @@ export type LoginFormValues = {
   remember: boolean;
 };
 
-export type ForgotPasswordValues = {
-  email: string;
-};
-
 /** The signed-in user as the API returns it (`auth.service.ts`). */
 export type AuthUser = {
   /** User.id */
@@ -63,7 +59,6 @@ export type AuthSession = {
 
 export type LoginFormProps = {
   onSubmit: (values: LoginFormValues) => void;
-  onSwitchMode?: (mode: "login" | "forgot") => void;
   /** Message shown when the previous attempt failed. */
   error?: string;
   /** True while the request is in flight. */

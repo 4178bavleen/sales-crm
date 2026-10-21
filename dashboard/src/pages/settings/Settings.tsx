@@ -1,68 +1,44 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
-  Bell,
   Check,
   KeyRound,
   Loader2,
-  Monitor,
   Pencil,
-  RotateCcw,
-  Save,
   ShieldCheck,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import type {
-  Preferences,
   RoleName,
   SettingsSection,
   UserRow,
 } from "../../types/settings";
 import {
   buildRoles,
-  DEFAULT_PREFERENCES,
   fetchUsers,
-  readPreferences,
   roleLabel,
   roleNames,
   updateUser,
-  writePreferences,
 } from "../../lib/settings";
 import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
-import {
-  cellClass,
-  primaryButtonClass,
-  secondaryButtonClass,
-} from "../../types/formControls";
 
 /** In-page nav. */
-const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Bell }[] = [
-  { id: "preferences", label: "Preferences", Icon: Monitor },
+const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Users }[] = [
   { id: "users", label: "User management", Icon: Users },
   { id: "roles", label: "Roles & permissions", Icon: KeyRound },
 ];
 
-/** The select styling shared by every native select on this page. */
-const selectClass =
-  "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
-
 /**
  * Settings.
  *
- * - Preferences: localStorage only (no API)
- * - Users: real API (GET /api/v1/users, PATCH /api/v1/users/:id) — admin only
- * - Roles: derived from fetched user list; definitions are mirrored from backend seed
+ * - User management: real API (GET /api/v1/users, PATCH /api/v1/users/:id) — admin only
+ * - Roles & permissions: derived from fetched user list; definitions mirrored from backend seed
  */
 export default function Settings() {
-  const [section, setSection] = useState<SettingsSection>("preferences");
-
-  // --- Preferences (localStorage) ---
-  const [prefs, setPrefs] = useState<Preferences>(() => readPreferences());
-  const [prefsSaved, setPrefsSaved] = useState(false);
-  const [prefsDirty, setPrefsDirty] = useState(false);
+  const [section, setSection] = useState<SettingsSection>("users");
 
   // --- Users (real API) ---
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -111,24 +87,6 @@ export default function Settings() {
   }, []);
 
   const roles = buildRoles(users);
-
-  function setPref<K extends keyof Preferences>(key: K, value: Preferences[K]) {
-    setPrefs((previous) => ({ ...previous, [key]: value }));
-    setPrefsDirty(true);
-    setPrefsSaved(false);
-  }
-
-  function savePrefs() {
-    setPrefs(writePreferences(prefs));
-    setPrefsDirty(false);
-    setPrefsSaved(true);
-  }
-
-  function resetPrefs() {
-    setPrefs(DEFAULT_PREFERENCES);
-    setPrefsDirty(true);
-    setPrefsSaved(false);
-  }
 
   function startEditRole(user: UserRow) {
     setEditingId(user.id);
@@ -200,131 +158,6 @@ export default function Settings() {
           </button>
         ))}
       </div>
-
-      {/* ------------------------------ Preferences ------------------------------ */}
-      {section === "preferences" && (
-        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Bell size={16} className="text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-800">
-              Notifications
-            </h2>
-          </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Stored in this browser only. Nothing is sent to the server.
-          </p>
-
-          <div className="mt-4 space-y-3">
-            {(
-              [
-                ["emailNotifications", "Email notifications", "Receive updates by email."],
-                ["dealAlerts", "Deal alerts", "Notify when a deal changes stage."],
-                ["taskReminders", "Task reminders", "Remind me about due tasks."],
-                ["weeklyDigest", "Weekly digest", "A summary every Monday."],
-              ] as const
-            ).map(([key, label, hint]) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2.5 hover:bg-slate-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={prefs[key]}
-                  onChange={(e) => setPref(key, e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-indigo-600"
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm text-slate-700">{label}</span>
-                  <span className="mt-0.5 block text-[11px] text-slate-400">
-                    {hint}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <div className="mt-6 flex items-center gap-2">
-            <Monitor size={16} className="text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-800">Display</h2>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <div className={cellClass}>
-              <span className="text-sm text-slate-500 sm:pr-4 sm:text-right">
-                Date format
-              </span>
-              <select
-                value={prefs.dateFormat}
-                onChange={(e) =>
-                  setPref("dateFormat", e.target.value as Preferences["dateFormat"])
-                }
-                className={selectClass}
-              >
-                <option value="short">21/10/2026</option>
-                <option value="medium">Oct 21, 2026</option>
-                <option value="long">October 21, 2026</option>
-              </select>
-            </div>
-
-            <div className={cellClass}>
-              <span className="text-sm text-slate-500 sm:pr-4 sm:text-right">
-                Rows per page
-              </span>
-              <select
-                value={prefs.defaultPageSize}
-                onChange={(e) =>
-                  setPref(
-                    "defaultPageSize",
-                    Number(e.target.value) as Preferences["defaultPageSize"],
-                  )
-                }
-                className={selectClass}
-              >
-                {[10, 25, 50, 100].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={cellClass}>
-              <span className="text-sm text-slate-500 sm:pr-4 sm:text-right">
-                Theme
-              </span>
-              <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
-                Light (only theme available)
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={savePrefs}
-              disabled={!prefsDirty}
-              className={`${primaryButtonClass} ${!prefsDirty ? "cursor-not-allowed opacity-50" : ""}`}
-            >
-              <Save size={15} />
-              Save preferences
-            </button>
-            <button
-              type="button"
-              onClick={resetPrefs}
-              className={`${secondaryButtonClass} inline-flex items-center gap-2`}
-            >
-              <RotateCcw size={15} />
-              Reset to defaults
-            </button>
-            {prefsSaved && !prefsDirty && (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                <Check size={13} />
-                Saved
-              </span>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* ---------------------------- User management ---------------------------- */}
       {section === "users" && (

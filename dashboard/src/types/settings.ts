@@ -68,23 +68,5 @@ export type RoleInfo = {
   userCount: number;
 };
 
-/** Date display preference. */
-export type DateFormat = "short" | "medium" | "long";
-
-/** Rows-per-page preference. */
-export type PageSize = 10 | 25 | 50 | 100;
-
-/** Client-only preferences. Persisted in localStorage, never sent anywhere. */
-export type Preferences = {
-  /** Light is the only theme the app is styled for. */
-  theme: "light";
-  emailNotifications: boolean;
-  dealAlerts: boolean;
-  taskReminders: boolean;
-  weeklyDigest: boolean;
-  dateFormat: DateFormat;
-  defaultPageSize: PageSize;
-};
-
 /** Section ids used by the settings nav. */
-export type SettingsSection = "preferences" | "users" | "roles";
+export type SettingsSection = "users" | "roles";

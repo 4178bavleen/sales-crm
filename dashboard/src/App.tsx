@@ -47,8 +47,7 @@ export default function App() {
   return (
     <Routes>
       {/* Full-bleed, outside the shell: there is no signed-in user yet. */}
-      <Route path="/login" element={<Login initialMode="login" />} />
-      <Route path="/forgot-password" element={<Login initialMode="forgot" />} />
+      <Route path="/login" element={<Login />} />
 
       {/* Everything else requires a session. */}
       <Route
