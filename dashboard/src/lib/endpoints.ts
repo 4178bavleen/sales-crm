@@ -36,6 +36,7 @@ export const ENDPOINTS = {
   },
   users: {
     list: "/users",
+    /** GET / PATCH / DELETE — the method is chosen by the caller. */
     byId: (id: number) => `/users/${id}`,
   },
   health: "/health",
