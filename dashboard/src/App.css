@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Login-screen breakpoints that are not width-only. The login page has to fit
+   inside the viewport, so on short screens it sheds parts of the marketing
+   column (the subtitle, the feature list, and — on short tablet widths — the
+   column altogether) rather than letting the page scroll. */
+@custom-variant compact (
+  @media (max-height: 720px) and (max-width: 1023.98px)
+);
+@custom-variant compact-md (
+  @media (max-height: 720px) and (min-width: 640px) and (max-width: 1023.98px)
+);
+
 /* Typography. A single family is used everywhere: Plus Jakarta Sans.
    It is fetched via <link rel="stylesheet"> in index.html (a <link> lets the
    browser start the font request while parsing the head, in parallel with the

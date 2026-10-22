@@ -19,7 +19,7 @@ const FEATURES: HeroFeature[] = [
   {
     icon: (
       <svg
-        className="w-[26px] h-[26px] text-[#0062ff]"
+        className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px] text-[#0062ff]"
         viewBox="0 0 24 24"
         fill="currentColor"
         aria-hidden="true"
@@ -35,7 +35,7 @@ const FEATURES: HeroFeature[] = [
   {
     icon: (
       <svg
-        className="w-[26px] h-[26px] text-[#1ac7a5]"
+        className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px] text-[#1ac7a5]"
         viewBox="0 0 24 24"
         fill="currentColor"
         aria-hidden="true"
@@ -54,7 +54,7 @@ const FEATURES: HeroFeature[] = [
   {
     icon: (
       <svg
-        className="w-[26px] h-[26px] text-[#895af4]"
+        className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px] text-[#895af4]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -82,24 +82,28 @@ const FEATURES: HeroFeature[] = [
  * form and everything it needs. Markup is a real list so screen readers
  * announce the three highlights as a set, and every glyph is marked
  * decorative so it is not read out loud.
+ *
+ * Sizing is viewport-driven rather than fixed: the headline, tiles and gaps
+ * scale with `vh`/`vw` so the whole column keeps fitting on short or narrow
+ * screens instead of pushing the page into a scroll.
  */
 export default function LoginHero() {
   return (
-    <div className="flex flex-col self-stretch lg:self-auto max-w-xl">
+    <div className="flex min-w-0 flex-col self-stretch lg:self-auto max-w-xl">
       {/* Brand mark */}
-      <div className="mb-8 lg:mb-[80px]">
+      <div className="mb-3 sm:mb-[clamp(14px,2.2vh,24px)] lg:mb-[clamp(2rem,8vh,5rem)]">
         <div className="flex items-center">
-          <SalesCrmLogo size="lg" />
+          <SalesCrmLogo size="lg" height="clamp(26px,min(5.4vh,4vw),38px)" />
         </div>
       </div>
 
       {/* Eyebrow */}
-      <div className="text-[12px] font-bold tracking-[0.25em] text-[#64748b] uppercase select-none">
+      <div className="text-[10px] sm:text-[12px] font-bold tracking-[0.2em] sm:tracking-[0.25em] text-[#64748b] uppercase select-none">
         ORGANIZE &nbsp;&middot;&nbsp; TRACK &nbsp;&middot;&nbsp; CLOSE &nbsp;&middot;&nbsp; GROW
       </div>
 
       {/* Main Heading */}
-      <h1 className="mt-[16px] text-[40px] sm:text-[48px] lg:text-[52px] font-extrabold text-[#0f172a] tracking-tight leading-[1.08]">
+      <h1 className="mt-2 sm:mt-[16px] text-[clamp(22px,3.1vh,26px)] sm:text-[clamp(28px,3.5vh,40px)] lg:text-[clamp(34px,min(5.8vh,4.2vw),52px)] font-extrabold text-[#0f172a] tracking-tight leading-[1.08]">
         Turn Leads
         <br />
         Into Lasting
@@ -108,25 +112,28 @@ export default function LoginHero() {
       </h1>
 
       {/* Subtitle */}
-      <p className="mt-[18px] text-[15px] sm:text-[16px] text-[#475569] leading-[1.5] max-w-[420px] font-normal">
+      <p className="mt-2 sm:mt-[18px] text-[13px] sm:text-[16px] text-[#475569] leading-[1.5] max-w-[420px] font-normal">
         A simple and powerful CRM to manage
         <br className="hidden sm:inline" /> your leads, deals, and customers.
       </p>
 
-      {/* 3 Features */}
-      <ul className="mt-[50px] space-y-[21px]">
+      {/* 3 Features — a three-up grid below `lg`, the vertical list from `lg` up */}
+      <ul className="mt-3 sm:mt-[clamp(20px,2.6vh,40px)] lg:mt-[clamp(1.5rem,5.6vh,3.125rem)] grid grid-cols-3 gap-3 sm:gap-4 lg:flex lg:flex-col lg:gap-[clamp(0.875rem,2.3vh,1.3125rem)]">
         {FEATURES.map(({ icon, tileClass, title, description }) => (
-          <li key={title} className="flex items-center gap-[18px]">
+          <li
+            key={title}
+            className="flex flex-col items-start gap-1.5 lg:flex-row lg:items-center lg:gap-[18px]"
+          >
             <div
-              className={`w-[60px] h-[60px] rounded-2xl flex items-center justify-center shrink-0 ${tileClass}`}
+              className={`w-[38px] h-[38px] sm:w-[46px] sm:h-[46px] lg:w-[clamp(42px,min(6.7vh,4vw),60px)] lg:h-[clamp(42px,min(6.7vh,4vw),60px)] rounded-2xl flex items-center justify-center shrink-0 ${tileClass}`}
             >
               {icon}
             </div>
             <div>
-              <h2 className="text-[15px] font-semibold text-slate-900 leading-snug">
+              <h2 className="text-[12px] sm:text-[15px] font-semibold text-slate-900 leading-snug">
                 {title}
               </h2>
-              <p className="text-[13px] text-[#64748b] leading-snug mt-0.5">
+              <p className="text-[11px] sm:text-[13px] text-[#64748b] leading-snug mt-0.5">
                 {description}
               </p>
             </div>

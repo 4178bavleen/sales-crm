@@ -43,16 +43,16 @@ export default function LoginForm({
       {/* Top Content */}
       <div>
         {/* Centered Sales CRM Logo */}
-        <div className="flex justify-center mb-[18px]">
+        <div className="flex justify-center mb-[10px] sm:mb-[clamp(0.75rem,2vh,1.125rem)]">
           <SalesCrmLogo size="lg" />
         </div>
 
         {/* Header */}
         <div className="text-center">
-          <h2 className="text-[28px] font-bold tracking-tight text-slate-900 leading-tight">
+          <h2 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-slate-900 leading-tight">
             Welcome Back
           </h2>
-          <p className="mt-1 text-[13.5px] text-slate-500 font-normal">
+          <p className="mt-0.5 sm:mt-1 text-[12.5px] sm:text-[13.5px] text-slate-500 font-normal">
             Sign in to your Sales CRM account
           </p>
         </div>
@@ -70,17 +70,20 @@ export default function LoginForm({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-[14px] sm:mt-[clamp(1rem,2.6vh,1.75rem)] space-y-[10px] sm:space-y-[clamp(0.625rem,1.6vh,1rem)]"
+        >
           {/* Email */}
           <div>
             <label
               htmlFor="login-email"
-              className="block text-[13px] font-medium text-slate-900 mb-1.5 text-left"
+              className="block text-[12px] sm:text-[13px] font-medium text-slate-900 mb-1 sm:mb-1.5 text-left"
             >
               Email address
             </label>
             <div
-              className={`relative flex items-center h-[46px] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[46px] rounded-xl border bg-white transition-all ${
                 emailInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -98,7 +101,7 @@ export default function LoginForm({
                 onChange={e => setEmailValue(e.target.value)}
                 placeholder="you@company.com"
                 aria-invalid={emailInvalid || undefined}
-                className="w-full bg-transparent h-full pl-2.5 pr-3 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none"
+                className="w-full bg-transparent h-full pl-2.5 pr-3 text-[13.5px] sm:text-[14px] text-slate-800 placeholder:text-slate-400 outline-none"
               />
             </div>
           </div>
@@ -107,12 +110,12 @@ export default function LoginForm({
           <div>
             <label
               htmlFor="login-password"
-              className="block text-[13px] font-medium text-slate-900 mb-1.5 text-left"
+              className="block text-[12px] sm:text-[13px] font-medium text-slate-900 mb-1 sm:mb-1.5 text-left"
             >
               Password
             </label>
             <div
-              className={`relative flex items-center h-[46px] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[46px] rounded-xl border bg-white transition-all ${
                 passwordInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -130,7 +133,7 @@ export default function LoginForm({
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 aria-invalid={passwordInvalid || undefined}
-                className="w-full bg-transparent h-full pl-2.5 pr-10 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none"
+                className="w-full bg-transparent h-full pl-2.5 pr-10 text-[13.5px] sm:text-[14px] text-slate-800 placeholder:text-slate-400 outline-none"
               />
               <button
                 type="button"
@@ -148,7 +151,7 @@ export default function LoginForm({
           </div>
 
           {/* Remember me */}
-          <div className="flex items-center justify-start text-[13px] pt-1.5">
+          <div className="flex items-center justify-start text-[12px] sm:text-[13px] pt-1 sm:pt-1.5">
             <label className="flex items-center gap-2 cursor-pointer select-none group">
               <span
                 className={`flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors ${
@@ -173,7 +176,7 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={pending}
-            className="!mt-[24px] w-full h-[46px] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            className="!mt-[12px] sm:!mt-[clamp(0.75rem,2.4vh,1.5rem)] w-full h-[42px] sm:h-[46px] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14px] sm:text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           >
             {pending ? (
               <>
@@ -191,7 +194,7 @@ export default function LoginForm({
       </div>
 
       {/* Footer copyright inside card */}
-      <div className="pt-[6px] pb-0 text-center text-[12px] text-slate-400 font-normal">
+      <div className="pt-[4px] sm:pt-[6px] pb-0 text-center text-[11px] sm:text-[12px] text-slate-400 font-normal">
         &copy; 2026 Sales CRM. All rights reserved.
       </div>
     </div>
