@@ -1,5 +1,7 @@
 
 import { prisma } from '../../config/database.js'
+import type { Prisma } from '../../generated/prisma/client.js'
+import type { LeadStatus } from '../../generated/prisma/client.js'
 import type {
   CreateLeadInput,
   ListLeadsInput,
@@ -146,6 +148,7 @@ export async function createLead(
       sourceId: input.sourceId ?? null,
       productServiceId: input.productServiceId ?? null,
       priority: input.priority,
+      status: input.status,
       notes: input.notes || null,
       ownerId: input.ownerId ?? null,
       nextFollowUpAt: input.nextFollowUpAt ?? null,
@@ -157,24 +160,56 @@ export async function createLead(
 }
 
 export async function getLeads(input: ListLeadsInput) {
-  const { page, limit, search, status, priority, ownerId, sourceId } = input
+  const {
+    page,
+    limit,
+    search,
+    status,
+    priority,
+    ownerId,
+    sourceId,
+    createdFrom,
+    createdTo,
+  } = input
 
-  const where = {
+  // Filters that can match several branches (a text search, an owner list that
+  // may include "no owner") are combined with AND, so each one keeps its own
+  // OR group instead of overriding the other.
+  const and: Prisma.LeadWhereInput[] = []
+
+  if (search) {
+    and.push({
+      OR: [
+        { contactName: { contains: search, mode: 'insensitive' } },
+        { companyName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ],
+    })
+  }
+
+  if (ownerId && ownerId.length > 0) {
+    const ownerIds = ownerId.filter((id): id is number => id !== null)
+    const branches: Prisma.LeadWhereInput[] = []
+    if (ownerIds.length > 0) branches.push({ ownerId: { in: ownerIds } })
+    if (ownerId.includes(null)) branches.push({ ownerId: null })
+    and.push({ OR: branches })
+  }
+
+  const where: Prisma.LeadWhereInput = {
     deletedAt: null,
-    ...(status ? { status } : {}),
-    ...(priority ? { priority } : {}),
-    ...(ownerId !== undefined ? { ownerId } : {}),
-    ...(sourceId !== undefined ? { sourceId } : {}),
-    ...(search
+    ...(status && status.length > 0 ? { status: { in: status } } : {}),
+    ...(priority && priority.length > 0 ? { priority: { in: priority } } : {}),
+    ...(sourceId && sourceId.length > 0 ? { sourceId: { in: sourceId } } : {}),
+    ...(createdFrom || createdTo
       ? {
-          OR: [
-            { contactName: { contains: search, mode: 'insensitive' as const } },
-            { companyName: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { phone: { contains: search, mode: 'insensitive' as const } },
-          ],
+          createdAt: {
+            ...(createdFrom ? { gte: createdFrom } : {}),
+            ...(createdTo ? { lte: createdTo } : {}),
+          },
         }
       : {}),
+    ...(and.length > 0 ? { AND: and } : {}),
   }
 
   const [leads, total] = await Promise.all([
@@ -197,6 +232,67 @@ export async function getLeads(input: ListLeadsInput) {
       totalPages: Math.ceil(total / limit),
     },
   }
+}
+
+/**
+ * Counts of every non-deleted lead, grouped by status.
+ *
+ * The KPI cards need the totals of the whole list, which a paginated
+ * response cannot provide.
+ */
+export async function getLeadStats() {
+  const grouped = await prisma.lead.groupBy({
+    by: ['status'],
+    where: { deletedAt: null },
+    _count: { _all: true },
+  })
+
+  const byStatus: Record<LeadStatus, number> = {
+    NEW: 0,
+    CONTACTED: 0,
+    QUALIFIED: 0,
+    DISQUALIFIED: 0,
+    CONVERTED: 0,
+  }
+
+  let total = 0
+
+  for (const row of grouped) {
+    byStatus[row.status] = row._count._all
+    total += row._count._all
+  }
+
+  return { total, byStatus }
+}
+
+/**
+ * Reference data the leads page needs for its filters and forms:
+ * the lead sources, the users a lead can be assigned to, and the reasons
+ * used for disqualifying a lead or for "no follow-up needed".
+ */
+export async function getLeadOptions() {
+  const [sources, owners, reasons] = await Promise.all([
+    prisma.leadSource.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.user.findMany({
+      where: { isActive: true, deletedAt: null },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.reason.findMany({
+      where: {
+        isActive: true,
+        type: { in: ['NO_FOLLOWUP', 'LEAD_DISQUALIFIED'] },
+      },
+      select: { id: true, name: true, type: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+
+  return { sources, owners, reasons }
 }
 
 export async function getLeadById(id: number) {

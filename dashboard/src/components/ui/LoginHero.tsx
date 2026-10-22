@@ -1,138 +1,360 @@
-import type { ReactNode } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import SalesCrmLogo from "./SalesCrmLogo";
 
-/**
- * One highlighted capability in the hero list.
- *
- * `icon` is the decorative glyph and `tileClass` its coloured backdrop —
- * both are data so the list below stays a single map instead of three
- * hand-copied blocks.
- */
-type HeroFeature = {
-  icon: ReactNode;
-  tileClass: string;
-  title: string;
-  description: string;
-};
+/** How the mockup artwork is placed inside the space below the headline. */
+interface StageLayout {
+  /** Scale applied to the artwork. */
+  scale: number;
+  /** Distance of the lower chart from the bottom of the mockup area. */
+  chartBottom: number;
+  /** The upper chart only fits while the artwork is shown at full size. */
+  showTopChart: boolean;
+}
 
-const FEATURES: HeroFeature[] = [
-  {
-    icon: (
-      <svg
-        className="w-[26px] h-[26px] text-[#0062ff]"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M12 6a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM8.5 11.5c-3.1 0-5.5 2-5.5 4.5v1a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1c0-2.5-2.4-4.5-5.5-4.5zM17.5 7a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM15 12.2c.8.3 1.5.8 2 1.4.9.9 1.5 2 1.5 3.4v1a1 1 0 0 1-1 1h-2.2v-1c0-1.8-.8-3.4-2.1-4.4.6-.2 1.2-.4 1.8-.4z" />
-      </svg>
-    ),
-    tileClass: "bg-[#e0ecfe]",
-    title: "Manage Leads",
-    description: "Keep all your prospects in one place",
-  },
-  {
-    icon: (
-      <svg
-        className="w-[26px] h-[26px] text-[#1ac7a5]"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <rect x="2" y="14" width="3.5" height="7" rx="1.5" />
-        <rect x="7.5" y="10" width="3.5" height="11" rx="1.5" />
-        <rect x="13" y="6" width="3.5" height="15" rx="1.5" />
-        <rect x="18.5" y="2" width="3.5" height="19" rx="1.5" />
-      </svg>
-    ),
-    tileClass: "bg-[#e2f9f2]",
-    title: "Track Deals",
-    description: "Visualize your pipeline and close faster",
-  },
-  {
-    icon: (
-      <svg
-        className="w-[26px] h-[26px] text-[#895af4]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <polyline points="9 12 11 14 15 9" />
-      </svg>
-    ),
-    tileClass: "bg-[#ece6fd]",
-    title: "Grow Revenue",
-    description: "Make data-driven decisions",
-  },
-];
+/** The untouched, full-size composition. */
+const FULL_LAYOUT: StageLayout = { scale: 1, chartBottom: 128, showTopChart: true };
+
+/** Gap between the bottom of the card and the bottom of the lower chart. */
+const CHART_GAP = 6;
 
 /**
- * The marketing half of the login screen: brand, headline and the three
- * capability highlights.
- *
- * Purely presentational — the parent (`pages/login/Login.tsx`) owns the
- * form and everything it needs. Markup is a real list so screen readers
- * announce the three highlights as a set, and every glyph is marked
- * decorative so it is not read out loud.
+ * Below this width the upper chart would slide over the copy that sits
+ * above the mockup, so only the lower chart is drawn.
  */
+const TOP_CHART_MIN_WIDTH = 900; // Increased to hide top chart on smaller laptop screens (14" and below)
+
 export default function LoginHero() {
+  const mockupRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState<StageLayout>(FULL_LAYOUT);
+
+  /**
+   * The mockup is a fixed-size piece of artwork (a dashboard card with charts
+   * floating around it). On a small viewport it does not fit in the space
+   * that is left below the headline, so the whole stage is scaled down until
+   * it does — that keeps the design intact instead of clipping it, and the
+   * lower chart stays attached to the card while the upper one is dropped
+   * (it would end up on top of the copy).
+   */
+  const updateLayout = useCallback(() => {
+    const mockup = mockupRef.current;
+    const card = cardRef.current;
+    if (!mockup || !card) return;
+
+    const areaWidth = mockup.clientWidth;
+    const areaHeight = mockup.clientHeight;
+    const cardHeight = card.offsetHeight;
+    if (!areaWidth || !areaHeight || !cardHeight) return;
+
+    const fitsUntouched =
+      areaHeight >= cardHeight && areaWidth >= TOP_CHART_MIN_WIDTH;
+
+    const next: StageLayout = fitsUntouched
+      ? FULL_LAYOUT
+      : {
+          scale: Math.min(1, areaHeight / (cardHeight + CHART_GAP)),
+          chartBottom: areaHeight - cardHeight - CHART_GAP,
+          showTopChart: false,
+        };
+
+    setLayout(prev =>
+      prev.scale === next.scale &&
+      prev.chartBottom === next.chartBottom &&
+      prev.showTopChart === next.showTopChart
+        ? prev
+        : next,
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    updateLayout();
+    const mockup = mockupRef.current;
+    if (!mockup) return;
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(mockup);
+    if (cardRef.current) observer.observe(cardRef.current);
+    if (chartRef.current) observer.observe(chartRef.current);
+    return () => observer.disconnect();
+  }, [updateLayout]);
+
   return (
-    <div className="flex flex-col self-stretch lg:self-auto max-w-xl">
-      {/* Brand mark */}
-      <div className="mb-8 lg:mb-[80px]">
-        <div className="flex items-center">
-          <SalesCrmLogo size="lg" />
+    <div
+      className="relative flex flex-col h-full w-full select-none"
+      style={{ background: "linear-gradient(135deg, #e8f1ff 0%, #eef4ff 40%, #e4efff 100%)", overflow: "hidden" }}
+    >
+      {/* ── Decorative blobs ── */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div className="absolute -top-28 -right-28 w-[520px] h-[520px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(191,219,254,0.65) 0%, rgba(219,234,254,0.4) 45%, transparent 70%)" }} />
+        <div className="absolute -bottom-40 -left-28 w-[460px] h-[460px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(147,197,253,0.5) 0%, rgba(191,219,254,0.3) 55%, transparent 75%)" }} />
+        <svg className="absolute bottom-48 left-8 opacity-30" width="88" height="88" viewBox="0 0 88 88">
+          {Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => (
+            <circle key={`a${r}${c}`} cx={c * 18 + 9} cy={r * 18 + 9} r="2.2" fill="#7bb3da" />
+          )))}
+        </svg>
+        <svg className="absolute top-[36%] right-6 opacity-20" width="80" height="80" viewBox="0 0 80 80">
+          {Array.from({ length: 4 }, (_, r) => Array.from({ length: 4 }, (_, c) => (
+            <circle key={`b${r}${c}`} cx={c * 20 + 10} cy={r * 20 + 10} r="2.2" fill="#7bb3da" />
+          )))}
+        </svg>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="login-hero-content relative z-10 flex flex-col h-full px-10 pt-10 pb-6 lg:px-14 lg:pt-12" style={{ overflow: "visible" }}>
+
+        {/* Logo */}
+        <div className="login-hero-logo mb-8 shrink-0">
+          <SalesCrmLogo size="lg" height="clamp(28px, min(5vh,3.8vw), 42px)" />
         </div>
-      </div>
 
-      {/* Eyebrow */}
-      <div className="text-[12px] font-bold tracking-[0.25em] text-[#64748b] uppercase select-none">
-        ORGANIZE &nbsp;&middot;&nbsp; TRACK &nbsp;&middot;&nbsp; CLOSE &nbsp;&middot;&nbsp; GROW
-      </div>
+        {/* Headline */}
+        <h1 className="shrink-0 text-[clamp(28px,min(5.2vh,3.8vw),48px)] font-extrabold text-slate-900 leading-[1.1] tracking-tight">
+          Manage Leads<br />
+          Grow Your <span className="text-blue-600">Business</span>
+        </h1>
 
-      {/* Main Heading */}
-      <h1 className="mt-[16px] text-[40px] sm:text-[48px] lg:text-[52px] font-extrabold text-[#0f172a] tracking-tight leading-[1.08]">
-        Turn Leads
-        <br />
-        Into Lasting
-        <br />
-        <span className="text-[#0062ff]">Relationships</span>
-      </h1>
+        {/* Sub-copy */}
+        <p className="shrink-0 mt-3 text-[14.5px] text-slate-500 leading-[1.65] max-w-[360px]">
+          Track leads, manage contacts, close deals<br />
+          and achieve your sales goals — all in one place.
+        </p>
 
-      {/* Subtitle */}
-      <p className="mt-[18px] text-[15px] sm:text-[16px] text-[#475569] leading-[1.5] max-w-[420px] font-normal">
-        A simple and powerful CRM to manage
-        <br className="hidden sm:inline" /> your leads, deals, and customers.
-      </p>
+        {/* ── Mockup + floating graphs ── */}
+        <div ref={mockupRef} className="login-hero-mockup mt-7 flex-1 min-h-0 relative">
+          {/* The stage is scaled down as a whole when the space left below the
+              headline is too small for the mockup (see `updateScale`). */}
+          <div
+            className="absolute inset-0 origin-top-left"
+            style={{ transform: `scale(${layout.scale})` }}
+          >
 
-      {/* 3 Features */}
-      <ul className="mt-[50px] space-y-[21px]">
-        {FEATURES.map(({ icon, tileClass, title, description }) => (
-          <li key={title} className="flex items-center gap-[18px]">
-            <div
-              className={`w-[60px] h-[60px] rounded-2xl flex items-center justify-center shrink-0 ${tileClass}`}
-            >
-              {icon}
+          {/* ════════════════════════════════════════
+              FLOATING GRAPH 1 — Deal Progress
+              Large purple bar chart, top-RIGHT,
+              clearly outside & above the main card
+              ════════════════════════════════════════ */}
+          <div
+            className="absolute z-30 rounded-2xl bg-white border border-slate-100 px-5 py-4"
+            style={{
+              top: -105,
+              right: 150,
+              width: 210,
+              display: layout.showTopChart ? undefined : "none",
+              boxShadow: "rgba(0, 0, 0, 0.48) 0px 12px 40px, rgba(0, 0, 0, 0.08) 0px 2px 8px"
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[12px] font-bold text-slate-800">Deal Progress</span>
+              <span className="text-[10px] font-bold text-violet-600 bg-violet-50 rounded-full px-2 py-0.5">↑ 18%</span>
             </div>
-            <div>
-              <h2 className="text-[15px] font-semibold text-slate-900 leading-snug">
-                {title}
-              </h2>
-              <p className="text-[13px] text-[#64748b] leading-snug mt-0.5">
-                {description}
-              </p>
+            {/* Bar chart SVG */}
+            <svg width="170" height="56" viewBox="0 0 170 56" aria-hidden="true">
+              {[
+                { x: 2,   h: 22, c: "#ddd6fe" },
+                { x: 24,  h: 32, c: "#c4b5fd" },
+                { x: 46,  h: 26, c: "#ddd6fe" },
+                { x: 68,  h: 40, c: "#a78bfa" },
+                { x: 90,  h: 30, c: "#c4b5fd" },
+                { x: 112, h: 48, c: "#7c3aed" },
+                { x: 134, h: 38, c: "#a78bfa" },
+                { x: 156, h: 56, c: "#5b21b6" },
+              ].map((b, i) => (
+                <rect key={i} x={b.x} y={56 - b.h} width="16" height={b.h} rx="4" fill={b.c} />
+              ))}
+            </svg>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[11px] text-slate-400">8 active deals</span>
+              <span className="text-[13px] font-bold text-slate-800">64%</span>
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+
+          {/* ════════════════════════════════════════
+              FLOATING GRAPH 2 — Revenue Trend
+              Large green area chart, bottom-LEFT,
+              clearly outside & below the main card
+              ════════════════════════════════════════ */}
+          <div
+            ref={chartRef}
+            className="absolute z-30 rounded-2xl bg-white border border-slate-100 px-5 py-4"
+            style={{
+              bottom: layout.chartBottom,
+              left: -18,
+              width: 226,
+              boxShadow: "rgba(0, 0, 0, 0.77) 0px 12px 40px, rgba(0, 0, 0, 0.08) 0px 2px 8px"
+            }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[12px] font-bold text-slate-800">Revenue Trend</span>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">↑ 22%</span>
+            </div>
+            <div className="text-[26px] font-bold text-slate-900 leading-tight mb-2">$84.2k</div>
+            {/* Area chart SVG */}
+            <svg width="186" height="48" viewBox="0 0 186 48" aria-hidden="true">
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,42 C18,40 30,34 50,28 C70,22 84,30 104,22 C124,14 144,10 166,6 C172,5 178,4 186,2"
+                fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round"
+              />
+              <path
+                d="M0,42 C18,40 30,34 50,28 C70,22 84,30 104,22 C124,14 144,10 166,6 C172,5 178,4 186,2 L186,48 L0,48Z"
+                fill="url(#revGrad)"
+              />
+              <circle cx="104" cy="22" r="4.5" fill="white" stroke="#10b981" strokeWidth="2.2" />
+            </svg>
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-[11px] text-slate-400">vs last month</span>
+              <span className="text-[11px] font-semibold text-emerald-600">+$15.1k</span>
+            </div>
+          </div>
+
+          {/* ── Main dashboard mockup card ── */}
+          <div
+            ref={cardRef}
+            className="rounded-2xl bg-white border border-slate-100 overflow-hidden"
+            style={{
+              maxWidth: 500,
+              marginLeft: 190,
+              marginRight: 24,
+              boxShadow: "0 16px_56px_rgba(0,0,0,0.13)",
+            }}
+          >
+            {/* Window chrome */}
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-slate-50/70">
+              <span className="w-3 h-3 rounded-full bg-rose-400" />
+              <span className="w-3 h-3 rounded-full bg-amber-400" />
+              <span className="w-3 h-3 rounded-full bg-emerald-400" />
+            </div>
+
+            <div className="px-5 pt-4 pb-4">
+              {/* Stats row */}
+              <div className="flex gap-4 mb-3">
+                {/* Left: total leads + main chart */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[26px] font-bold text-slate-900 leading-none">248</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">Total Leads</div>
+                  <div className="text-[11px] text-emerald-500 font-semibold mt-0.5">↑ 12%</div>
+                  <div className="mt-3">
+                    <svg width="100%" height="68" viewBox="0 0 260 68" preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="mainGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.22" />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M0,62 C18,60 32,54 52,50 C72,46 86,53 108,44 C130,36 150,22 175,20 C198,18 218,28 238,22 C247,19 253,16 260,12"
+                        fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M0,62 C18,60 32,54 52,50 C72,46 86,53 108,44 C130,36 150,22 175,20 C198,18 218,28 238,22 C247,19 253,16 260,12 L260,68 L0,68Z"
+                        fill="url(#mainGrad)" />
+                      <circle cx="175" cy="20" r="4" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Right: mini stat cards */}
+                <div className="flex flex-col gap-2 shrink-0">
+                  {/* New Leads */}
+                  <div className="rounded-xl bg-white border border-slate-100 shadow-sm px-3 py-2 flex items-start gap-2">
+                    <div>
+                      <div className="text-[10px] text-slate-400 leading-none mb-0.5">New Leads</div>
+                      <div className="text-[19px] font-bold text-slate-900 leading-none">86</div>
+                      <div className="text-[10px] text-emerald-500 font-semibold mt-0.5">↑ 8%</div>
+                    </div>
+                    <svg width="44" height="28" viewBox="0 0 44 28" className="self-end mb-0.5" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M0,24 L8,18 L18,20 L28,11 L36,7 L44,3" fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M0,24 L8,18 L18,20 L28,11 L36,7 L44,3 L44,28 L0,28Z" fill="url(#sg1)" />
+                    </svg>
+                  </div>
+
+                  {/* Qualified + Converted */}
+                  <div className="flex gap-2">
+                    <div className="rounded-xl bg-white border border-slate-100 shadow-sm px-2.5 py-2 min-w-0">
+                      <div className="text-[9px] text-slate-400 leading-none mb-0.5">Qualified</div>
+                      <div className="text-[16px] font-bold text-slate-900 leading-none">42</div>
+                      <div className="text-[9px] text-amber-500 font-semibold mt-0.5">↑ 25%</div>
+                      <svg width="48" height="20" viewBox="0 0 48 20" className="mt-1" aria-hidden="true">
+                        <defs>
+                          <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+                            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <path d="M0,16 L8,12 L16,14 L24,8 L32,5 L40,3 L48,1" fill="none" stroke="#f59e0b" strokeWidth="1.7" strokeLinecap="round" />
+                        <path d="M0,16 L8,12 L16,14 L24,8 L32,5 L40,3 L48,1 L48,20 L0,20Z" fill="url(#sg2)" />
+                      </svg>
+                    </div>
+                    <div className="rounded-xl bg-white border border-slate-100 shadow-sm px-2.5 py-2 min-w-0">
+                      <div className="text-[9px] text-slate-400 leading-none mb-0.5">Converted</div>
+                      <div className="text-[16px] font-bold text-slate-900 leading-none">28</div>
+                      <div className="text-[9px] text-emerald-500 font-semibold mt-0.5">↑ 30%</div>
+                      <svg width="48" height="20" viewBox="0 0 48 20" className="mt-1" aria-hidden="true">
+                        <defs>
+                          <linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+                            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <path d="M0,18 L8,15 L16,16 L24,11 L32,8 L40,4 L48,1" fill="none" stroke="#10b981" strokeWidth="1.7" strokeLinecap="round" />
+                        <path d="M0,18 L8,15 L16,16 L24,11 L32,8 L40,4 L48,1 L48,20 L0,20Z" fill="url(#sg3)" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Leads table */}
+              <div className="rounded-xl border border-slate-100 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/60">
+                  <span className="text-[11px] font-semibold text-slate-700">Recent Leads</span>
+                </div>
+                <div className="grid px-3 py-1.5 text-[9px] font-medium text-slate-400 border-b border-slate-100"
+                  style={{ gridTemplateColumns: "2fr 2fr 1.1fr 1.5fr" }}>
+                  <span>Name</span><span>Company</span><span>Status</span><span>Date</span>
+                </div>
+                {[
+                  { i: "CM", bg: "#dbeafe", fg: "#1d4ed8", name: "Christopher Macleod", co: "Rangoni Of Florence",  st: "New",       sc: "#2563eb", sb: "#eff6ff", date: "Oct 19, 2026" },
+                  { i: "CK", bg: "#d1fae5", fg: "#065f46", name: "Carissa Kidman",       co: "Oh My Goodknits Inc", st: "Contacted", sc: "#0369a1", sb: "#f0f9ff", date: "Oct 18, 2026" },
+                  { i: "JM", bg: "#ede9fe", fg: "#6d28d9", name: "James Merced",         co: "Kwik Kopy Printing",  st: "Qualified", sc: "#059669", sb: "#ecfdf5", date: "Oct 17, 2026" },
+                ].map((r) => (
+                  <div key={r.i} className="grid items-center px-3 py-2 border-b border-slate-50 last:border-0"
+                    style={{ gridTemplateColumns: "2fr 2fr 1.1fr 1.5fr" }}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
+                        style={{ background: r.bg, color: r.fg }}>
+                        {r.i}
+                      </span>
+                      <span className="text-[10px] text-slate-700 truncate">{r.name}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 truncate pr-2">{r.co}</span>
+                    <span className="text-[9px] font-medium rounded-full px-1.5 py-0.5 inline-block whitespace-nowrap"
+                      style={{ color: r.sc, background: r.sb }}>{r.st}</span>
+                    <span className="text-[9px] text-slate-400">{r.date}</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </div>
+          {/* end main card */}
+
+          </div>
+          {/* end scaled stage */}
+        </div>
+        {/* end mockup area */}
+
+      </div>
     </div>
   );
 }

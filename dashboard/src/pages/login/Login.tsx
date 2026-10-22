@@ -4,6 +4,8 @@ import type { LoginFormValues } from "../../types/auth";
 import { signIn } from "../../lib/auth";
 import LoginForm from "../../components/ui/LoginForm";
 import LoginHero from "../../components/ui/LoginHero";
+import SalesCrmLogo from "../../components/ui/SalesCrmLogo";
+import "./login-responsive.css";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,7 +21,6 @@ export default function Login() {
     setError("");
     const result = await signIn(values);
     setPending(false);
-
     if (result.ok) {
       navigate(from, { replace: true });
       return;
@@ -28,23 +29,20 @@ export default function Login() {
   }
 
   return (
-    <div
-      className="min-h-screen w-full bg-cover bg-center bg-no-repeat relative flex flex-col justify-start selection:bg-[#0062ff] selection:text-white overflow-x-hidden"
-      style={{ backgroundImage: "url('/bg/login.png')" }}
-    >
-      <div className="w-full min-h-screen flex flex-col lg:flex-row items-start justify-between pl-6 sm:pl-12 lg:pl-[133px] pr-6 sm:pr-12 lg:pr-[254px] pt-8 lg:pt-[80px] pb-8 lg:pb-[120px] box-border gap-8 lg:gap-12">
-        {/* Left Column / Hero Section */}
+    <div className="flex min-h-screen h-[100dvh] w-full overflow-hidden selection:bg-[#2563eb] selection:text-white">
+      {/* LEFT: hero panel */}
+      <div className="hidden lg:block lg:w-[55%] xl:w-[58%] shrink-0 h-full">
         <LoginHero />
-
-        {/* Right Column / Elevated Login Card */}
-        <div className="w-full max-w-[486px] lg:w-[486px] lg:h-[555px] lg:mt-[43px]">
-          <div className="w-full h-full rounded-[24px] bg-white px-7 py-9 sm:px-[56px] sm:pt-[44px] sm:pb-[34px] shadow-[0_20px_60px_-15px_rgba(15,23,42,0.12),0_1px_3px_rgba(0,0,0,0.05)] border border-slate-100/70 animate-in fade-in zoom-in-95 duration-200 flex flex-col justify-between">
-            <LoginForm
-              onSubmit={handleLoginSubmit}
-              error={error}
-              pending={pending}
-            />
+      </div>
+      {/* RIGHT: white form panel */}
+      <div className="login-form-panel flex flex-1 items-center justify-center bg-white h-full px-8 py-10 sm:px-14 lg:px-16 overflow-y-auto">
+        <div className="w-full max-w-[420px] my-auto animate-in fade-in zoom-in-95 duration-200">
+          {/* The brand mark lives in the hero panel, which is hidden on small
+              screens — so it is repeated here for tablet/phone viewports. */}
+          <div className="login-mobile-logo lg:hidden mb-8">
+            <SalesCrmLogo size="lg" height="clamp(28px, min(5vh,3.8vw), 42px)" />
           </div>
+          <LoginForm onSubmit={handleLoginSubmit} error={error} pending={pending} />
         </div>
       </div>
     </div>

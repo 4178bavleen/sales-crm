@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  CheckSquare,
-  Square,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -20,18 +18,13 @@ export type {
 
 function Checkbox({ checked, onChange, label }: DataTableCheckboxProps) {
   return (
-    <button
-      type="button"
-      onClick={onChange}
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
       aria-label={label}
-      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 hover:text-blue-600"
-    >
-      {checked ? (
-        <CheckSquare size={16} className="text-blue-600" />
-      ) : (
-        <Square size={16} />
-      )}
-    </button>
+      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+    />
   );
 }
 
@@ -42,61 +35,101 @@ export function TablePagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = [10, 20, 50],
-  selectedCount = 0,
 }: TablePaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * pageSize;
+  const startIndex = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, total);
+
+  // Generate pagination pages like: 1, 2, 3, 4, 5, ..., 25
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, "...", totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages];
+  };
+
+  const pages = getPageNumbers();
+
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <span>
-          Total Records{" "}
-          <strong className="font-semibold text-slate-800">{total}</strong>
-        </span>
-        {selectedCount > 0 && (
-          <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
-            {selectedCount} selected
-          </span>
-        )}
+    <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-3.5">
+      <div className="text-xs text-slate-500">
+        Showing <span className="font-medium text-slate-700">{startIndex}–{endIndex}</span> of{" "}
+        <span className="font-medium text-slate-700">{total}</span> leads
       </div>
+
       <div className="flex items-center gap-2">
-        <label className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
-          Rows
-          <select
-            value={pageSize}
-            onChange={e => onPageSizeChange(Number(e.target.value))}
-            className="rounded border border-slate-200 bg-white px-2 py-1.5 outline-none"
-          >
-            {pageSizeOptions.map(size => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="whitespace-nowrap text-xs text-slate-500">
-          {total === 0 ? 0 : startIndex + 1}–
-          {Math.min(startIndex + pageSize, total)} of {total}
-        </span>
+        {/* Previous page */}
         <button
           type="button"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Previous page"
         >
-          <ChevronLeft size={15} />
+          <ChevronLeft size={14} />
         </button>
+
+        {/* Page numbers */}
+        <div className="flex items-center gap-1">
+          {pages.map((p, index) => {
+            if (p === "...") {
+              return (
+                <span key={`ellipsis-${index}`} className="px-1 text-xs text-slate-400">
+                  ...
+                </span>
+              );
+            }
+            const pageNum = p as number;
+            const isActive = pageNum === currentPage;
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition ${
+                  isActive
+                    ? "border border-blue-600 bg-white font-semibold text-blue-600 shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Next page */}
         <button
           type="button"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Next page"
         >
-          <ChevronRight size={15} />
+          <ChevronRight size={14} />
         </button>
+
+        {/* Page size select */}
+        <div className="ml-2">
+          <select
+            value={pageSize}
+            onChange={e => onPageSizeChange(Number(e.target.value))}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 outline-none hover:border-slate-300"
+          >
+            {pageSizeOptions.map(size => (
+              <option key={size} value={size}>
+                {size} / page
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </footer>
   );
@@ -118,7 +151,7 @@ export default function DataTable<T>({
 }: DataTableProps<T>) {
   const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
 
-  // Close the row actions menu on any click outside of it
+  // Close row actions menu on click outside
   useEffect(() => {
     if (openMenuId === null) return;
     function close() {
@@ -153,23 +186,23 @@ export default function DataTable<T>({
   const colSpan = columns.length + (selectable ? 1 : 0) + (renderRowMenu ? 1 : 0);
 
   const table = (
-    <div className="h-full overflow-auto">
+    <div className="w-full overflow-x-auto">
       <table className={`w-full ${minWidth} border-collapse text-left`}>
-        <thead className="sticky top-0 z-10 bg-slate-50">
-          <tr className="border-b border-slate-200">
+        <thead>
+          <tr className="border-b border-slate-200 bg-white">
             {selectable && (
-              <th className="w-10 px-3 py-3">
+              <th className="w-10 px-4 py-3.5">
                 <Checkbox
                   checked={allSelected}
                   onChange={toggleAll}
-                  label="Select all visible rows"
+                  label="Select all rows"
                 />
               </th>
             )}
             {columns.map(column => (
               <th
                 key={column.key}
-                className={`whitespace-nowrap border-l border-slate-200 px-3 py-3 text-[11px] font-semibold text-slate-600 ${
+                className={`whitespace-nowrap px-4 py-3.5 text-xs font-semibold text-slate-600 ${
                   column.headerClassName ?? ""
                 }`}
               >
@@ -177,54 +210,51 @@ export default function DataTable<T>({
               </th>
             ))}
             {renderRowMenu && (
-              <th className="border-l border-slate-200 px-3 py-3 text-[11px] font-semibold text-slate-600">
+              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold text-slate-600">
                 Actions
               </th>
             )}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row, index) => {
+        <tbody className="divide-y divide-slate-100 bg-white">
+          {rows.map((row) => {
             const id = getRowId(row);
+            const isSelected = selectedIds.includes(id);
             return (
               <tr
                 key={id}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={`group border-b border-slate-100 transition-colors hover:bg-blue-50/50 ${
-                  onRowClick ? "cursor-pointer " : ""
-                }${index % 2 === 1 ? "bg-slate-50/30" : "bg-white"}`}
+                className={`group transition-colors hover:bg-slate-50/70 ${
+                  isSelected ? "bg-blue-50/30" : "bg-white"
+                } ${onRowClick ? "cursor-pointer" : ""}`}
               >
                 {selectable && (
-                  <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <Checkbox
-                      checked={selectedIds.includes(id)}
+                      checked={isSelected}
                       onChange={() => toggleRow(id)}
-                      label={
-                        getRowLabel ? `Select ${getRowLabel(row)}` : "Select row"
-                      }
+                      label={getRowLabel ? `Select ${getRowLabel(row)}` : "Select row"}
                     />
                   </td>
                 )}
                 {columns.map(column => (
-                  <td key={column.key} className={`px-3 py-3 ${column.className ?? ""}`}>
+                  <td key={column.key} className={`px-4 py-3 text-xs ${column.className ?? ""}`}>
                     {column.cell(row)}
                   </td>
                 ))}
                 {renderRowMenu && (
-                  <td className="relative px-3 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="relative px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={() =>
-                        setOpenMenuId(openMenuId === id ? null : id)
-                      }
-                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      onClick={() => setOpenMenuId(openMenuId === id ? null : id)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                       aria-label="Row actions"
                     >
-                      <MoreHorizontal size={17} />
+                      <MoreHorizontal size={16} />
                     </button>
                     {openMenuId === id && (
                       <div
-                        className="absolute right-8 top-8 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl"
+                        className="absolute right-4 top-10 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-left"
                         onClick={() => setOpenMenuId(null)}
                       >
                         {renderRowMenu(row)}
@@ -237,7 +267,7 @@ export default function DataTable<T>({
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={colSpan} className="px-6 py-20 text-center">
+              <td colSpan={colSpan} className="px-6 py-16 text-center">
                 {empty ?? <p className="text-sm text-slate-500">No records found.</p>}
               </td>
             </tr>
@@ -249,9 +279,9 @@ export default function DataTable<T>({
 
   if (!pagination) return table;
   return (
-    <>
+    <div>
       {table}
       <TablePagination {...pagination} />
-    </>
+    </div>
   );
 }

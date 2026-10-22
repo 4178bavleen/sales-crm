@@ -1,0 +1,180 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Login page — responsive fit.
+
+   The sign-in console is designed for a desktop viewport, so the desktop
+   layout is left exactly as it is. These rules only kick in when the
+   viewport is too short to show the full-size form, and they compact the
+   spacing and control heights so the page still fits on screen without
+   scrolling (and without the decorative parts colliding with each other).
+
+   The rules are unlayered on purpose: Tailwind v4 emits its utilities inside
+   the `utilities` cascade layer, and unlayered styles win over layered ones,
+   so these overrides apply on top of the utility classes.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Right panel: the sign-in form ─────────────────────────────────────── */
+
+@media (max-height: 620px) {
+  .login-form-panel {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (max-height: 600px) {
+  .login-form-header {
+    margin-bottom: 1rem;
+  }
+  .login-form-title {
+    font-size: 28px;
+  }
+  .login-form-subtitle {
+    margin-top: 0.25rem;
+    font-size: 14px;
+  }
+  .login-form-fields {
+    gap: 0.75rem;
+  }
+  .login-form-label {
+    margin-bottom: 0.375rem;
+    font-size: 13px;
+  }
+  .login-form-input {
+    height: 44px;
+  }
+  .login-form-submit {
+    height: 46px;
+  }
+  .login-form-footer {
+    margin-top: 1rem;
+    font-size: 11px;
+  }
+  .login-form-error {
+    margin-bottom: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+@media (max-height: 520px) {
+  .login-form-panel {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  .login-mobile-logo {
+    margin-bottom: 1rem;
+  }
+  .login-form-header {
+    margin-bottom: 0.75rem;
+  }
+  .login-form-title {
+    font-size: 24px;
+  }
+  .login-form-subtitle {
+    font-size: 13px;
+  }
+  .login-form-fields {
+    gap: 0.5rem;
+  }
+  .login-form-input {
+    height: 40px;
+  }
+  .login-form-submit {
+    height: 42px;
+  }
+  .login-form-footer {
+    margin-top: 0.5rem;
+    font-size: 10px;
+  }
+}
+
+@media (max-height: 460px) {
+  .login-form-panel {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .login-mobile-logo {
+    margin-bottom: 0.75rem;
+  }
+  .login-form-header {
+    margin-bottom: 0.5rem;
+  }
+  .login-form-title {
+    font-size: 21px;
+  }
+  .login-form-subtitle {
+    margin-top: 0.125rem;
+    font-size: 12px;
+  }
+  .login-form-fields {
+    gap: 0.375rem;
+  }
+  .login-form-label {
+    margin-bottom: 0.25rem;
+    font-size: 12px;
+  }
+  .login-form-input {
+    height: 36px;
+  }
+  .login-form-submit {
+    height: 38px;
+  }
+  .login-form-footer {
+    margin-top: 0.375rem;
+    font-size: 10px;
+  }
+}
+
+@media (max-height: 400px) {
+  .login-form-panel {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+  .login-mobile-logo {
+    margin-bottom: 0.5rem;
+  }
+  .login-form-header {
+    margin-bottom: 0.375rem;
+  }
+  .login-form-title {
+    font-size: 19px;
+  }
+  .login-form-subtitle {
+    font-size: 11px;
+  }
+  .login-form-fields {
+    gap: 0.25rem;
+  }
+  .login-form-input {
+    height: 32px;
+  }
+  .login-form-submit {
+    height: 34px;
+  }
+  .login-form-footer {
+    margin-top: 0.25rem;
+    font-size: 9px;
+  }
+}
+
+/* ── Left panel: the marketing hero ────────────────────────────────────── */
+
+@media (max-height: 760px) {
+  .login-hero-content {
+    padding-top: 1.5rem;
+    padding-bottom: 1rem;
+  }
+  .login-hero-logo {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-height: 620px) {
+  .login-hero-content {
+    padding-top: 1rem;
+    padding-bottom: 0.75rem;
+  }
+  .login-hero-logo {
+    margin-bottom: 0.75rem;
+  }
+}

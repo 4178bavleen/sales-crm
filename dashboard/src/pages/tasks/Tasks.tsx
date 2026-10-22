@@ -357,11 +357,11 @@ export default function Tasks() {
         totalPages: number;
       };
     };
-  };
-
+  }
 
   async function saveTask(values: TaskFormValues) {
     const token = getSession()?.token;
+      console.log("saveTask called with payload:", values);
 
     if (!token) {
       setApiError("Your session has expired. Please sign in again.");
@@ -377,7 +377,7 @@ export default function Tasks() {
           ENDPOINTS.users.list,
           { token }
         );
-
+  
         const users = response.data.users.filter(user => user.isActive);
 
         const assignee = users.find(
@@ -401,7 +401,7 @@ export default function Tasks() {
         let dealId: number | null = null;
         let customerId: number | null = null;
         let companyId: number | null = null;
-
+        
         if (values.lead) {
           const lead = initialLeads.find(
             (l) => `${l.firstName} ${l.lastName}` === values.lead,

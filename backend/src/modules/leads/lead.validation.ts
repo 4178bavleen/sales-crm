@@ -4,6 +4,73 @@ import { z } from 'zod'
 const optionalText = (max: number) =>
   z.string().trim().max(max).optional()
 
+/**
+ * Split a comma-separated query value into its parts.
+ *
+ * `?status=NEW,CONTACTED` and `?status=NEW&status=CONTACTED` both become
+ * `['NEW', 'CONTACTED']`, so one filter can select several values at once.
+ */
+function splitCsv(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  const parts = value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return parts.length > 0 ? parts : undefined
+}
+
+/** Comma-separated status filter, e.g. `status=NEW,CONTACTED`. */
+const csvStatus = z.preprocess(
+  splitCsv,
+  z
+    .array(
+      z.enum([
+        'NEW',
+        'CONTACTED',
+        'QUALIFIED',
+        'DISQUALIFIED',
+        'CONVERTED',
+      ]),
+    )
+    .min(1)
+    .optional(),
+)
+
+/** Comma-separated priority filter, e.g. `priority=HIGH,URGENT`. */
+const csvPriority = z.preprocess(
+  splitCsv,
+  z.array(z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])).min(1).optional(),
+)
+
+/** Comma-separated lead source filter, e.g. `sourceId=1,3`. */
+const csvSourceIds = z.preprocess(
+  (value) => {
+    const parts = splitCsv(value)
+    return Array.isArray(parts) ? parts.map((part) => Number(part)) : parts
+  },
+  z.array(z.number().int().positive()).min(1).optional(),
+)
+
+/**
+ * Comma-separated owner filter, e.g. `ownerId=2,3`.
+ *
+ * The literal `none` selects leads that have no owner yet, so the value can
+ * be `null` as well as a user id.
+ */
+const csvOwnerIds = z.preprocess(
+  (value) => {
+    const parts = splitCsv(value)
+    if (!Array.isArray(parts)) return parts
+    return parts.map((part) =>
+      String(part).toLowerCase() === 'none' ? null : Number(part),
+    )
+  },
+  z
+    .array(z.union([z.number().int().positive(), z.null()]))
+    .min(1)
+    .optional(),
+)
+
 export const createLeadSchema = z.object({
   contactName: z.string().trim().min(2).max(150),
   companyName: optionalText(150),
@@ -12,6 +79,9 @@ export const createLeadSchema = z.object({
   sourceId: z.number().int().positive().nullable().optional(),
   productServiceId: z.number().int().positive().nullable().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
+  // A lead can be created in any status except DISQUALIFIED, which needs a
+  // reason and is therefore only reachable through the status endpoint.
+  status: z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']).default('NEW'),
   notes: optionalText(5000),
   ownerId: z.number().int().positive().nullable().optional(),
   nextFollowUpAt: z.coerce.date().nullable().optional(),
@@ -38,16 +108,14 @@ export const listLeadsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().trim().max(100).optional(),
-  status: z.enum([
-    'NEW',
-    'CONTACTED',
-    'QUALIFIED',
-    'DISQUALIFIED',
-    'CONVERTED',
-  ]).optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
-  ownerId: z.coerce.number().int().positive().optional(),
-  sourceId: z.coerce.number().int().positive().optional(),
+  status: csvStatus,
+  priority: csvPriority,
+  ownerId: csvOwnerIds,
+  sourceId: csvSourceIds,
+  /** Only leads created at or after this instant. */
+  createdFrom: z.coerce.date().optional(),
+  /** Only leads created at or before this instant. */
+  createdTo: z.coerce.date().optional(),
 })
 
 export const leadIdSchema = z.coerce.number().int().positive()

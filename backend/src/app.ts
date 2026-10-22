@@ -13,6 +13,7 @@ import userRoutes from './modules/users/user.routes.js'
 import leadRoutes from './modules/leads/lead.routes.js'
 import permissionRoutes from './modules/permission/permission.routes.js'
 import taskRoutes from './modules/tasks/task.routes.js'
+import contactRoutes from './modules/contacts/contact.routes.js'
 
 
 const app = express()
@@ -44,6 +45,7 @@ app.use('/api/v1/leads', leadRoutes)
 app.use('/api/v1/permissions', permissionRoutes)
 app.use('/api/v1/tasks', taskRoutes)
 app.use("/api/v1/deals", dealRoutes);
+app.use('/api/v1/contacts', contactRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
