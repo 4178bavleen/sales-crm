@@ -80,6 +80,15 @@ export const ENDPOINTS = {
     me: "/permissions/me",
   },
 
+  meetings: {
+    list: "/meetings",
+    options: "/meetings/options",
+    byId: (id: number) => `/meetings/${id}`,
+    create: "/meetings",
+    update: (id: number) => `/meetings/${id}`,
+    delete: (id: number) => `/meetings/${id}`,
+  },
+
   health: "/health",
 } as const;
 
