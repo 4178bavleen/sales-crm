@@ -26,13 +26,14 @@ import {
   fetchLeads,
   fetchLeadOptions,
   createLead as createLeadApi,
+  updateLead as updateLeadApi,
   updateLeadStatus as updateLeadStatusApi,
   deleteLead as deleteLeadApi,
 } from "../../lib/leads";
 import {
   leadColumns,
   leadCsvFields,
-} from "../../data/leadColumns";
+} from "./leadColumns";
 import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable from "../../components/ui/DataTable";
@@ -52,6 +53,7 @@ export default function Leads() {
   const [dateRange, setDateRange] = useState<string>("All Time");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
@@ -270,19 +272,53 @@ export default function Leads() {
         email: lead.email,
         phone: lead.phone,
         source: lead.source,
+        sourceId: lead.sourceId,
         owner: lead.owner,
-        productService: (lead as any).productService,
+        ownerId: lead.ownerId,
         status: lead.status,
         priority: lead.priority,
         notes: lead.notes,
         nextFollowUpAt: lead.nextFollowUpAt,
         noFollowUp: lead.noFollowUp,
+        noFollowUpReasonId: lead.noFollowUpReasonId,
       });
       setLeads(previous => [created, ...previous]);
       setShowCreateModal(false);
       resetFilters();
     } catch (err) {
       console.error("Failed to create lead:", err);
+      throw err;
+    }
+  }
+
+  async function handleUpdateLead(id: number, lead: Lead) {
+    try {
+      const updated = await updateLeadApi(id, {
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        company: lead.company,
+        email: lead.email,
+        phone: lead.phone,
+        source: lead.source,
+        sourceId: lead.sourceId,
+        owner: lead.owner,
+        ownerId: lead.ownerId,
+        status: lead.status,
+        priority: lead.priority,
+        notes: lead.notes,
+        nextFollowUpAt: lead.nextFollowUpAt,
+        noFollowUp: lead.noFollowUp,
+        noFollowUpReasonId: lead.noFollowUpReasonId,
+      });
+      setLeads(previous =>
+        previous.map(l => (l.id === id ? updated : l)),
+      );
+      setEditingLead(null);
+      setDetailLead(previous =>
+        previous?.id === id ? updated : previous,
+      );
+    } catch (err) {
+      console.error("Failed to update lead:", err);
       throw err;
     }
   }
@@ -459,12 +495,17 @@ export default function Leads() {
     }
   }
 
-  // Full-page create form
-  if (showCreateModal) {
+  // Full-page create / edit form
+  if (showCreateModal || editingLead) {
     return (
       <CreateLeadModal
-        onClose={() => setShowCreateModal(false)}
+        initialLead={editingLead}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingLead(null);
+        }}
         onCreate={createLead}
+        onUpdate={handleUpdateLead}
       />
     );
   }
@@ -1080,9 +1121,16 @@ export default function Leads() {
               <button
                 type="button"
                 onClick={() => setDetailLead(lead)}
-                className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
                 View details
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingLead(lead)}
+                className="w-full rounded px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
+              >
+                Edit lead
               </button>
               <div className="my-1 border-t border-slate-100" />
               <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
@@ -1179,6 +1227,10 @@ export default function Leads() {
           lead={detailLead}
           onClose={() => setDetailLead(null)}
           onStatusChange={status => updateLeadStatus(detailLead.id, status)}
+          onEdit={() => {
+            setEditingLead(detailLead);
+            setDetailLead(null);
+          }}
         />
       )}
     </div>

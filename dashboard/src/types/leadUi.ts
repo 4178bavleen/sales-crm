@@ -33,6 +33,7 @@ export type LeadDetailDialogProps = {
   lead: Lead;
   onClose: () => void;
   onStatusChange: (status: LeadStatus) => void;
+  onEdit?: () => void;
 };
 
 /** Column config for the leads table. */

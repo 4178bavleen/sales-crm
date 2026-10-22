@@ -23,8 +23,10 @@ export type Lead = {
   email: string;
   phone: string;
   source: string;
+  sourceId?: number | null;
   productService?: string;
   owner: string;
+  ownerId?: number | null;
   status: LeadStatus;
   priority: Priority;
   createdAt: string;
@@ -32,6 +34,7 @@ export type Lead = {
   notes?: string;
   nextFollowUpAt?: string; // Lead.nextFollowUpAt
   noFollowUp?: boolean; // -> Lead.noFollowUpReasonId on the backend
+  noFollowUpReasonId?: number | null;
   website?: string; // Company.website
   industry?: string; // Company.industry
   address?: string; // Company.address

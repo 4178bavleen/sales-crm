@@ -1,8 +1,8 @@
-import { X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import type { LeadStatus } from "../../types/lead";
 import { LEAD_STATUSES } from "../../types/lead";
 import type { LeadDetailDialogProps } from "../../types/leadUi";
-import { formatDate, leadDetailFields } from "../../data/leadColumns";
+import { formatDate, leadDetailFields } from "../../pages/leads/leadColumns";
 import { PriorityText, StatusBadge } from "./LeadBadges";
 
 /**
@@ -13,6 +13,7 @@ export default function LeadDetailDialog({
   lead,
   onClose,
   onStatusChange,
+  onEdit,
 }: LeadDetailDialogProps) {
   return (
     <div
@@ -33,14 +34,26 @@ export default function LeadDetailDialog({
               {lead.firstName} {lead.lastName}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-2 text-slate-400 hover:bg-slate-100"
-            aria-label="Close details"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              >
+                <Pencil size={13} className="text-slate-500" />
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-2 text-slate-400 hover:bg-slate-100 cursor-pointer"
+              aria-label="Close details"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto p-5">

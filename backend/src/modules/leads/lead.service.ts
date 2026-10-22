@@ -267,10 +267,11 @@ export async function getLeadStats() {
 
 /**
  * Reference data the leads page needs for its filters and forms:
- * only the lead sources and assigned users (owners).
+ * lead sources, assigned users (owners), available statuses, priorities,
+ * and no follow-up reasons.
  */
 export async function getLeadOptions() {
-  const [sources, owners] = await Promise.all([
+  const [sources, owners, noFollowUpReasons] = await Promise.all([
     prisma.leadSource.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
@@ -281,9 +282,17 @@ export async function getLeadOptions() {
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' },
     }),
+    prisma.reason.findMany({
+      where: { isActive: true, type: 'NO_FOLLOWUP' },
+      select: { id: true, name: true },
+      orderBy: { id: 'asc' },
+    }),
   ])
 
-  return { sources, owners }
+  const statuses: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']
+  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+
+  return { sources, owners, statuses, priorities, noFollowUpReasons }
 }
 
 export async function getLeadById(id: number) {

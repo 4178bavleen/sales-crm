@@ -14,7 +14,7 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import type { LeadStatus, Priority } from "../../types/lead";
+import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import type { CreateLeadFormProps } from "../../types/createLeadForm";
 import { getSession } from "../../lib/auth";
 import { fetchLeadOptions } from "../../lib/leads";
@@ -66,25 +66,46 @@ const PRIORITIES: { value: Priority; label: string; dotClass: string }[] = [
   { value: "URGENT", label: "Urgent", dotClass: "bg-rose-500" },
 ];
 
-export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormProps) {
+export default function CreateLeadModal({
+  initialLead,
+  onClose,
+  onCreate,
+  onUpdate,
+}: CreateLeadFormProps) {
+  const isEdit = Boolean(initialLead);
   const sessionUser = getSession()?.user;
   const defaultOwner = sessionUser?.name || "admin";
 
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
+  const [statuses, setStatuses] = useState(STATUSES);
+  const [priorities, setPriorities] = useState(PRIORITIES);
+  const [noFollowUpReasons, setNoFollowUpReasons] = useState<{ id: number; name: string }[]>([]);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("");
-  const [status, setStatus] = useState<LeadStatus>("NEW");
-  const [priority, setPriority] = useState<Priority>("MEDIUM");
-  const [owner, setOwner] = useState(defaultOwner);
-  const [notes, setNotes] = useState("");
-  const [isNoFollowUp, setIsNoFollowUp] = useState(false);
-  const [followUpDate, setFollowUpDate] = useState("");
+  const formatInitialDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "";
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return "";
+    }
+  };
+
+  const [firstName, setFirstName] = useState(initialLead?.firstName || "");
+  const [lastName, setLastName] = useState(initialLead?.lastName || "");
+  const [company, setCompany] = useState(initialLead?.company || "");
+  const [email, setEmail] = useState(initialLead?.email || "");
+  const [phone, setPhone] = useState(initialLead?.phone || "");
+  const [source, setSource] = useState(initialLead?.source || "");
+  const [status, setStatus] = useState<LeadStatus>(initialLead?.status || "NEW");
+  const [priority, setPriority] = useState<Priority>(initialLead?.priority || "MEDIUM");
+  const [owner, setOwner] = useState(initialLead?.owner || defaultOwner);
+  const [notes, setNotes] = useState(initialLead?.notes || "");
+  const [isNoFollowUp, setIsNoFollowUp] = useState(Boolean(initialLead?.noFollowUp));
+  const [followUpDate, setFollowUpDate] = useState(formatInitialDate(initialLead?.nextFollowUpAt));
   const [showErrors, setShowErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -131,8 +152,49 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
                 .join("")
                 .toUpperCase() || "US",
           }));
-          mappedOwners.push({ id: 0, name: "Unassigned", role: "Queue", initials: "UN" });
           setOwners(mappedOwners);
+          setOwner(prev => {
+            if (prev && mappedOwners.some(m => m.name === prev)) return prev;
+            return mappedOwners[0]?.name || "admin";
+          });
+        }
+
+        if (data.statuses && data.statuses.length > 0) {
+          const badgeMap: Record<LeadStatus, { badgeClass: string; dotClass: string }> = {
+            NEW: { badgeClass: "bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-300", dotClass: "bg-blue-600" },
+            CONTACTED: { badgeClass: "bg-purple-50 text-purple-700 border-purple-200 hover:border-purple-300", dotClass: "bg-purple-600" },
+            QUALIFIED: { badgeClass: "bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300", dotClass: "bg-amber-600" },
+            CONVERTED: { badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300", dotClass: "bg-emerald-600" },
+            DISQUALIFIED: { badgeClass: "bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-300", dotClass: "bg-rose-600" },
+          };
+          const mappedStatuses = data.statuses.map(st => ({
+            value: st,
+            label: st.charAt(0) + st.slice(1).toLowerCase(),
+            badgeClass: badgeMap[st]?.badgeClass || "bg-slate-50 text-slate-700 border-slate-200",
+            dotClass: badgeMap[st]?.dotClass || "bg-slate-600",
+          }));
+          setStatuses(mappedStatuses);
+          setStatus(prev => prev || mappedStatuses[0]?.value || "NEW");
+        }
+
+        if (data.priorities && data.priorities.length > 0) {
+          const dotMap: Record<Priority, string> = {
+            LOW: "bg-slate-400",
+            MEDIUM: "bg-blue-500",
+            HIGH: "bg-amber-500",
+            URGENT: "bg-rose-500",
+          };
+          const mappedPriorities = data.priorities.map(pr => ({
+            value: pr,
+            label: pr.charAt(0) + pr.slice(1).toLowerCase(),
+            dotClass: dotMap[pr] || "bg-slate-500",
+          }));
+          setPriorities(mappedPriorities);
+          setPriority(prev => prev || mappedPriorities[1]?.value || "MEDIUM");
+        }
+
+        if (data.noFollowUpReasons && data.noFollowUpReasons.length > 0) {
+          setNoFollowUpReasons(data.noFollowUpReasons);
         }
       })
       .catch(err => {
@@ -180,24 +242,36 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
 
     setIsSubmitting(true);
     try {
-      await onCreate({
-        id: Date.now(),
+      const selectedOwnerObj = owners.find(o => o.name === owner);
+      const selectedSourceObj = sources.find(s => s.name === source);
+      const noFollowUpReason = isNoFollowUp ? (noFollowUpReasons[0]?.id ?? 7) : undefined;
+      const leadPayload: Lead = {
+        id: initialLead?.id ?? Date.now(),
         firstName: trimmedFirst,
         lastName: trimmedLast,
         company: company.trim(),
         email: email.trim(),
         phone: phone.trim(),
         source,
+        sourceId: selectedSourceObj?.id ?? initialLead?.sourceId,
         owner,
+        ownerId: selectedOwnerObj?.id ?? initialLead?.ownerId,
         status,
         priority,
-        createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: initialLead?.createdAt ?? new Date().toISOString().slice(0, 10),
         notes: notes.trim() || undefined,
         nextFollowUpAt: isNoFollowUp ? undefined : followUpDate || undefined,
         noFollowUp: isNoFollowUp,
-      });
+        noFollowUpReasonId: noFollowUpReason,
+      };
+
+      if (isEdit && initialLead && onUpdate) {
+        await onUpdate(initialLead.id, leadPayload);
+      } else {
+        await onCreate(leadPayload);
+      }
     } catch (err) {
-      setBackendError(err instanceof Error ? err.message : "Failed to create lead. Please check your inputs.");
+      setBackendError(err instanceof Error ? err.message : `Failed to ${isEdit ? "update" : "create"} lead. Please check your inputs.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -222,13 +296,15 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-400">Leads</span>
               <span className="text-xs text-slate-300">/</span>
-              <span className="text-xs font-medium text-[#1d61e7]">Create Lead</span>
+              <span className="text-xs font-medium text-[#1d61e7]">{isEdit ? "Edit Lead" : "Create Lead"}</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Create Lead
+              {isEdit ? "Edit Lead" : "Create Lead"}
             </h1>
             <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-              Add a new prospect to your sales pipeline and assign an owner
+              {isEdit
+                ? "Update prospect details, pipeline status, and next follow-up"
+                : "Add a new prospect to your sales pipeline and assign an owner"}
             </p>
           </div>
         </div>
@@ -251,7 +327,13 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
           >
             <Plus size={15} />
-            {isSubmitting ? "Creating Lead..." : "Create Lead"}
+            {isSubmitting
+              ? isEdit
+                ? "Saving..."
+                : "Creating Lead..."
+              : isEdit
+                ? "Save Changes"
+                : "Create Lead"}
           </button>
         </div>
       </div>
@@ -456,7 +538,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
                 Lead Status
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {STATUSES.map(item => {
+                {statuses.map(item => {
                   const isSelected = status === item.value;
                   return (
                     <button
@@ -486,7 +568,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
                 Priority
               </label>
               <div className="grid grid-cols-4 gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
-                {PRIORITIES.map(p => {
+                {priorities.map(p => {
                   const isSelected = priority === p.value;
                   return (
                     <button
