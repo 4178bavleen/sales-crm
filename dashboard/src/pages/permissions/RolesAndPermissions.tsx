@@ -35,6 +35,7 @@ import {
   LayoutGrid,
   ChevronDown,
   Filter,
+  Target,
 } from "lucide-react";
 import {
   fetchRoles,
@@ -59,6 +60,7 @@ const CATEGORY_ICONS: Record<string, typeof Shield> = {
   deals: FolderGit2,
   tasks: CheckSquare,
   meetings: CalendarDays,
+  targets: Target,
   reports: BarChart3,
   users: UserCheck,
   permissions: KeyRound,
@@ -110,6 +112,8 @@ function formatCategoryTitle(category: string): string {
       return "Tasks";
     case "meetings":
       return "Meetings";
+    case "targets":
+      return "Sales Targets";
     case "reports":
       return "Reports";
     case "users":
@@ -137,6 +141,8 @@ function formatCategoryDesc(category: string): string {
       return "Team action items, reminders, and follow-up activities";
     case "meetings":
       return "Client consultations, appointments, and calendar events";
+    case "targets":
+      return "Revenue quotas, team performance, and attainment targets";
     case "reports":
       return "Business intelligence, revenue performance, and exports";
     case "users":
@@ -161,6 +167,7 @@ function formatPermissionLabel(code: string, fallbackDesc: string): string {
     deals: "Deals",
     tasks: "Tasks",
     meetings: "Meetings",
+    targets: "Sales Targets",
     reports: "Reports",
     users: "Team Members",
     permissions: "Role Permissions",

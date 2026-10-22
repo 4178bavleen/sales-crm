@@ -89,6 +89,15 @@ export const ENDPOINTS = {
     delete: (id: number) => `/meetings/${id}`,
   },
 
+  targets: {
+    list: "/targets",
+    options: "/targets/options",
+    byId: (id: number) => `/targets/${id}`,
+    create: "/targets",
+    update: (id: number) => `/targets/${id}`,
+    delete: (id: number) => `/targets/${id}`,
+  },
+
   health: "/health",
 } as const;
 

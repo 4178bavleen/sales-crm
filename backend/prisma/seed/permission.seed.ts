@@ -35,6 +35,10 @@ const permissionDefinitions = [
   ['meetings.create', 'Create meetings'],
   ['meetings.edit', 'Edit meetings'],
   ['meetings.delete', 'Delete meetings'],
+  ['targets.view', 'View targets'],
+  ['targets.create', 'Create targets'],
+  ['targets.edit', 'Edit targets'],
+  ['targets.delete', 'Delete targets'],
   ['reports.view', 'View reports'],
   ['reports.export', 'Export reports'],
   ['users.view', 'View users'],
@@ -78,6 +82,48 @@ export async function seedPermissions() {
     })),
     skipDuplicates: true,
   })
+
+  const salesManager = await prisma.role.findUnique({
+    where: { name: 'SALES_MANAGER' },
+    select: { id: true },
+  })
+  if (salesManager) {
+    const managerPerms = await prisma.permission.findMany({
+      where: {
+        code: {
+          in: ['targets.view', 'targets.create', 'targets.edit', 'targets.delete', 'meetings.view', 'meetings.create', 'meetings.edit', 'meetings.delete'],
+        },
+      },
+      select: { id: true },
+    })
+    await prisma.rolePermission.createMany({
+      data: managerPerms.map((p) => ({
+        roleId: salesManager.id,
+        permissionId: p.id,
+      })),
+      skipDuplicates: true,
+    })
+  }
+
+  const salesEmployee = await prisma.role.findUnique({
+    where: { name: 'SALES_EMPLOYEE' },
+    select: { id: true },
+  })
+  if (salesEmployee) {
+    const empPerms = await prisma.permission.findMany({
+      where: {
+        code: { in: ['targets.view', 'meetings.view', 'meetings.create', 'meetings.edit'] },
+      },
+      select: { id: true },
+    })
+    await prisma.rolePermission.createMany({
+      data: empPerms.map((p) => ({
+        roleId: salesEmployee.id,
+        permissionId: p.id,
+      })),
+      skipDuplicates: true,
+    })
+  }
 
   console.log(`✅ Seeded ${permissionDefinitions.length} permissions.`)
 }
