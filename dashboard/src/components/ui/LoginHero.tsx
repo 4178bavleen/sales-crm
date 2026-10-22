@@ -21,7 +21,7 @@ const CHART_GAP = 6;
  * Below this width the upper chart would slide over the copy that sits
  * above the mockup, so only the lower chart is drawn.
  */
-const TOP_CHART_MIN_WIDTH = 660;
+const TOP_CHART_MIN_WIDTH = 900; // Increased to hide top chart on smaller laptop screens (14" and below)
 
 export default function LoginHero() {
   const mockupRef = useRef<HTMLDivElement>(null);
@@ -136,7 +136,7 @@ export default function LoginHero() {
               clearly outside & above the main card
               ════════════════════════════════════════ */}
           <div
-            className="absolute z-30 rounded-2xl bg-white border border-slate-100 px-5 py-4"
+            className="login-hero-top-chart absolute z-10 rounded-2xl bg-white border border-slate-100 px-5 py-4"
             style={{
               top: -105,
               right: 150,
@@ -217,7 +217,7 @@ export default function LoginHero() {
           {/* ── Main dashboard mockup card ── */}
           <div
             ref={cardRef}
-            className="rounded-2xl bg-white border border-slate-100 overflow-hidden"
+            className="rounded-2xl bg-white border border-slate-100 overflow-hidden relative z-20 shadow-[0_16px_56px_rgba(0,0,0,0.43)]"
             style={{
               maxWidth: 500,
               marginLeft: 190,

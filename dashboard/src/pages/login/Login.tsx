@@ -39,8 +39,8 @@ export default function Login() {
         <div className="w-full max-w-[420px] my-auto animate-in fade-in zoom-in-95 duration-200">
           {/* The brand mark lives in the hero panel, which is hidden on small
               screens — so it is repeated here for tablet/phone viewports. */}
-          <div className="login-mobile-logo lg:hidden mb-8">
-            <SalesCrmLogo size="lg" height="clamp(28px, min(5vh,3.8vw), 42px)" />
+          <div className="login-mobile-logo lg:hidden mb-8 w-full flex justify-center items-center">
+            <SalesCrmLogo size="lg" height="clamp(42px, 12vw, 64px)" />
           </div>
           <LoginForm onSubmit={handleLoginSubmit} error={error} pending={pending} />
         </div>

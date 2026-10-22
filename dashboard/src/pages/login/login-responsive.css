@@ -178,3 +178,22 @@
     margin-bottom: 0.75rem;
   }
 }
+
+/* For small screens like 14" laptops and below, show only one chart on login page */
+@media (max-width: 1366px) {
+  .login-hero-top-chart {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1280px) {
+  .login-hero-top-chart {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .login-hero-top-chart {
+    display: none !important;
+  }
+}

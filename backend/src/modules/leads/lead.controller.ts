@@ -95,6 +95,58 @@ export async function listLeads(
   }
 }
 
+export async function getLeadStats(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      })
+      return
+    }
+
+    const stats = await leadService.getLeadStats()
+
+    res.status(200).json({
+      success: true,
+      message: 'Lead statistics retrieved successfully',
+      data: stats,
+    })
+  } catch (error) {
+    handleLeadControllerError(error, res, next)
+  }
+}
+
+export async function getLeadOptions(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      })
+      return
+    }
+
+    const options = await leadService.getLeadOptions()
+
+    res.status(200).json({
+      success: true,
+      message: 'Lead options retrieved successfully',
+      data: options,
+    })
+  } catch (error) {
+    handleLeadControllerError(error, res, next)
+  }
+}
+
 export async function getLead(
   req: AuthenticatedRequest,
   res: Response,
