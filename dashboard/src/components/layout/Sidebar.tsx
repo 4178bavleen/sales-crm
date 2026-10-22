@@ -1,58 +1,48 @@
-
 import {
-  LayoutDashboard,
+  Home,
   Users,
   Contact,
+  Boxes,
   Building2,
-  Handshake,
+  UserRound,
   CheckSquare,
   CalendarDays,
+  GitFork,
   Target,
   BarChart3,
   FileText,
   Settings,
-  UserRound,
-  Zap,
+  ChevronDown,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
 
-const navigationGroups = [
-  {
-    title: "WORKSPACE",
-    items: [
-      { name: "Dashboard", path: "/", icon: LayoutDashboard },
-      { name: "Leads", path: "/leads", icon: Users },
-      { name: "Contacts", path: "/contacts", icon: Contact },
-      { name: "Companies", path: "/companies", icon: Building2 },
-      { name: "Customers", path: "/customers", icon: UserRound },
-    ],
-  },
-  {
-    title: "SALES",
-    items: [
-      { name: "Deals & Pipeline", path: "/deals", icon: Handshake },
-      { name: "Tasks", path: "/tasks", icon: CheckSquare },
-      { name: "Meetings", path: "/meetings", icon: CalendarDays },
-      { name: "Sales Targets", path: "/targets", icon: Target },
-    ],
-  },
-  {
-    title: "MANAGEMENT",
-    items: [
-      { name: "Reports", path: "/reports", icon: BarChart3 },
-      { name: "Documents", path: "/documents", icon: FileText },
-      { name: "Settings", path: "/settings", icon: Settings },
-    ],
-  },
+const primaryNav = [
+  { name: "Dashboard", path: "/", icon: Home },
+  { name: "Leads", path: "/leads", icon: Users },
+  { name: "Contacts", path: "/contacts", icon: Contact },
+  { name: "Deals", path: "/deals", icon: Boxes },
+  { name: "Companies", path: "/companies", icon: Building2 },
+  { name: "Customers", path: "/customers", icon: UserRound },
+];
+
+const salesNav = [
+  { name: "Tasks", path: "/tasks", icon: CheckSquare },
+  { name: "Meetings", path: "/meetings", icon: CalendarDays },
+  { name: "Sales Pipeline", path: "/deals", icon: GitFork },
+  { name: "Sales Targets", path: "/targets", icon: Target },
+];
+
+const managementNav = [
+  { name: "Reports", path: "/reports", icon: BarChart3 },
+  { name: "Documents", path: "/documents", icon: FileText },
+  { name: "Settings", path: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
-  // Mirror the topbar: read the live session so the sidebar identity is always
-  // the signed-in user, never a hardcoded placeholder.
   const session = useSession();
-  const userName = session?.user.name ?? "Signed in";
-  const userRole = session?.user.role ?? "—";
+  const userName = session?.user.name ?? "Gabriel Deora";
+  const userRole = session?.user.role ?? "Admin";
   const initials =
     userName
       .split(" ")
@@ -60,91 +50,156 @@ export default function Sidebar() {
       .filter(Boolean)
       .slice(0, 2)
       .join("")
-      .toUpperCase() || "–";
+      .toUpperCase() || "GD";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
-      {/* Logo */}
-      <div className="flex h-[72px] shrink-0 items-center gap-3 border-b border-slate-100 px-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
-          <Zap size={22} fill="currentColor" />
-        </div>
-
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-slate-900">
-            SalesFlow
-          </h1>
-          <p className="text-xs text-slate-500">
-            CRM Workspace
-          </p>
-        </div>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-800/80 bg-[#0b1328] md:flex">
+      {/* Brand Header */}
+      <div className="flex h-[72px] shrink-0 items-center px-5">
+        <NavLink to="/" className="flex items-center gap-3">
+          <img
+            src="/logo/vis-white.png"
+            alt="Vibrantick Infotech Solutions"
+            className="h-10 w-auto object-contain"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.style.display = "none";
+              const parent = target.parentElement;
+              if (parent && !parent.querySelector(".fallback-brand")) {
+                const brand = document.createElement("div");
+                brand.className = "fallback-brand flex flex-col";
+                brand.innerHTML = `
+                  <span class="text-base font-bold text-white tracking-tight">Vibrantick</span>
+                  <span class="text-[9px] font-semibold text-sky-400 tracking-[0.2em] uppercase">INFOTECH SOLUTIONS</span>
+                `;
+                parent.appendChild(brand);
+              }
+            }}
+          />
+        </NavLink>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-7 overflow-y-auto overflow-x-hidden px-3 py-7">
-        {navigationGroups.map((group) => (
-          <div key={group.title}>
-            <p className="mb-3 px-3 text-[10px] font-bold tracking-[0.15em] text-slate-400">
-              {group.title}
-            </p>
+      <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-4 [&::-webkit-scrollbar]:hidden">
+        {/* Workspace / Primary */}
+        <div className="space-y-1">
+          {primaryNav.map(({ name, path, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              end={path === "/"}
+              className={({ isActive }) =>
+                `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
+                  isActive
+                    ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
+                    : "text-slate-300 hover:bg-white/5 hover:text-white"
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={18}
+                    strokeWidth={isActive ? 2.2 : 1.8}
+                    className={`shrink-0 ${
+                      isActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                    }`}
+                  />
+                  <span className="truncate">{name}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
 
-            <div className="space-y-1">
-              {group.items.map(({ name, path, icon: Icon }) => (
-                <NavLink
-                  key={path}
-                  to={path}
-                  end={path === "/"}
-                  className={({ isActive }) =>
-                    `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition-all duration-200 ${
-                      isActive
-                        ? "bg-indigo-50 font-semibold text-indigo-700"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-indigo-600" />
-                      )}
-
-                      <Icon
-                        size={18}
-                        strokeWidth={isActive ? 2.2 : 1.8}
-                        className="shrink-0"
-                      />
-
-                      <span className="truncate">{name}</span>
-
-                      {isActive && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-600" />
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+        {/* SALES */}
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-bold tracking-[0.14em] text-slate-400 uppercase">
+            SALES
+          </p>
+          <div className="space-y-1">
+            {salesNav.map(({ name, path, icon: Icon }) => (
+              <NavLink
+                key={name}
+                to={path}
+                className={({ isActive }) =>
+                  `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
+                    isActive
+                      ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      size={18}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                      className={`shrink-0 ${
+                        isActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                      }`}
+                    />
+                    <span className="truncate">{name}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* MANAGEMENT */}
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-bold tracking-[0.14em] text-slate-400 uppercase">
+            MANAGEMENT
+          </p>
+          <div className="space-y-1">
+            {managementNav.map(({ name, path, icon: Icon }) => (
+              <NavLink
+                key={name}
+                to={path}
+                className={({ isActive }) =>
+                  `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
+                    isActive
+                      ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      size={18}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                      className={`shrink-0 ${
+                        isActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                      }`}
+                    />
+                    <span className="truncate">{name}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        </div>
       </nav>
 
-      {/* Profile */}
-      <div className="shrink-0 border-t border-slate-100 p-3">
-        <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 ring-2 ring-white">
+      {/* Bottom Profile card */}
+      <div className="shrink-0 border-t border-slate-800/80 p-3">
+        <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-white/5 cursor-pointer">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1d61e7] text-xs font-bold text-white shadow-sm shadow-blue-500/20">
             {initials}
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-800">
+            <p className="truncate text-sm font-semibold text-white">
               {userName}
             </p>
-            <p className="mt-0.5 truncate text-xs text-slate-400">
+            <p className="truncate text-xs text-slate-400">
               {userRole}
             </p>
           </div>
 
-          <Settings size={16} className="text-slate-400" />
+          <ChevronDown size={16} className="shrink-0 text-slate-400" />
         </div>
       </div>
     </aside>

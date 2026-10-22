@@ -1,6 +1,83 @@
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import SalesCrmLogo from "./SalesCrmLogo";
 
+/** How the mockup artwork is placed inside the space below the headline. */
+interface StageLayout {
+  /** Scale applied to the artwork. */
+  scale: number;
+  /** Distance of the lower chart from the bottom of the mockup area. */
+  chartBottom: number;
+  /** The upper chart only fits while the artwork is shown at full size. */
+  showTopChart: boolean;
+}
+
+/** The untouched, full-size composition. */
+const FULL_LAYOUT: StageLayout = { scale: 1, chartBottom: 128, showTopChart: true };
+
+/** Gap between the bottom of the card and the bottom of the lower chart. */
+const CHART_GAP = 6;
+
+/**
+ * Below this width the upper chart would slide over the copy that sits
+ * above the mockup, so only the lower chart is drawn.
+ */
+const TOP_CHART_MIN_WIDTH = 660;
+
 export default function LoginHero() {
+  const mockupRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState<StageLayout>(FULL_LAYOUT);
+
+  /**
+   * The mockup is a fixed-size piece of artwork (a dashboard card with charts
+   * floating around it). On a small viewport it does not fit in the space
+   * that is left below the headline, so the whole stage is scaled down until
+   * it does — that keeps the design intact instead of clipping it, and the
+   * lower chart stays attached to the card while the upper one is dropped
+   * (it would end up on top of the copy).
+   */
+  const updateLayout = useCallback(() => {
+    const mockup = mockupRef.current;
+    const card = cardRef.current;
+    if (!mockup || !card) return;
+
+    const areaWidth = mockup.clientWidth;
+    const areaHeight = mockup.clientHeight;
+    const cardHeight = card.offsetHeight;
+    if (!areaWidth || !areaHeight || !cardHeight) return;
+
+    const fitsUntouched =
+      areaHeight >= cardHeight && areaWidth >= TOP_CHART_MIN_WIDTH;
+
+    const next: StageLayout = fitsUntouched
+      ? FULL_LAYOUT
+      : {
+          scale: Math.min(1, areaHeight / (cardHeight + CHART_GAP)),
+          chartBottom: areaHeight - cardHeight - CHART_GAP,
+          showTopChart: false,
+        };
+
+    setLayout(prev =>
+      prev.scale === next.scale &&
+      prev.chartBottom === next.chartBottom &&
+      prev.showTopChart === next.showTopChart
+        ? prev
+        : next,
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    updateLayout();
+    const mockup = mockupRef.current;
+    if (!mockup) return;
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(mockup);
+    if (cardRef.current) observer.observe(cardRef.current);
+    if (chartRef.current) observer.observe(chartRef.current);
+    return () => observer.disconnect();
+  }, [updateLayout]);
+
   return (
     <div
       className="relative flex flex-col h-full w-full select-none"
@@ -25,10 +102,10 @@ export default function LoginHero() {
       </div>
 
       {/* ── Content ── */}
-      <div className="relative z-10 flex flex-col h-full px-10 pt-10 pb-6 lg:px-14 lg:pt-12" style={{ overflow: "visible" }}>
+      <div className="login-hero-content relative z-10 flex flex-col h-full px-10 pt-10 pb-6 lg:px-14 lg:pt-12" style={{ overflow: "visible" }}>
 
         {/* Logo */}
-        <div className="mb-8 shrink-0">
+        <div className="login-hero-logo mb-8 shrink-0">
           <SalesCrmLogo size="lg" height="clamp(28px, min(5vh,3.8vw), 42px)" />
         </div>
 
@@ -45,7 +122,13 @@ export default function LoginHero() {
         </p>
 
         {/* ── Mockup + floating graphs ── */}
-        <div className="mt-7 flex-1 min-h-0 relative">
+        <div ref={mockupRef} className="login-hero-mockup mt-7 flex-1 min-h-0 relative">
+          {/* The stage is scaled down as a whole when the space left below the
+              headline is too small for the mockup (see `updateScale`). */}
+          <div
+            className="absolute inset-0 origin-top-left"
+            style={{ transform: `scale(${layout.scale})` }}
+          >
 
           {/* ════════════════════════════════════════
               FLOATING GRAPH 1 — Deal Progress
@@ -58,6 +141,7 @@ export default function LoginHero() {
               top: -105,
               right: 150,
               width: 210,
+              display: layout.showTopChart ? undefined : "none",
               boxShadow: "rgba(0, 0, 0, 0.48) 0px 12px 40px, rgba(0, 0, 0, 0.08) 0px 2px 8px"
             }}
           >
@@ -92,9 +176,10 @@ export default function LoginHero() {
               clearly outside & below the main card
               ════════════════════════════════════════ */}
           <div
+            ref={chartRef}
             className="absolute z-30 rounded-2xl bg-white border border-slate-100 px-5 py-4"
             style={{
-              bottom: 128,
+              bottom: layout.chartBottom,
               left: -18,
               width: 226,
               boxShadow: "rgba(0, 0, 0, 0.77) 0px 12px 40px, rgba(0, 0, 0, 0.08) 0px 2px 8px"
@@ -131,6 +216,7 @@ export default function LoginHero() {
 
           {/* ── Main dashboard mockup card ── */}
           <div
+            ref={cardRef}
             className="rounded-2xl bg-white border border-slate-100 overflow-hidden"
             style={{
               maxWidth: 500,
@@ -263,6 +349,8 @@ export default function LoginHero() {
           </div>
           {/* end main card */}
 
+          </div>
+          {/* end scaled stage */}
         </div>
         {/* end mockup area */}
 

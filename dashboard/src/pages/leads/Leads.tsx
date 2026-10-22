@@ -1,64 +1,63 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   Search,
   Plus,
   Filter,
-  ArrowUpDown,
-  LayoutGrid,
-  List,
-  Download,
-  Mail,
+  Upload,
+  MoreHorizontal,
+  ChevronDown,
+  Users,
+  TrendingUp,
   Phone,
-  UserRound,
-  RotateCcw,
+  Award,
+  Trophy,
+  Flag,
+  User,
+  Calendar,
+  Check,
 } from "lucide-react";
 import type { Lead, LeadStatus } from "../../types/lead";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
 import { initialLeads } from "../../data/leads";
 import {
   leadColumns,
-  leadColumnOptions,
   leadCsvFields,
 } from "../../data/leadColumns";
 import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
-import DataTable, {
-  TablePagination,
-} from "../../components/ui/DataTable";
-import FilterSidebar, {
-  type FilterCheckboxSection,
-} from "../../components/ui/FilterSidebar";
-import TableSettings from "../../components/ui/TableSettings";
+import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
-import { StatusBadge } from "../../components/ui/LeadBadges";
 
-// Filter state as one object: one setter, one reset, one dependency.
+// Filter state
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
-
-const toolbarButtonClass =
-  "inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50";
-const iconButtonClass = "rounded-md border p-2";
-const iconButtonIdle =
-  "border-slate-200 text-slate-500 hover:bg-slate-50";
-const iconButtonActive = "border-blue-100 bg-blue-50 text-blue-600";
-const searchInputClass =
-  "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<LeadsFilter>(emptyFilters);
-  const [sortNewest, setSortNewest] = useState(true);
+  const [selectedOwner, setSelectedOwner] = useState<string>("");
+  const [dateRange, setDateRange] = useState<string>("All Time");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
-  const [view, setView] = useState<"list" | "grid">("list");
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
 
-  // Esc closes the lead detail dialog
+  // Filter dropdown toggles
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Esc closes detail dialog
   useEffect(() => {
     if (!detailLead) return;
     function onKey(event: KeyboardEvent) {
@@ -68,15 +67,29 @@ export default function Leads() {
     return () => document.removeEventListener("keydown", onKey);
   }, [detailLead]);
 
+  // Compute metrics from current leads
+  const metrics = useMemo(() => {
+    return {
+      total: leads.length,
+      newLeads: leads.filter(l => l.status === "NEW").length,
+      contacted: leads.filter(l => l.status === "CONTACTED").length,
+      qualified: leads.filter(l => l.status === "QUALIFIED").length,
+      converted: leads.filter(l => l.status === "CONVERTED").length,
+    };
+  }, [leads]);
+
+  // Filtered leads
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
-    // Only fields with a non-empty selection constrain the result.
-    const active = (Object.keys(filters) as (keyof LeadsFilter)[]).filter(
+    const activeFilterKeys = (Object.keys(filters) as (keyof LeadsFilter)[]).filter(
       key => filters[key].length > 0,
     );
-    return leads
-      .filter(lead => {
-        const matchesSearch = [
+
+    return leads.filter(lead => {
+      // Search matching
+      const matchesSearch =
+        !query ||
+        [
           lead.firstName,
           lead.lastName,
           lead.company,
@@ -85,39 +98,64 @@ export default function Leads() {
           lead.owner,
           lead.source,
         ].some(value => value.toLowerCase().includes(query));
-        if (!matchesSearch) return false;
-        return active.every(key =>
-          (filters[key] as string[]).includes(lead[key]),
-        );
-      })
-      .sort((a, b) =>
-        sortNewest
-          ? b.createdAt.localeCompare(a.createdAt)
-          : a.createdAt.localeCompare(b.createdAt),
+
+      if (!matchesSearch) return false;
+
+      // Checkbox filters (status, priority, source)
+      const matchesMultiFilters = activeFilterKeys.every(key =>
+        (filters[key] as string[]).includes(lead[key]),
       );
-  }, [leads, search, filters, sortNewest]);
+      if (!matchesMultiFilters) return false;
+
+      // Owner filter
+      if (selectedOwner && lead.owner !== selectedOwner) return false;
+
+      // Date range filter
+      if (dateRange === "Today") {
+        if (!lead.createdAt.startsWith("2026-10-19")) return false;
+      } else if (dateRange === "Last 7 Days") {
+        if (lead.createdAt < "2026-10-12") return false;
+      }
+
+      return true;
+    });
+  }, [leads, search, filters, selectedOwner, dateRange]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
   const pageLeads = filteredLeads.slice(startIndex, startIndex + pageSize);
 
-  const visibleLeadColumns = useMemo(
-    () => leadColumns.filter(column => !hiddenColumns.includes(column.key)),
-    [hiddenColumns],
-  );
-
   const hasActiveFilters =
-    search !== "" || Object.values(filters).some(list => list.length > 0);
+    search !== "" ||
+    Object.values(filters).some(list => list.length > 0) ||
+    selectedOwner !== "" ||
+    dateRange !== "All Time";
 
-  function updateFilter(key: keyof LeadsFilter, values: string[]) {
-    setFilters(previous => ({ ...previous, [key]: values }));
+  function toggleMultiFilter(key: keyof LeadsFilter, value: string) {
+    setFilters(prev => {
+      const current = prev[key] as string[];
+      const exists = current.includes(value);
+      const next = exists ? current.filter(v => v !== value) : [...current, value];
+      return { ...prev, [key]: next };
+    });
     setPage(1);
   }
 
   function resetFilters() {
     setSearch("");
     setFilters(emptyFilters);
+    setSelectedOwner("");
+    setDateRange("All Time");
+    setPage(1);
+  }
+
+  function filterByStatusCard(status?: LeadStatus) {
+    if (!status) {
+      resetFilters();
+      return;
+    }
+    setFilters({ ...emptyFilters, status: [status] });
     setPage(1);
   }
 
@@ -162,31 +200,10 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   }
 
-  const filterSections: FilterCheckboxSection[] = [
-    {
-      title: "Lead Status",
-      items: LEAD_STATUSES,
-      selected: filters.status,
-      onChange: values => updateFilter("status", values),
-    },
-    {
-      title: "Priority",
-      items: LEAD_PRIORITIES,
-      selected: filters.priority,
-      onChange: values => updateFilter("priority", values),
-    },
-    {
-      title: "Lead Source",
-      items: LEAD_SOURCES,
-      selected: filters.source,
-      onChange: values => updateFilter("source", values),
-    },
-  ];
-
-  // Full-page create form replaces the list while open
+  // Full-page create form
   if (showCreateModal) {
     return (
-      <div className="-m-4 md:-m-8">
+      <div className="-m-4 md:-m-7">
         <CreateLeadModal
           onClose={() => setShowCreateModal(false)}
           onCreate={createLead}
@@ -196,272 +213,605 @@ export default function Leads() {
   }
 
   return (
-    <div className="relative -m-4 min-h-[calc(100vh-64px)] bg-white text-slate-700 md:-m-8">
-      {/* Page header */}
-      <header className="flex min-h-[54px] flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-slate-800">Leads</h1>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
-            {filteredLeads.length} records
-          </span>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Leads
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            Manage and track all your leads in one place
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative hidden sm:block">
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+          >
+            <Upload size={14} className="text-slate-500" />
+            Import
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+          >
+            <Plus size={15} />
+            Create Lead
+            <ChevronDown size={14} className="ml-1 opacity-80" />
+          </button>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={exportCsv}
+              title="More options"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards Row (5 Cards) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Total Leads */}
+        <div
+          onClick={() => filterByStatusCard()}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
+              <Users size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Total Leads</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {metrics.total}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                <span>↑</span> 12%
+              </p>
+            </div>
+          </div>
+          {/* Smooth curved SVG with gradient fill */}
+          <div className="w-24 sm:w-28 shrink-0">
+            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+              <defs>
+                <linearGradient id="stat-grad-total" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                  <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6 L 116 48 L 0 48 Z"
+                fill="url(#stat-grad-total)"
+              />
+              <path
+                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6"
+                stroke="#3b82f6"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* New Leads */}
+        <div
+          onClick={() => filterByStatusCard("NEW")}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">New Leads</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {metrics.newLeads}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                <span>↑</span> 8%
+              </p>
+            </div>
+          </div>
+          <div className="w-24 sm:w-28 shrink-0">
+            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+              <defs>
+                <linearGradient id="stat-grad-new" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5 L 112 48 L 0 48 Z"
+                fill="url(#stat-grad-new)"
+              />
+              <path
+                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5"
+                stroke="#10b981"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Contacted */}
+        <div
+          onClick={() => filterByStatusCard("CONTACTED")}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+              <Phone size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Contacted</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {metrics.contacted}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                <span>↑</span> 18%
+              </p>
+            </div>
+          </div>
+          <div className="w-24 sm:w-28 shrink-0">
+            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+              <defs>
+                <linearGradient id="stat-grad-contacted" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
+                  <stop offset="85%" stopColor="#a855f7" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4 L 108 48 L 0 48 Z"
+                fill="url(#stat-grad-contacted)"
+              />
+              <path
+                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4"
+                stroke="#a855f7"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Qualified */}
+        <div
+          onClick={() => filterByStatusCard("QUALIFIED")}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+              <Award size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Qualified</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {metrics.qualified}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-amber-500 flex items-center gap-0.5">
+                <span>↑</span> 25%
+              </p>
+            </div>
+          </div>
+          <div className="w-24 sm:w-28 shrink-0">
+            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+              <defs>
+                <linearGradient id="stat-grad-qualified" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
+                  <stop offset="85%" stopColor="#f59e0b" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4 L 110 48 L 0 48 Z"
+                fill="url(#stat-grad-qualified)"
+              />
+              <path
+                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4"
+                stroke="#f59e0b"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Converted */}
+        <div
+          onClick={() => filterByStatusCard("CONVERTED")}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <Trophy size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Converted</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {metrics.converted}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                <span>↑</span> 30%
+              </p>
+            </div>
+          </div>
+          <div className="w-24 sm:w-28 shrink-0">
+            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+              <defs>
+                <linearGradient id="stat-grad-converted" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10 L 118 48 L 0 48 Z"
+                fill="url(#stat-grad-converted)"
+              />
+              <path
+                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10"
+                stroke="#10b981"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filters Bar */}
+      <div
+        ref={dropdownRef}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs"
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Search leads */}
+          <div className="relative">
             <Search
               size={15}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
+              type="search"
               value={search}
               onChange={e => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search records"
-              className={`${searchInputClass} w-48 sm:w-56`}
+              placeholder="Search leads..."
+              className="w-56 md:w-64 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-md border border-blue-500 bg-white px-3 py-2 text-xs font-medium text-blue-600 hover:bg-blue-50"
-          >
-            <Plus size={15} />
-            Create Lead
-          </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            title="Export CSV"
-            className={`${iconButtonClass} ${iconButtonIdle}`}
-          >
-            <Download size={15} />
-          </button>
-        </div>
-      </header>
 
-      {/* Action toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`${toolbarButtonClass} ${
-              showFilters ? "border-blue-100 bg-blue-50 text-blue-700" : ""
-            }`}
-          >
-            <Filter size={14} />
-            Filter
-          </button>
-          <button
-            type="button"
-            onClick={() => setSortNewest(!sortNewest)}
-            className={toolbarButtonClass}
-          >
-            <ArrowUpDown size={14} />
-            {sortNewest ? "Newest first" : "Oldest first"}
-          </button>
+          {/* Lead Status Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                filters.status.length > 0
+                  ? "border-blue-600 bg-blue-50/50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Filter size={13} className="text-slate-400" />
+              Lead Status
+              {filters.status.length > 0 && ` (${filters.status.length})`}
+              <ChevronDown size={13} className="text-slate-400 ml-0.5" />
+            </button>
+
+            {activeDropdown === "status" && (
+              <div className="absolute left-0 top-9 z-30 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Select Status
+                </p>
+                <div className="space-y-1 mt-1">
+                  {LEAD_STATUSES.map(status => {
+                    const checked = filters.status.includes(status);
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => toggleMultiFilter("status", status)}
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                      >
+                        <span>{status}</span>
+                        {checked && <Check size={14} className="text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Priority Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === "priority" ? null : "priority")}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                filters.priority.length > 0
+                  ? "border-blue-600 bg-blue-50/50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Flag size={13} className="text-slate-400" />
+              Priority
+              {filters.priority.length > 0 && ` (${filters.priority.length})`}
+              <ChevronDown size={13} className="text-slate-400 ml-0.5" />
+            </button>
+
+            {activeDropdown === "priority" && (
+              <div className="absolute left-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Select Priority
+                </p>
+                <div className="space-y-1 mt-1">
+                  {LEAD_PRIORITIES.map(priority => {
+                    const checked = filters.priority.includes(priority);
+                    return (
+                      <button
+                        key={priority}
+                        type="button"
+                        onClick={() => toggleMultiFilter("priority", priority)}
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                      >
+                        <span>{priority}</span>
+                        {checked && <Check size={14} className="text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Lead Source Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === "source" ? null : "source")}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                filters.source.length > 0
+                  ? "border-blue-600 bg-blue-50/50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Phone size={13} className="text-slate-400" />
+              Lead Source
+              {filters.source.length > 0 && ` (${filters.source.length})`}
+              <ChevronDown size={13} className="text-slate-400 ml-0.5" />
+            </button>
+
+            {activeDropdown === "source" && (
+              <div className="absolute left-0 top-9 z-30 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Select Source
+                </p>
+                <div className="space-y-1 mt-1 max-h-60 overflow-y-auto">
+                  {LEAD_SOURCES.map(source => {
+                    const checked = filters.source.includes(source);
+                    return (
+                      <button
+                        key={source}
+                        type="button"
+                        onClick={() => toggleMultiFilter("source", source)}
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                      >
+                        <span>{source}</span>
+                        {checked && <Check size={14} className="text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Owner Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === "owner" ? null : "owner")}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                selectedOwner
+                  ? "border-blue-600 bg-blue-50/50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <User size={13} className="text-slate-400" />
+              Owner {selectedOwner ? `(${selectedOwner.split(" ")[0]})` : ""}
+              <ChevronDown size={13} className="text-slate-400 ml-0.5" />
+            </button>
+
+            {activeDropdown === "owner" && (
+              <div className="absolute left-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="space-y-1">
+                  {["All Owners", "Gabriel Deora"].map(owner => (
+                    <button
+                      key={owner}
+                      type="button"
+                      onClick={() => {
+                        setSelectedOwner(owner === "All Owners" ? "" : owner);
+                        setActiveDropdown(null);
+                        setPage(1);
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                    >
+                      <span>{owner}</span>
+                      {(owner === "All Owners" && !selectedOwner) || selectedOwner === owner ? (
+                        <Check size={14} className="text-blue-600" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Date Range Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === "date" ? null : "date")}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                dateRange !== "All Time"
+                  ? "border-blue-600 bg-blue-50/50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Calendar size={13} className="text-slate-400" />
+              Date Range {dateRange !== "All Time" ? `(${dateRange})` : ""}
+              <ChevronDown size={13} className="text-slate-400 ml-0.5" />
+            </button>
+
+            {activeDropdown === "date" && (
+              <div className="absolute left-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="space-y-1">
+                  {["All Time", "Today", "Last 7 Days"].map(range => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => {
+                        setDateRange(range);
+                        setActiveDropdown(null);
+                        setPage(1);
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                    >
+                      <span>{range}</span>
+                      {dateRange === range && <Check size={14} className="text-blue-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right side: Clear filters + Filter action */}
+        <div className="flex items-center gap-3">
           {hasActiveFilters && (
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-2 text-xs text-blue-600 hover:bg-blue-50"
+              className="text-xs font-medium text-blue-600 hover:underline cursor-pointer"
             >
-              <RotateCcw size={13} />
-              Reset
+              Clear Filters
             </button>
           )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(
-            [
-              { key: "list", title: "List view", Icon: List },
-              { key: "grid", title: "Grid view", Icon: LayoutGrid },
-            ] as const
-          ).map(({ key, title, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setView(key)}
-              title={title}
-              className={`${iconButtonClass} ${
-                view === key ? iconButtonActive : iconButtonIdle
-              }`}
-            >
-              <Icon size={15} />
-            </button>
-          ))}
+
           <button
             type="button"
-            onClick={exportCsv}
-            title="Export records"
-            className={`${iconButtonClass} ${iconButtonIdle}`}
+            onClick={() => setActiveDropdown(activeDropdown ? null : "status")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition shadow-2xs cursor-pointer"
           >
-            <Download size={15} />
+            <Filter size={13} />
+            Filter
           </button>
-          <TableSettings
-            columns={leadColumnOptions}
-            hidden={hiddenColumns}
-            onChange={setHiddenColumns}
-          />
         </div>
       </div>
 
-      {/* Main workspace */}
-      <div className="flex h-[calc(100vh-220px)] min-h-0 items-stretch overflow-hidden">
-        {showFilters && (
-          <FilterSidebar title="Filter Leads by" sections={filterSections} />
-        )}
-
-        <section className="flex min-w-0 flex-1 flex-col">
-          {/* Mobile search */}
-          <div className="shrink-0 border-b border-slate-100 p-3 sm:hidden">
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search leads..."
-                className={`${searchInputClass} w-full text-sm`}
-              />
-            </div>
-          </div>
-
-          {view === "list" ? (
-            <DataTable<Lead>
-              columns={visibleLeadColumns}
-              rows={pageLeads}
-              getRowId={lead => lead.id}
-              onRowClick={lead => setDetailLead(lead)}
-              selectable
-              selectedIds={selectedIds}
-              onSelectionChange={ids => setSelectedIds(ids as number[])}
-              getRowLabel={lead => `${lead.firstName} ${lead.lastName}`}
-              renderRowMenu={lead => (
-                <>
+      {/* Main Leads Table Card */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+        <DataTable<Lead>
+          columns={leadColumns}
+          rows={pageLeads}
+          getRowId={lead => lead.id}
+          onRowClick={lead => setDetailLead(lead)}
+          selectable
+          selectedIds={selectedIds}
+          onSelectionChange={ids => setSelectedIds(ids as number[])}
+          getRowLabel={lead => `${lead.firstName} ${lead.lastName}`}
+          renderRowMenu={lead => (
+            <>
+              <button
+                type="button"
+                onClick={() => setDetailLead(lead)}
+                className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+              >
+                View details
+              </button>
+              <div className="my-1 border-t border-slate-100" />
+              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                Update status
+              </p>
+              {LEAD_STATUSES.filter(status => status !== "DISQUALIFIED").map(
+                status => (
                   <button
+                    key={status}
                     type="button"
-                    onClick={() => setDetailLead(lead)}
-                    className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
+                    onClick={() => updateLeadStatus(lead.id, status)}
+                    className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
                   >
-                    View details
+                    {status}
                   </button>
-                  <div className="my-1 border-t border-slate-100" />
-                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Update status
-                  </p>
-                  {LEAD_STATUSES.filter(status => status !== "DISQUALIFIED").map(
-                    status => (
-                      <button
-                        key={status}
-                        type="button"
-                        onClick={() => updateLeadStatus(lead.id, status)}
-                        className="w-full rounded px-3 py-2 text-left text-xs hover:bg-slate-50"
-                      >
-                        {status}
-                      </button>
-                    ),
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => deleteLead(lead.id)}
-                    className="w-full rounded px-3 py-2 text-left text-xs text-rose-600 hover:bg-rose-50"
-                  >
-                    Delete lead
-                  </button>
-                </>
+                ),
               )}
-              empty={
-                <div>
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                    <Search size={20} className="text-slate-400" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-slate-700">
-                    No leads found
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Try changing your search or filters.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="mt-3 text-xs font-medium text-blue-600 hover:underline"
-                  >
-                    Clear filters
-                  </button>
-                </div>
-              }
-            />
-          ) : (
-            <div className="grid min-h-0 flex-1 gap-3 overflow-auto p-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pageLeads.map(lead => (
-                <button
-                  key={lead.id}
-                  type="button"
-                  onClick={() => setDetailLead(lead)}
-                  className="rounded-lg border border-slate-200 bg-white p-4 text-left transition hover:border-blue-200 hover:shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">
-                        {lead.firstName[0]}
-                        {lead.lastName[0]}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">
-                          {lead.firstName} {lead.lastName}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {lead.company}
-                        </p>
-                      </div>
-                    </div>
-                    <StatusBadge status={lead.status} />
-                  </div>
-                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                    {(
-                      [
-                        { Icon: Mail, value: lead.email || "No email" },
-                        { Icon: Phone, value: lead.phone || "No phone" },
-                        { Icon: UserRound, value: lead.owner },
-                      ] as const
-                    ).map(({ Icon, value }, index) => (
-                      <p key={index} className="flex items-center gap-2">
-                        <Icon size={13} />
-                        {value}
-                      </p>
-                    ))}
-                  </div>
-                </button>
-              ))}
-              {pageLeads.length === 0 && (
-                <p className="col-span-full py-16 text-center text-sm text-slate-500">
-                  No leads match your filters.
-                </p>
-              )}
-            </div>
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                type="button"
+                onClick={() => deleteLead(lead.id)}
+                className="w-full rounded px-3 py-2 text-left text-xs text-rose-600 hover:bg-rose-50"
+              >
+                Delete lead
+              </button>
+            </>
           )}
-
-          <TablePagination
-            total={filteredLeads.length}
-            page={currentPage}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={size => {
+          empty={
+            <div>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Search size={20} className="text-slate-400" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-slate-700">
+                No leads found
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Try changing your search or filters.
+              </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-3 text-xs font-medium text-blue-600 hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          }
+          pagination={{
+            total: filteredLeads.length,
+            page: currentPage,
+            pageSize,
+            onPageChange: setPage,
+            onPageSizeChange: size => {
               setPageSize(size);
               setPage(1);
-            }}
-            selectedCount={selectedIds.length}
-          />
-        </section>
+            },
+            selectedCount: selectedIds.length,
+          }}
+        />
       </div>
 
+      {/* Lead Detail Dialog */}
       {detailLead && (
         <LeadDetailDialog
           lead={detailLead}

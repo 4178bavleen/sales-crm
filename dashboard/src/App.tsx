@@ -18,13 +18,13 @@ import "./App.css";
 /** The signed-in workspace: sidebar + topbar wrapped around the routed page. */
 function AppShell() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#f4f6f8]">
       <Sidebar />
 
-      <div className="min-h-screen md:ml-64">
+      <div className="min-h-screen md:ml-64 flex flex-col">
         <Topbar />
 
-        <main className="p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-6 lg:p-7">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
