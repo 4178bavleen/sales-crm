@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { Task, TaskFormValues } from "../../types/task";
 import { TASK_ASSIGNEES, TASK_PRIORITIES, TASK_STATUSES } from "../../types/task";
-import { initialTasks } from "../../data/tasks";
+
 import {
   dueBucket,
   priorityLabels,
@@ -35,6 +35,63 @@ import FilterSidebar, {
 } from "../../components/ui/FilterSidebar";
 import TableSettings from "../../components/ui/TableSettings";
 import TaskDetailDialog from "../../components/ui/TaskDetailDialog";
+
+import { request, ApiError } from "../../lib/api";
+import { ENDPOINTS } from "../../lib/endpoints";
+import { getSession } from "../../lib/auth";
+import { initialLeads } from "../../data/leads";
+import { initialDeals } from "../../data/deals";
+import { initialCustomers } from "../../data/customers";
+import { initialCompanies } from "../../data/companies";
+
+type ApiTask = {
+  id: number;
+  title: string;
+  description: string | null;
+  dueAt: string;
+  priority: Task["priority"];
+  status: Task["status"];
+  assignedToId: number;
+  createdById: number;
+  assignedTo?: { id: number; name: string; email: string } | null;
+  createdBy?: { id: number; name: string; email: string } | null;
+  completedBy?: { id: number; name: string } | null;
+  completedAt: string | null;
+  completionNote: string | null;
+  rescheduleCount: number;
+  lead?: { id: number; contactName: string; companyName: string | null } | null;
+  deal?: { id: number; name: string } | null;
+  customer?: { id: number; companyId: number | null } | null;
+  company?: { id: number; name: string } | null;
+  meeting?: { id: number; title: string; startsAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function mapApiTask(item: ApiTask): Task {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description ?? "",
+    assignedTo: item.assignedTo?.name ?? "",
+    createdBy: item.createdBy?.name ?? "",
+    dueAt: item.dueAt,
+    priority: item.priority,
+    status: item.status,
+    completedAt: item.completedAt ?? "",
+    completedBy: item.completedBy?.name ?? "",
+    completionNote: item.completionNote ?? "",
+    cancelReason: "",
+    rescheduleCount: item.rescheduleCount ?? 0,
+    lead: item.lead?.contactName ?? "",
+    deal: item.deal?.name ?? "",
+    customer: item.customer ? `Customer #${item.customer.id}` : "",
+    company: item.company?.name ?? "",
+    meeting: item.meeting?.title ?? "",
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
 
 // Filter state as one object: one setter, one reset, one dependency.
 const emptyFilters: TasksFilter = { status: [], priority: [], assignedTo: [] };
@@ -102,7 +159,9 @@ const DUE_FILTER_OPTIONS: { value: TaskDueFilter; label: string }[] = [
 ];
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<TasksFilter>(emptyFilters);
   const [dueFilter, setDueFilter] = useState<TaskDueFilter>("");
@@ -118,6 +177,60 @@ export default function Tasks() {
   const [formValues, setFormValues] = useState<TaskFormValues | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formTaskId, setFormTaskId] = useState<number | null>(null);
+
+
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadTasks() {
+      const token = getSession()?.token;
+
+      if (!token) {
+        setApiError("Your session has expired. Please sign in again.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setApiError("");
+
+        const result = await request<{
+          items: ApiTask[];
+          pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }>(ENDPOINTS.tasks.list, {
+          token,
+          signal: controller.signal,
+        });
+
+        setTasks(result.items.map(mapApiTask));
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setApiError(
+          error instanceof ApiError
+            ? error.message
+            : "Unable to load tasks. Please try again.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadTasks();
+
+    return () => controller.abort();
+  }, []);
 
   // Esc closes the task detail dialog
   useEffect(() => {
@@ -225,25 +338,148 @@ export default function Tasks() {
     setFormValues(toFormValues(task));
     setDetailTask(null);
   }
+  type ApiUser = {
+    id: number;
+    name: string;
+    email: string;
+    isActive: boolean;
+  };
 
-  function saveTask(values: TaskFormValues) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (formTaskId === null) {
-      const nextId =
-        tasks.reduce((max, task) => Math.max(max, task.id), 0) + 1;
-      setTasks(previous => [toTask(nextId, values, today), ...previous]);
+  type ApiUsersResponse = {
+    success: boolean;
+    message: string;
+    data: {
+      users: ApiUser[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
+  };
+
+
+  async function saveTask(values: TaskFormValues) {
+    const token = getSession()?.token;
+
+    if (!token) {
+      setApiError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      setApiError("");
+
+      if (formTaskId === null) {
+        // Resolve the selected assignee to a real backend user ID.
+        const response = await request<ApiUsersResponse>(
+          ENDPOINTS.users.list,
+          { token }
+        );
+
+        const users = response.data.users.filter(user => user.isActive);
+
+        const assignee = users.find(
+          user => user.name === values.assignedTo
+        );
+
+        if (!assignee) {
+          setApiError(
+            "Selected assignee does not exist. Select an active backend user."
+          );
+          return;
+        }
+
+        if (!assignee) {
+          setApiError("Selected assignee was not found in the backend.");
+          return;
+        }
+
+        // Map form values to IDs for related records
+        let leadId: number | null = null;
+        let dealId: number | null = null;
+        let customerId: number | null = null;
+        let companyId: number | null = null;
+
+        if (values.lead) {
+          const lead = initialLeads.find(
+            (l) => `${l.firstName} ${l.lastName}` === values.lead,
+          );
+          if (lead) leadId = lead.id;
+        } else if (values.deal) {
+          const deal = initialDeals.find((d) => d.name === values.deal);
+          if (deal) dealId = deal.id;
+        } else if (values.customer) {
+          const customer = initialCustomers.find(
+            (c) => c.company === values.customer || `Customer #${c.id}` === values.customer,
+          );
+          if (customer) customerId = customer.id;
+        } else if (values.company) {
+          const company = initialCompanies.find((c) => c.name === values.company);
+          if (company) companyId = company.id;
+        } else {
+          // If nothing linked, try to link to first lead as fallback (backend requires exactly one)
+          if (initialLeads.length > 0) {
+            leadId = initialLeads[0].id;
+          } else if (initialDeals.length > 0) {
+            dealId = initialDeals[0].id;
+          } else if (initialCustomers.length > 0) {
+            customerId = initialCustomers[0].id;
+          } else if (initialCompanies.length > 0) {
+            companyId = initialCompanies[0].id;
+          }
+        }
+
+        const payload = {
+          title: values.title,
+          description: values.description || null,
+          dueAt: new Date(values.dueAt).toISOString(),
+          priority: values.priority,
+          assignedToId: assignee.id,
+          leadId,
+          dealId,
+          customerId,
+          companyId,
+        };
+
+        await request(ENDPOINTS.tasks.create, {
+          method: "POST",
+          token,
+          body: payload,
+        });
+      } else {
+        // Editing requires the existing task ID.
+        await request(ENDPOINTS.tasks.update(formTaskId), {
+          method: "PATCH",
+          token,
+          body: {
+            title: values.title,
+            description: values.description || null,
+            dueAt: new Date(values.dueAt).toISOString(),
+            priority: values.priority,
+          },
+        });
+      }
+
+      setFormValues(null);
+      setFormTaskId(null);
+
+      // Reload from the database instead of adding a fake local task.
+      const result = await request<{ items: ApiTask[] }>(
+        ENDPOINTS.tasks.list,
+        { token }
+      );
+
+      setTasks(result.items.map(mapApiTask));
       resetFilters();
-    } else {
-      setTasks(previous =>
-        previous.map(task =>
-          task.id === formTaskId
-            ? { ...toTask(task.id, values, task.createdAt), updatedAt: today }
-            : task,
-        ),
+    } catch (error) {
+      setApiError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to save the task. Please try again."
       );
     }
-    setFormValues(null);
-    setFormTaskId(null);
   }
 
   function deleteTask(id: number) {
@@ -261,21 +497,21 @@ export default function Tasks() {
         item.id === task.id
           ? completing
             ? {
-                ...item,
-                status: "COMPLETED",
-                completedAt: today,
-                completedBy: item.assignedTo,
-                cancelReason: "",
-                updatedAt: today,
-              }
+              ...item,
+              status: "COMPLETED",
+              completedAt: today,
+              completedBy: item.assignedTo,
+              cancelReason: "",
+              updatedAt: today,
+            }
             : {
-                ...item,
-                status: "OPEN",
-                completedAt: "",
-                completedBy: "",
-                completionNote: "",
-                updatedAt: today,
-              }
+              ...item,
+              status: "OPEN",
+              completedAt: "",
+              completedBy: "",
+              completionNote: "",
+              updatedAt: today,
+            }
           : item,
       ),
     );
@@ -457,9 +693,8 @@ export default function Tasks() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`${toolbarButtonClass} ${
-              showFilters ? "border-blue-100 bg-blue-50 text-blue-700" : ""
-            }`}
+            className={`${toolbarButtonClass} ${showFilters ? "border-blue-100 bg-blue-50 text-blue-700" : ""
+              }`}
           >
             <Filter size={14} />
             Filter
@@ -495,9 +730,8 @@ export default function Tasks() {
               type="button"
               onClick={() => setView(key)}
               title={title}
-              className={`${iconButtonClass} ${
-                view === key ? iconButtonActive : iconButtonIdle
-              }`}
+              className={`${iconButtonClass} ${view === key ? iconButtonActive : iconButtonIdle
+                }`}
             >
               <Icon size={15} />
             </button>
@@ -620,11 +854,10 @@ export default function Tasks() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p
-                        className={`truncate text-sm font-medium ${
-                          task.status === "COMPLETED"
+                        className={`truncate text-sm font-medium ${task.status === "COMPLETED"
                             ? "text-slate-400 line-through"
                             : "text-slate-800"
-                        }`}
+                          }`}
                       >
                         {task.title}
                       </p>
@@ -633,9 +866,8 @@ export default function Tasks() {
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${
-                        taskStatusStyles[task.status] ?? taskStatusStyles.OPEN
-                      }`}
+                      className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${taskStatusStyles[task.status] ?? taskStatusStyles.OPEN
+                        }`}
                     >
                       {taskStatusLabels[task.status] ?? task.status}
                     </span>
@@ -646,9 +878,8 @@ export default function Tasks() {
                   </p>
                   <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
                     <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-medium ${
-                        priorityStyles[task.priority] ?? priorityStyles.MEDIUM
-                      }`}
+                      className={`rounded px-2 py-0.5 text-[10px] font-medium ${priorityStyles[task.priority] ?? priorityStyles.MEDIUM
+                        }`}
                     >
                       {priorityLabels[task.priority] ?? task.priority}
                     </span>

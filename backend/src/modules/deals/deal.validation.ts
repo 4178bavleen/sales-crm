@@ -163,7 +163,7 @@ export function parseDealInput(
 }
 
 export function parseDealCloseInput(body: unknown): {
-    status: DealStatus;
+    status: "WON" | "LOST";
     lostReasonId?: number | null;
     lostNote?: string | null;
     closedRevenue?: number;
