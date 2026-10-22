@@ -40,6 +40,7 @@ import TaskForm from "../../components/ui/TaskForm";
 import DataTable, { TablePagination } from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";
 import TaskDetailDialog from "../../components/ui/TaskDetailDialog";
+import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
@@ -223,6 +224,52 @@ export default function Tasks() {
       inProgressPercent: total > 0 ? `${Math.round((inProgress / total) * 100)}%` : "0%",
       completedPercent: total > 0 ? `${Math.round((completed / total) * 100)}%` : "0%",
       overduePercent: total > 0 ? `${Math.round((overdue / total) * 100)}%` : "0%",
+    };
+  }, [tasks]);
+
+  // Compute dynamic sparkline trends from real task data
+  const sparklineTrends = useMemo(() => {
+    const days = 7;
+    const now = new Date();
+    const dayBuckets = Array.from({ length: days }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (days - 1 - i));
+      return d.toISOString().slice(0, 10);
+    });
+
+    const totalTrend = new Array(days).fill(0);
+    const openTrend = new Array(days).fill(0);
+    const inProgressTrend = new Array(days).fill(0);
+    const completedTrend = new Array(days).fill(0);
+    const overdueTrend = new Array(days).fill(0);
+
+    const todayStr = now.toISOString().slice(0, 10);
+
+    tasks.forEach((t) => {
+      const dateKey = t.dueAt ? t.dueAt.slice(0, 10) : todayStr;
+      let idx = dayBuckets.indexOf(dateKey);
+      if (idx === -1) {
+        if (dateKey < dayBuckets[0]) idx = 0;
+        else if (dateKey > dayBuckets[days - 1]) idx = days - 1;
+        else idx = Math.floor(days / 2);
+      }
+
+      totalTrend[idx]++;
+      if (t.status === "OPEN") openTrend[idx]++;
+      else if (t.status === "IN_PROGRESS") inProgressTrend[idx]++;
+      else if (t.status === "COMPLETED") completedTrend[idx]++;
+
+      if (t.dueAt && t.dueAt < todayStr && t.status !== "COMPLETED" && t.status !== "CANCELLED") {
+        overdueTrend[idx]++;
+      }
+    });
+
+    return {
+      total: totalTrend,
+      open: openTrend,
+      inProgress: inProgressTrend,
+      completed: completedTrend,
+      overdue: overdueTrend,
     };
   }, [tasks]);
 
@@ -623,28 +670,11 @@ export default function Tasks() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="task-stat-grad-total" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6 L 116 48 L 0 48 Z"
-                fill="url(#task-stat-grad-total)"
-              />
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6"
-                stroke="#3b82f6"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.total}
+            color="blue"
+            gradientId="task-stat-dyn-total"
+          />
         </div>
 
         {/* Open Tasks */}
@@ -668,28 +698,11 @@ export default function Tasks() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="task-stat-grad-open" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#0ea5e9" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5 L 112 48 L 0 48 Z"
-                fill="url(#task-stat-grad-open)"
-              />
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5"
-                stroke="#0ea5e9"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.open}
+            color="sky"
+            gradientId="task-stat-dyn-open"
+          />
         </div>
 
         {/* In Progress */}
@@ -713,28 +726,11 @@ export default function Tasks() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="task-stat-grad-progress" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#f59e0b" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4 L 108 48 L 0 48 Z"
-                fill="url(#task-stat-grad-progress)"
-              />
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4"
-                stroke="#f59e0b"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.inProgress}
+            color="amber"
+            gradientId="task-stat-dyn-progress"
+          />
         </div>
 
         {/* Completed */}
@@ -758,28 +754,11 @@ export default function Tasks() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="task-stat-grad-completed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4 L 110 48 L 0 48 Z"
-                fill="url(#task-stat-grad-completed)"
-              />
-              <path
-                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4"
-                stroke="#10b981"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.completed}
+            color="emerald"
+            gradientId="task-stat-dyn-completed"
+          />
         </div>
 
         {/* Overdue */}
@@ -803,28 +782,11 @@ export default function Tasks() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="task-stat-grad-overdue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#f43f5e" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#f43f5e" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10 L 118 48 L 0 48 Z"
-                fill="url(#task-stat-grad-overdue)"
-              />
-              <path
-                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10"
-                stroke="#f43f5e"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.overdue}
+            color="rose"
+            gradientId="task-stat-dyn-overdue"
+          />
         </div>
       </div>
 

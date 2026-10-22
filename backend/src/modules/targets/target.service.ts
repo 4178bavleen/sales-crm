@@ -67,6 +67,12 @@ export interface TargetMetricsSummary {
     achieved: number
     quota: number
   } | null
+  trends: {
+    quota: number[]
+    revenue: number[]
+    attainment: number[]
+    performance: number[]
+  }
 }
 
 function calculateTargetStatus(progress: number): 'ACHIEVED' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND' {
@@ -302,6 +308,67 @@ export async function listTargets(query: ListTargetsQuery) {
   const overallAttainment =
     totalQuota > 0 ? Math.round((totalAchieved / totalQuota) * 1000) / 10 : 0
 
+  // Calculate dynamic monthly trend data points for the 4 stat card sparklines
+  const selectedYear = query.year || new Date().getFullYear()
+  const monthlyQuotas = new Array(12).fill(0)
+  const monthlyRevenues = new Array(12).fill(0)
+
+  for (const t of rawTargets) {
+    const tYear = t.periodStart.getUTCFullYear()
+    if (tYear === selectedYear) {
+      const m = t.periodStart.getUTCMonth()
+      monthlyQuotas[m] += Number(t.amount)
+    }
+  }
+
+  const dealsInYear = await prisma.deal.findMany({
+    where: {
+      status: 'WON',
+      deletedAt: null,
+      OR: [
+        {
+          closedAt: {
+            gte: new Date(Date.UTC(selectedYear, 0, 1)),
+            lte: new Date(Date.UTC(selectedYear, 11, 31, 23, 59, 59, 999)),
+          },
+        },
+        {
+          closedAt: null,
+          expectedCloseDate: {
+            gte: new Date(Date.UTC(selectedYear, 0, 1)),
+            lte: new Date(Date.UTC(selectedYear, 11, 31, 23, 59, 59, 999)),
+          },
+        },
+      ],
+    },
+    select: {
+      closedRevenue: true,
+      estimatedValue: true,
+      closedAt: true,
+      expectedCloseDate: true,
+    },
+  })
+
+  for (const d of dealsInYear) {
+    const dDate = d.closedAt || d.expectedCloseDate
+    if (dDate) {
+      const m = dDate.getUTCMonth()
+      const val = d.closedRevenue !== null ? Number(d.closedRevenue) : Number(d.estimatedValue || 0)
+      monthlyRevenues[m] += val
+    }
+  }
+
+  const monthlyAttainments = monthlyQuotas.map((q, idx) => {
+    const rev = monthlyRevenues[idx]
+    if (q > 0) return Math.min(200, Math.round((rev / q) * 100))
+    if (rev > 0) return 100
+    return 0
+  })
+
+  const performanceTrend = items
+    .map((t) => t.progressPercentage)
+    .sort((a, b) => a - b)
+
   const summary: TargetMetricsSummary = {
     totalQuota,
     totalAchieved,
@@ -312,6 +379,12 @@ export async function listTargets(query: ListTargetsQuery) {
     atRiskCount,
     behindCount,
     topPerformer: topPerformer && topPerformer.attainment > 0 ? topPerformer : null,
+    trends: {
+      quota: monthlyQuotas,
+      revenue: monthlyRevenues,
+      attainment: monthlyAttainments,
+      performance: performanceTrend.length > 0 ? performanceTrend : [0, 50, 100],
+    },
   }
 
   return {

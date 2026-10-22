@@ -20,8 +20,6 @@ import {
   Check,
   X,
   Users,
-  TrendingUp,
-  Activity,
   FolderGit2,
   List,
   LayoutGrid,
@@ -43,6 +41,7 @@ import type {
 } from "../../types/meeting";
 import { getSession } from "../../lib/auth";
 import { ApiError } from "../../lib/api";
+import DynamicSparkline from "../../components/ui/DynamicSparkline";
 
 function formatDateTime(dateStr: string) {
   try {
@@ -243,6 +242,46 @@ export default function MeetingsPage() {
       (m) => m.status === "CANCELLED" || m.status === "RESCHEDULED",
     ).length;
     return { total, planned, completed, cancelled };
+  }, [meetings]);
+
+  // Dynamic sparkline trend series
+  const sparklineTrends = useMemo(() => {
+    const days = 7;
+    const now = new Date();
+    const dayBuckets = Array.from({ length: days }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (days - 1 - i));
+      return d.toISOString().slice(0, 10);
+    });
+
+    const totalTrend = new Array(days).fill(0);
+    const plannedTrend = new Array(days).fill(0);
+    const completedTrend = new Array(days).fill(0);
+    const cancelledTrend = new Array(days).fill(0);
+
+    const todayStr = now.toISOString().slice(0, 10);
+
+    meetings.forEach((m) => {
+      const dateKey = m.startsAt ? m.startsAt.slice(0, 10) : todayStr;
+      let idx = dayBuckets.indexOf(dateKey);
+      if (idx === -1) {
+        if (dateKey < dayBuckets[0]) idx = 0;
+        else if (dateKey > dayBuckets[days - 1]) idx = days - 1;
+        else idx = Math.floor(days / 2);
+      }
+
+      totalTrend[idx]++;
+      if (m.status === "PLANNED") plannedTrend[idx]++;
+      else if (m.status === "COMPLETED") completedTrend[idx]++;
+      else if (m.status === "CANCELLED" || m.status === "RESCHEDULED") cancelledTrend[idx]++;
+    });
+
+    return {
+      total: totalTrend,
+      planned: plannedTrend,
+      completed: completedTrend,
+      cancelled: cancelledTrend,
+    };
   }, [meetings]);
 
   const handleOpenCreate = () => {
@@ -495,85 +534,97 @@ export default function MeetingsPage() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Meetings */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Total Consultations</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <CalendarDays size={16} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
+              <CalendarDays size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">Total Consultations</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {stats.total}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
+                <span>↑</span> Client sessions
+              </p>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.total}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">all time</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <TrendingUp size={12} className="text-blue-500" />
-            <span>Client & discovery meetings</span>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.total}
+            color="blue"
+            gradientId="meeting-stat-dyn-total"
+          />
         </div>
 
         {/* Planned Meetings */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Upcoming / Planned</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Clock size={16} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+              <Clock size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">Upcoming / Planned</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {stats.planned}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-indigo-600 flex items-center gap-0.5">
+                <span>↑</span> Scheduled
+              </p>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.planned}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">scheduled</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-            <span>On track on sales calendar</span>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.planned}
+            color="indigo"
+            gradientId="meeting-stat-dyn-planned"
+          />
         </div>
 
         {/* Completed Meetings */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Completed Sessions</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={16} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <CheckCircle2 size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">Completed Sessions</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {stats.completed}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
+                <span>↑</span> Conducted
+              </p>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.completed}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">conducted</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <Activity size={12} className="text-emerald-500" />
-            <span>Outcomes recorded in CRM</span>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.completed}
+            color="emerald"
+            gradientId="meeting-stat-dyn-completed"
+          />
         </div>
 
         {/* Cancelled / Rescheduled */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Rescheduled / Cancelled</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-              <Calendar size={16} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+              <Calendar size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">Rescheduled / Cancelled</p>
+              <p className="text-2xl font-bold text-slate-900 leading-tight">
+                {stats.cancelled}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
+                <span>↑</span> Updated
+              </p>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.cancelled}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">updated</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <AlertCircle size={12} className="text-amber-500" />
-            <span>Needs follow-up attention</span>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.cancelled}
+            color="amber"
+            gradientId="meeting-stat-dyn-cancelled"
+          />
         </div>
       </div>
 

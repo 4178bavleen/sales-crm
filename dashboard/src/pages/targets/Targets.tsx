@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import {
   Target,
   TrendingUp,
@@ -372,28 +373,11 @@ export default function Targets() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="target-stat-grad-quota" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6 L 116 48 L 0 48 Z"
-                fill="url(#target-stat-grad-quota)"
-              />
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6"
-                stroke="#3b82f6"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={summary.trends?.quota || targets.map((t) => t.amount)}
+            color="blue"
+            gradientId="target-stat-dynamic-quota"
+          />
         </div>
 
         {/* Closed Won Revenue */}
@@ -412,28 +396,11 @@ export default function Targets() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="target-stat-grad-revenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5 L 112 48 L 0 48 Z"
-                fill="url(#target-stat-grad-revenue)"
-              />
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5"
-                stroke="#10b981"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={summary.trends?.revenue || targets.map((t) => t.achievedRevenue)}
+            color="emerald"
+            gradientId="target-stat-dynamic-revenue"
+          />
         </div>
 
         {/* Overall Attainment */}
@@ -452,28 +419,11 @@ export default function Targets() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="target-stat-grad-attainment" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#8b5cf6" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4 L 108 48 L 0 48 Z"
-                fill="url(#target-stat-grad-attainment)"
-              />
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4"
-                stroke="#8b5cf6"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={summary.trends?.attainment || targets.map((t) => t.progressPercentage)}
+            color="purple"
+            gradientId="target-stat-dynamic-attainment"
+          />
         </div>
 
         {/* Top Performer */}
@@ -498,28 +448,14 @@ export default function Targets() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="target-stat-grad-performer" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#f59e0b" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6 L 116 48 L 0 48 Z"
-                fill="url(#target-stat-grad-performer)"
-              />
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6"
-                stroke="#f59e0b"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={
+              summary.trends?.performance ||
+              [...targets].map((t) => t.progressPercentage).sort((a, b) => a - b)
+            }
+            color="amber"
+            gradientId="target-stat-dynamic-performer"
+          />
         </div>
       </div>
 

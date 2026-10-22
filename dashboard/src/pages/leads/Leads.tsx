@@ -38,6 +38,7 @@ import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
+import DynamicSparkline from "../../components/ui/DynamicSparkline";
 
 // Filter state
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
@@ -132,6 +133,49 @@ export default function Leads() {
       contactedPercent: total > 0 ? `${Math.round((contacted / total) * 100)}%` : "0%",
       qualifiedPercent: total > 0 ? `${Math.round((qualified / total) * 100)}%` : "0%",
       convertedPercent: total > 0 ? `${Math.round((converted / total) * 100)}%` : "0%",
+    };
+  }, [leads]);
+
+  // Dynamic sparkline trend series
+  const sparklineTrends = useMemo(() => {
+    const days = 7;
+    const now = new Date();
+    const dayBuckets = Array.from({ length: days }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (days - 1 - i));
+      return d.toISOString().slice(0, 10);
+    });
+
+    const totalTrend = new Array(days).fill(0);
+    const newTrend = new Array(days).fill(0);
+    const contactedTrend = new Array(days).fill(0);
+    const qualifiedTrend = new Array(days).fill(0);
+    const convertedTrend = new Array(days).fill(0);
+
+    const todayStr = now.toISOString().slice(0, 10);
+
+    leads.forEach((l) => {
+      const dateKey = l.createdAt ? l.createdAt.slice(0, 10) : todayStr;
+      let idx = dayBuckets.indexOf(dateKey);
+      if (idx === -1) {
+        if (dateKey < dayBuckets[0]) idx = 0;
+        else if (dateKey > dayBuckets[days - 1]) idx = days - 1;
+        else idx = Math.floor(days / 2);
+      }
+
+      totalTrend[idx]++;
+      if (l.status === "NEW") newTrend[idx]++;
+      else if (l.status === "CONTACTED") contactedTrend[idx]++;
+      else if (l.status === "QUALIFIED") qualifiedTrend[idx]++;
+      else if (l.status === "CONVERTED") convertedTrend[idx]++;
+    });
+
+    return {
+      total: totalTrend,
+      new: newTrend,
+      contacted: contactedTrend,
+      qualified: qualifiedTrend,
+      converted: convertedTrend,
     };
   }, [leads]);
 
@@ -648,29 +692,11 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          {/* Smooth curved SVG with gradient fill */}
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="stat-grad-total" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6 L 116 48 L 0 48 Z"
-                fill="url(#stat-grad-total)"
-              />
-              <path
-                d="M 0 42 C 16 42 28 34 44 34 C 58 34 68 16 78 14 C 85 12 90 20 96 20 C 104 20 110 8 116 6"
-                stroke="#3b82f6"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.total}
+            color="blue"
+            gradientId="stat-dyn-total"
+          />
         </div>
 
         {/* New Leads */}
@@ -694,28 +720,11 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="stat-grad-new" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5 L 112 48 L 0 48 Z"
-                fill="url(#stat-grad-new)"
-              />
-              <path
-                d="M 0 43 C 14 43 26 33 40 33 C 54 33 62 17 70 15 C 76 13 82 21 88 21 C 96 21 104 7 112 5"
-                stroke="#10b981"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.new}
+            color="emerald"
+            gradientId="stat-dyn-new"
+          />
         </div>
 
         {/* Contacted */}
@@ -739,28 +748,11 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="stat-grad-contacted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#a855f7" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4 L 108 48 L 0 48 Z"
-                fill="url(#stat-grad-contacted)"
-              />
-              <path
-                d="M 0 41 C 12 41 24 32 38 32 C 50 32 58 16 66 14 C 72 12 78 20 84 20 C 92 20 100 6 108 4"
-                stroke="#a855f7"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.contacted}
+            color="purple"
+            gradientId="stat-dyn-contacted"
+          />
         </div>
 
         {/* Qualified */}
@@ -784,28 +776,11 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="stat-grad-qualified" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#f59e0b" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4 L 110 48 L 0 48 Z"
-                fill="url(#stat-grad-qualified)"
-              />
-              <path
-                d="M 0 42 C 14 41 26 33 40 33 C 52 33 60 16 68 14 C 75 12 80 20 86 20 C 94 20 102 6 110 4"
-                stroke="#f59e0b"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.qualified}
+            color="amber"
+            gradientId="stat-dyn-qualified"
+          />
         </div>
 
         {/* Converted */}
@@ -829,28 +804,11 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
-            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
-              <defs>
-                <linearGradient id="stat-grad-converted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                  <stop offset="85%" stopColor="#10b981" stopOpacity="0.04" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10 L 118 48 L 0 48 Z"
-                fill="url(#stat-grad-converted)"
-              />
-              <path
-                d="M 0 43 C 18 43 28 32 46 31 C 60 30 68 14 80 12 C 88 10 94 18 102 18 C 108 18 114 12 118 10"
-                stroke="#10b981"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DynamicSparkline
+            data={sparklineTrends.converted}
+            color="emerald"
+            gradientId="stat-dyn-converted"
+          />
         </div>
       </div>
 

@@ -59,6 +59,12 @@ export interface TargetMetricsSummary {
     achieved: number;
     quota: number;
   } | null;
+  trends?: {
+    quota: number[];
+    revenue: number[];
+    attainment: number[];
+    performance: number[];
+  };
 }
 
 export interface TargetListResponse {
