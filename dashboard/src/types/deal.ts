@@ -26,14 +26,19 @@ export type Deal = {
   name: string;
   /** Resolved from Deal.customerId -> Company.name (via Customer). */
   customer: string;
+  customerId?: number | null;
   /** Resolved from Deal.leadId -> Lead name. Optional: not every deal came from a lead. */
   lead: string;
+  leadId?: number | null;
   /** Resolved from Deal.ownerId -> User.name. */
   owner: string;
+  ownerId?: number;
   /** Resolved from Deal.productServiceId -> ProductService.name. */
   product: string;
+  productServiceId?: number | null;
   /** Resolved from Deal.stageId -> PipelineStage.name. */
   stage: string;
+  stageId?: number;
   status: DealStatus;
   /** Deal.estimatedValue — pipeline value, not revenue. */
   estimatedValue: number;
@@ -50,6 +55,7 @@ export type Deal = {
   closedAt: string;
   /** Resolved from Deal.lostReasonId -> Reason.name. Only set when status = LOST. */
   lostReason: string;
+  lostReasonId?: number | null;
   /** Deal.lostNote — only set when status = LOST. */
   lostNote: string;
   /** ISO date strings (Deal.createdAt / updatedAt). */
@@ -75,10 +81,15 @@ export type PipelineStageSeedRow = [string, StageKind];
 export type DealFormValues = {
   name: string;
   customer: string;
+  customerId?: number | null;
   lead: string;
+  leadId?: number | null;
   owner: string;
+  ownerId?: number;
   product: string;
+  productServiceId?: number | null;
   stage: string;
+  stageId?: number;
   status: DealStatus;
   estimatedValue: string;
   expectedCloseDate: string;
@@ -86,6 +97,7 @@ export type DealFormValues = {
   wonRevenue: string;
   closedAt: string;
   lostReason: string;
+  lostReasonId?: number | null;
   lostNote: string;
 };
 

@@ -11,12 +11,70 @@ const dealInclude = {
         select: { id: true, contactName: true, companyName: true },
     },
     customer: {
-        select: { id: true, companyId: true, primaryContactId: true },
+        select: {
+            id: true,
+            companyId: true,
+            primaryContactId: true,
+            company: { select: { id: true, name: true } },
+            primaryContact: { select: { id: true, fullName: true } },
+        },
     },
     productService: { select: { id: true, name: true } },
     stage: { select: { id: true, name: true, position: true, kind: true } },
     lostReason: { select: { id: true, name: true } },
 } satisfies Prisma.DealInclude;
+
+export async function getDealOptions() {
+    const [stages, users, products, leads, customers, lostReasons] =
+        await Promise.all([
+            prisma.pipelineStage.findMany({
+                where: { isActive: true },
+                orderBy: { position: "asc" },
+                select: { id: true, name: true, position: true, kind: true },
+            }),
+            prisma.user.findMany({
+                where: { isActive: true, deletedAt: null },
+                select: { id: true, name: true, email: true },
+                orderBy: { name: "asc" },
+            }),
+            prisma.productService.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true },
+                orderBy: { name: "asc" },
+            }),
+            prisma.lead.findMany({
+                where: { deletedAt: null },
+                select: { id: true, contactName: true, companyName: true },
+                orderBy: { updatedAt: "desc" },
+                take: 100,
+            }),
+            prisma.customer.findMany({
+                where: { deletedAt: null },
+                select: {
+                    id: true,
+                    company: { select: { id: true, name: true } },
+                    primaryContact: { select: { id: true, fullName: true } },
+                },
+                orderBy: { updatedAt: "desc" },
+                take: 100,
+            }),
+            prisma.reason.findMany({
+                where: { type: ReasonType.DEAL_LOST },
+                select: { id: true, name: true },
+                orderBy: { name: "asc" },
+            }),
+        ]);
+
+    return {
+        stages,
+        users,
+        products,
+        leads,
+        customers,
+        lostReasons,
+        statuses: [DealStatus.OPEN, DealStatus.WON, DealStatus.LOST],
+    };
+}
 
 export async function validateDealReferences(
     data: DealInput,

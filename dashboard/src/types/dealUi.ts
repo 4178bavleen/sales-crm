@@ -57,6 +57,9 @@ export type PipelineBoardProps = {
   onCardClick: (deal: Deal) => void;
   /** Called when a card is dropped on a column. */
   onDropDeal: (dealId: number, stageName: string) => void;
+  onEditDeal?: (deal: Deal) => void;
+  onDeleteDeal?: (dealId: number) => void;
+  onCreateInStage?: (stageName: string) => void;
 };
 
 /** A drag-and-drop move the board is asking the page to confirm or apply. */

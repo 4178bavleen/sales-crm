@@ -10,6 +10,7 @@ import {
   softDeleteDeal,
   moveDealStage,
   closeDeal,
+  getDealOptions,
 } from "./deal.service.js";
 import {
   DealValidationError,
@@ -54,6 +55,32 @@ function handleDealControllerError(
   }
 
   next(error);
+}
+
+export async function getDealOptionsController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const options = await getDealOptions();
+
+    res.status(200).json({
+      success: true,
+      message: "Deal options retrieved successfully",
+      data: options,
+    });
+  } catch (error) {
+    handleDealControllerError(error, res, next);
+  }
 }
 
 export async function createDealController(

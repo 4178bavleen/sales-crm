@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   ChevronDown,
+  UserCog,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
@@ -32,6 +33,7 @@ const salesNav = [
 ];
 
 const managementNav = [
+  { name: "User Management", path: "/users", icon: UserCog },
   { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Documents", path: "/documents", icon: FileText },
   { name: "Settings", path: "/settings", icon: Settings },

@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  AlertCircle,
-  Check,
   KeyRound,
-  Loader2,
-  Pencil,
   ShieldCheck,
   UserRound,
   Users,
-  X,
+  Sliders,
+  ArrowRight,
+  Lock,
+  Globe,
+  CheckCircle2,
+  Building,
 } from "lucide-react";
 import type {
-  RoleName,
   SettingsSection,
   UserRow,
 } from "../../types/settings";
@@ -19,66 +20,41 @@ import {
   buildRoles,
   fetchUsers,
   roleLabel,
-  roleNames,
-  updateUser,
 } from "../../lib/settings";
-import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
 
 /** In-page nav. */
-const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Users }[] = [
-  { id: "users", label: "User management", Icon: Users },
-  { id: "roles", label: "Roles & permissions", Icon: KeyRound },
+const SECTIONS: { id: SettingsSection; label: string; Icon: typeof KeyRound }[] = [
+  { id: "roles", label: "Roles & Permissions", Icon: KeyRound },
+  { id: "workspace", label: "Workspace Preferences", Icon: Sliders },
+  { id: "security", label: "Security & Policies", Icon: ShieldCheck },
 ];
 
-/**
- * Settings.
- *
- * - User management: real API (GET /api/v1/users, PATCH /api/v1/users/:id) — admin only
- * - Roles & permissions: derived from fetched user list; definitions mirrored from backend seed
- */
 export default function Settings() {
-  const [section, setSection] = useState<SettingsSection>("users");
-
-  // --- Users (real API) ---
+  const [section, setSection] = useState<SettingsSection>("roles");
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [usersError, setUsersError] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
-  // Which row (and field) is being edited.
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [draftRole, setDraftRole] = useState<RoleName>("SALES_EMPLOYEE");
-  const [savingId, setSavingId] = useState<number | null>(null);
-  const [rowError, setRowError] = useState("");
-
-  const currentUserId = getSession()?.user.id;
+  // CRM Workspace form dummy states for interactivity
+  const [crmCurrency, setCrmCurrency] = useState("USD");
+  const [timeZone, setTimeZone] = useState("UTC");
+  const [leadAutoAssign, setLeadAutoAssign] = useState(true);
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [savedPreferences, setSavedPreferences] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingUsers(true);
-    setUsersError("");
-    setForbidden(false);
 
     void fetchUsers(1, 100)
       .then((result) => {
         if (cancelled) return;
         setUsers(result.users);
-        setTotal(result.pagination.total);
       })
       .catch((error) => {
         if (cancelled) return;
-        if (error instanceof ApiError && (error.status === 403 || error.status === 401)) {
+        if (error && typeof error === "object" && "status" in error && (error.status === 403 || error.status === 401)) {
           setForbidden(true);
-        } else {
-          setUsersError(
-            error instanceof ApiError ? error.message : "Could not load users.",
-          );
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingUsers(false);
       });
 
     return () => {
@@ -88,68 +64,66 @@ export default function Settings() {
 
   const roles = buildRoles(users);
 
-  function startEditRole(user: UserRow) {
-    setEditingId(user.id);
-    setDraftRole(user.role.name as RoleName);
-    setRowError("");
-  }
-
-  async function saveRole(user: UserRow) {
-    setSavingId(user.id);
-    setRowError("");
-    try {
-      const updated = await updateUser(user.id, { roleName: draftRole });
-      setUsers((previous) =>
-        previous.map((u) => (u.id === updated.id ? updated : u)),
-      );
-      setEditingId(null);
-    } catch (error) {
-      setRowError(
-        error instanceof ApiError ? error.message : "Could not update the role.",
-      );
-    } finally {
-      setSavingId(null);
-    }
-  }
-
-  async function toggleActive(user: UserRow) {
-    setSavingId(user.id);
-    setRowError("");
-    try {
-      const updated = await updateUser(user.id, { isActive: !user.isActive });
-      setUsers((previous) =>
-        previous.map((u) => (u.id === updated.id ? updated : u)),
-      );
-    } catch (error) {
-      setRowError(
-        error instanceof ApiError
-          ? error.message
-          : "Could not update the account status.",
-      );
-    } finally {
-      setSavingId(null);
-    }
+  function handleSavePreferences(e: React.FormEvent) {
+    e.preventDefault();
+    setSavedPreferences(true);
+    setTimeout(() => setSavedPreferences(false), 3000);
   }
 
   return (
-    <div className="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
-      <header>
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Workspace preferences, team accounts, and role definitions.
-        </p>
+    <div className="mx-auto max-w-full space-y-6">
+      {/* Header */}
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Workspace Settings
+          </h1>
+          <p className="mt-1 text-xs text-slate-500">
+            Configure system parameters, review role privileges, and manage security settings.
+          </p>
+        </div>
       </header>
 
-      {/* Section nav */}
-      <div className="mt-5 flex flex-wrap gap-1 border-b border-slate-200">
+      {/* Prominent Announcement Banner pointing to User Management in Sidebar */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-5 text-white shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-400/30 text-blue-300">
+              <Users size={22} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                User Management is now in the Sidebar!
+                <span className="rounded-full bg-blue-500/30 border border-blue-400/30 px-2 py-0.5 text-[10px] font-semibold text-blue-200">
+                  New Location
+                </span>
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                Team accounts, role assignments, user creation, and status controls have been elevated to a dedicated page on the sidebar navigation.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/users"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:bg-blue-500 transition shrink-0"
+          >
+            <span>Open User Management</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+
+      {/* Navigation tabs */}
+      <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {SECTIONS.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setSection(id)}
-            className={`-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm transition ${
+            className={`-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-medium transition cursor-pointer ${
               section === id
-                ? "border-indigo-600 font-semibold text-indigo-700"
+                ? "border-blue-600 font-bold text-blue-700"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -159,206 +133,240 @@ export default function Settings() {
         ))}
       </div>
 
-      {/* ---------------------------- User management ---------------------------- */}
-      {section === "users" && (
-        <section className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800">
-                Team accounts
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {loadingUsers
-                  ? "Loading…"
-                  : forbidden
-                    ? "Restricted"
-                    : `${total} account${total === 1 ? "" : "s"} from the server.`}
-              </p>
+      {/* --------------------------- Roles & permissions -------------------------- */}
+      {section === "roles" && (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Roles & Permission Hierarchy
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Definitions and member distribution for system-level roles configured in the CRM backend.
+                </p>
+              </div>
+
+              <Link
+                to="/users"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+              >
+                <span>Manage Users with Roles</span>
+                <ArrowRight size={13} />
+              </Link>
             </div>
-            {rowError && (
-              <span role="alert" className="text-xs text-rose-600">
-                {rowError}
-              </span>
+
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {roles.map((role) => (
+                <div
+                  key={role.name}
+                  className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:bg-white hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <UserRound size={17} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">
+                          {roleLabel(role.name)}
+                        </h4>
+                        <span className="font-mono text-[10px] text-slate-400">
+                          {role.name}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-2xs">
+                      {role.userCount} {role.userCount === 1 ? "user" : "users"}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs text-slate-600 leading-relaxed">
+                    {role.description}
+                  </p>
+
+                  {role.permissions && role.permissions.length > 0 && (
+                    <div className="mt-3 border-t border-slate-200/60 pt-3 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Key Capabilities:
+                      </p>
+                      {role.permissions.map((p: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 text-[11px] text-slate-600"
+                        >
+                          <CheckCircle2
+                            size={12}
+                            className="text-emerald-500 shrink-0"
+                          />
+                          <span>{p}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {forbidden && (
+              <p className="mt-4 text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                Live user counts require administrator credentials. Your role is{" "}
+                <strong>{getSession()?.user.role ?? "UNKNOWN"}</strong>.
+              </p>
             )}
           </div>
-
-          {loadingUsers ? (
-            <div className="flex items-center gap-2 px-5 py-8 text-sm text-slate-500">
-              <Loader2 size={16} className="animate-spin" />
-              Loading accounts…
-            </div>
-          ) : forbidden ? (
-            <div
-              role="alert"
-              className="m-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-            >
-              <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-              <span>
-                User management requires an administrator account. Your role is{" "}
-                <strong>{getSession()?.user.role ?? "unknown"}</strong>.
-              </span>
-            </div>
-          ) : usersError ? (
-            <div
-              role="alert"
-              className="m-5 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-            >
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>{usersError}</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-[11px] uppercase tracking-wide text-slate-400">
-                    <th className="px-5 py-2.5 font-medium">User</th>
-                    <th className="px-5 py-2.5 font-medium">Phone</th>
-                    <th className="px-5 py-2.5 font-medium">Role</th>
-                    <th className="px-5 py-2.5 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-700">
-                            {user.name.slice(0, 2).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-slate-800">
-                              {user.name}
-                              {user.id === currentUserId && (
-                                <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                                  You
-                                </span>
-                              )}
-                            </p>
-                            <p className="truncate text-xs text-slate-400">
-                              {user.email}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-slate-600">
-                        {user.phone || "—"}
-                      </td>
-                      <td className="px-5 py-3">
-                        {editingId === user.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <select
-                              value={draftRole}
-                              onChange={(e) => setDraftRole(e.target.value as RoleName)}
-                              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                            >
-                              {roleNames.map((name) => (
-                                <option key={name} value={name}>
-                                  {roleLabel(name)}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => saveRole(user)}
-                              disabled={savingId === user.id}
-                              className="rounded p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
-                              aria-label="Save role"
-                            >
-                              {savingId === user.id ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
-                                <Check size={14} />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(null)}
-                              className="rounded p-1 text-slate-400 hover:bg-slate-100"
-                              aria-label="Cancel"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startEditRole(user)}
-                            className="group inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                          >
-                            {roleLabel(user.role.name)}
-                            <Pencil
-                              size={11}
-                              className="text-slate-300 group-hover:text-slate-500"
-                            />
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleActive(user)}
-                          disabled={savingId === user.id}
-                          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition disabled:opacity-50 ${
-                            user.isActive
-                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                          }`}
-                        >
-                          {user.isActive ? "Active" : "Inactive"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
       )}
 
-      {/* --------------------------- Roles & permissions -------------------------- */}
-      {section === "roles" && (
-        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <KeyRound size={16} className="text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-800">
-              Roles & permissions
-            </h2>
-          </div>
-          <p className="mt-1 text-xs text-slate-500">
-            {forbidden
-              ? "Account counts need administrator access; role definitions are shown for reference."
-              : "Counts are from the accounts returned by the server."}
-          </p>
+      {/* ------------------------- Workspace Preferences ------------------------ */}
+      {section === "workspace" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <form onSubmit={handleSavePreferences} className="max-w-2xl space-y-5">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                CRM General Preferences
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Tailor default operational defaults for your sales and lead management workflow.
+              </p>
+            </div>
 
-          <ul className="mt-4 space-y-2">
-            {roles.map((role) => (
-              <li
-                key={role.name}
-                className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3"
-              >
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <UserRound size={15} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {roleLabel(role.name)}
+            {savedPreferences && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                Preferences updated successfully!
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Default Currency
+                </label>
+                <div className="relative">
+                  <Globe size={15} className="absolute left-3 top-2.5 text-slate-400" />
+                  <select
+                    value={crmCurrency}
+                    onChange={(e) => setCrmCurrency(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  >
+                    <option value="USD">USD ($ - US Dollar)</option>
+                    <option value="INR">INR (₹ - Indian Rupee)</option>
+                    <option value="EUR">EUR (€ - Euro)</option>
+                    <option value="GBP">GBP (£ - British Pound)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Workspace Time Zone
+                </label>
+                <select
+                  value={timeZone}
+                  onChange={(e) => setTimeZone(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 outline-none focus:border-blue-500"
+                >
+                  <option value="UTC">UTC (Coordinated Universal Time)</option>
+                  <option value="Asia/Kolkata">IST (Asia/Kolkata, UTC +5:30)</option>
+                  <option value="America/New_York">EST (America/New_York)</option>
+                  <option value="Europe/London">GMT (Europe/London)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-3 border-t border-slate-100">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={leadAutoAssign}
+                  onChange={(e) => setLeadAutoAssign(e.target.checked)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">
+                    Automatic Lead Round-Robin
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {role.description}
+                  <p className="text-[11px] text-slate-500">
+                    Automatically distribute new incoming leads across active Sales Employees.
                   </p>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] text-slate-500 ring-1 ring-slate-200">
-                  {role.userCount} {role.userCount === 1 ? "user" : "users"}
-                </span>
-              </li>
-            ))}
-          </ul>
+              </label>
 
-          <p className="mt-4 text-[11px] leading-4 text-slate-400">
-            Role definitions mirror the backend&rsquo;s accepted values. There is no
-            roles endpoint yet, so these descriptions are not fetched.
-          </p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailAlerts}
+                  onChange={(e) => setEmailAlerts(e.target.checked)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">
+                    Activity & Notification Digest
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Deliver daily CRM summary reports on pipeline velocity and target completion.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition cursor-pointer"
+              >
+                Save Preferences
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* ------------------------- Security & Policies ------------------------ */}
+      {section === "security" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">
+              Security & Authentication Configuration
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Overview of system security, session controls, and authentication enforcement.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-3">
+                <Lock size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-800">Bcrypt Password Hashing</h4>
+              <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                Passwords are salted and hashed with 12 rounds of bcrypt before being stored securely.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mb-3">
+                <ShieldCheck size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-800">JWT Token Expiry</h4>
+              <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                Active bearer tokens are verified on all endpoints and expire after 7 days.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 mb-3">
+                <Building size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-800">RBAC Enforcement</h4>
+              <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                User management and critical admin actions are restricted by server-side middleware.
+              </p>
+            </div>
+          </div>
         </section>
       )}
     </div>

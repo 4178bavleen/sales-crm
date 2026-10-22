@@ -66,7 +66,13 @@ export type RoleInfo = {
   description: string;
   /** How many users in the list hold this role. */
   userCount: number;
+  label?: string;
+  color?: string;
+  badgeBg?: string;
+  badgeText?: string;
+  badgeBorder?: string;
+  permissions?: string[];
 };
 
 /** Section ids used by the settings nav. */
-export type SettingsSection = "users" | "roles";
+export type SettingsSection = "users" | "roles" | "workspace" | "security";

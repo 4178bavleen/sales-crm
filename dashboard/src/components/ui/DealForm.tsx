@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import {
   CircleDollarSign,
-  Handshake,
+  Building2,
+  Users,
+  Package,
+  Layers,
+  Calendar,
   ListChecks,
+  X,
   Trophy,
   XCircle,
+  AlertCircle,
+  DollarSign,
 } from "lucide-react";
 import type { DealFormValues, DealStatus } from "../../types/deal";
 import {
@@ -14,298 +21,547 @@ import {
   PIPELINE_STAGE_ROWS,
 } from "../../types/deal";
 import type { DealFormProps } from "../../types/dealForm";
-import { cellClass } from "../../types/formControls";
-import { initialCustomers } from "../../data/customers";
-import {
-  Field,
-  FormSection,
-  FormShell,
-  SelectField,
-  TextAreaField,
-} from "./FormControls";
 
-const STAGE_NAMES = PIPELINE_STAGE_ROWS.map(([name]) => name);
-const STATUS_OPTIONS: DealStatus[] = ["OPEN", "WON", "LOST"];
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-const emptyValues: DealFormValues = {
-  name: "",
-  customer: "",
-  lead: "",
-  owner: DEAL_OWNERS[0] ?? "",
-  product: "",
-  stage: STAGE_NAMES[0] ?? "",
-  status: "OPEN",
-  estimatedValue: "",
-  expectedCloseDate: "",
-  nextAction: "",
-  wonRevenue: "",
-  closedAt: "",
-  lostReason: "",
-  lostNote: "",
-};
-
-/**
- * Full-page create/edit form for a deal.
- *
- * Maps onto the backend `Deal` model. Won-only fields (wonRevenue, closedAt)
- * appear only when status = WON, and lost-only fields (lostReason, lostNote)
- * only when status = LOST — matching the schema's rule that those columns are
- * set only in that state.
- */
 export default function DealForm({
   mode,
   values,
+  options,
   onClose,
   onSubmit,
 }: DealFormProps) {
-  const initialValues: DealFormValues = values ?? emptyValues;
-  const [form, setForm] = useState<DealFormValues>(initialValues);
-  const [showErrors, setShowErrors] = useState(false);
-
   const isEdit = mode === "edit";
-  const dirty = (Object.keys(initialValues) as (keyof DealFormValues)[]).some(
-    key => form[key] !== initialValues[key],
+
+  // Stages from options (or fallback)
+  const stageList = options?.stages && options.stages.length > 0
+    ? options.stages
+    : PIPELINE_STAGE_ROWS.map(([name, kind], index) => ({
+        id: index + 1,
+        name,
+        position: index,
+        kind,
+      }));
+
+  // Users from options (or fallback)
+  const userList = options?.users && options.users.length > 0
+    ? options.users
+    : DEAL_OWNERS.map((name, index) => ({ id: index + 1, name, email: "" }));
+
+  // Products from options (or fallback)
+  const productList = options?.products && options.products.length > 0
+    ? options.products
+    : DEAL_PRODUCTS.map((name, index) => ({ id: index + 1, name }));
+
+  // Leads from options
+  const leadList = options?.leads || [];
+
+  // Customers from options
+  const customerList = options?.customers || [];
+
+  // Lost reasons
+  const reasonList = options?.lostReasons && options.lostReasons.length > 0
+    ? options.lostReasons
+    : DEAL_LOST_REASONS.map((name, index) => ({ id: index + 1, name }));
+
+  const defaultStage = stageList.find(s => s.kind === "OPEN") || stageList[0];
+  const defaultUser = userList[0];
+
+  const [name, setName] = useState(values?.name ?? "");
+  const [estimatedValue, setEstimatedValue] = useState(values?.estimatedValue ?? "");
+  const [stageId, setStageId] = useState<number>(
+    values?.stageId ||
+      stageList.find(s => s.name === values?.stage)?.id ||
+      defaultStage?.id ||
+      1,
   );
+  const [ownerId, setOwnerId] = useState<number>(
+    values?.ownerId ||
+      userList.find(u => u.name === values?.owner)?.id ||
+      defaultUser?.id ||
+      1,
+  );
+  const [customerId, setCustomerId] = useState<number | null>(
+    values?.customerId ?? null,
+  );
+  const [leadId, setLeadId] = useState<number | null>(values?.leadId ?? null);
+  const [productServiceId, setProductServiceId] = useState<number | null>(
+    values?.productServiceId ?? null,
+  );
+  const [expectedCloseDate, setExpectedCloseDate] = useState(
+    values?.expectedCloseDate ?? "",
+  );
+  const [nextAction, setNextAction] = useState(values?.nextAction ?? "");
+  const [status, setStatus] = useState<DealStatus>(values?.status ?? "OPEN");
+  const [wonRevenue, setWonRevenue] = useState(values?.wonRevenue ?? "");
+  const [closedAt, setClosedAt] = useState(values?.closedAt ?? "");
+  const [lostReasonId, setLostReasonId] = useState<number | null>(
+    values?.lostReasonId ?? (reasonList[0]?.id || null),
+  );
+  const [lostNote, setLostNote] = useState(values?.lostNote ?? "");
 
-  function update<K extends keyof DealFormValues>(
-    key: K,
-    value: DealFormValues[K],
-  ) {
-    setForm(previous => ({ ...previous, [key]: value }));
-  }
+  const [showErrors, setShowErrors] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
-  // Esc closes the form (same as the back button)
+  // Esc closes the dialog
   useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const customerOptions = initialCustomers.map(customer => customer.company);
-  const leadOptions: string[] = [];
+  // When stage changes, adjust status if necessary
+  const currentSelectedStage = stageList.find(s => s.id === stageId);
 
-  const name = form.name.trim();
-  const nameInvalid = !name;
+  const nameInvalid = !name.trim();
+  const valueNum = Number(estimatedValue);
   const valueInvalid =
-    form.estimatedValue !== "" && Number.isNaN(Number(form.estimatedValue));
-  const errorMessage = nameInvalid
-    ? "Please enter the deal name before saving."
-    : valueInvalid
-      ? "Estimated value must be a number."
-      : "";
+    estimatedValue === "" || Number.isNaN(valueNum) || valueNum < 0;
 
-  function submit() {
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     setShowErrors(true);
+    setErrorText(null);
+
     if (nameInvalid || valueInvalid) return;
 
-    // Status-dependent fields are cleared when they don't apply, so a deal
-    // never carries a lost reason while being Won (or vice versa).
-    const isWon = form.status === "WON";
-    const isLost = form.status === "LOST";
+    const chosenStage = stageList.find(s => s.id === stageId);
+    const chosenOwner = userList.find(u => u.id === ownerId);
+    const chosenProduct = productList.find(p => p.id === productServiceId);
+    const chosenLead = leadList.find(l => l.id === leadId);
+    const chosenCustomer = customerList.find(c => c.id === customerId);
+    const chosenReason = reasonList.find(r => r.id === lostReasonId);
 
-    onSubmit({
-      name,
-      customer: form.customer,
-      lead: form.lead,
-      owner: form.owner,
-      product: form.product,
-      stage: form.stage,
-      status: form.status,
-      estimatedValue: form.estimatedValue.trim(),
-      expectedCloseDate: form.expectedCloseDate,
-      nextAction: form.nextAction.trim(),
-      wonRevenue: isWon ? form.wonRevenue.trim() : "",
-      closedAt: isWon ? form.closedAt : "",
-      lostReason: isLost ? form.lostReason : "",
-      lostNote: isLost ? form.lostNote.trim() : "",
-    });
+    const isWon = chosenStage?.kind === "WON" || status === "WON";
+    const isLost = chosenStage?.kind === "LOST" || status === "LOST";
+
+    const payload: DealFormValues = {
+      name: name.trim(),
+      customer: chosenCustomer?.company?.name || "",
+      customerId: customerId,
+      lead: chosenLead?.contactName || "",
+      leadId: leadId,
+      owner: chosenOwner?.name || "",
+      ownerId: ownerId,
+      product: chosenProduct?.name || "",
+      productServiceId: productServiceId,
+      stage: chosenStage?.name || "Qualified",
+      stageId: stageId,
+      status: isWon ? "WON" : isLost ? "LOST" : "OPEN",
+      estimatedValue: String(valueNum),
+      expectedCloseDate,
+      nextAction: nextAction.trim(),
+      wonRevenue: isWon ? (wonRevenue.trim() || String(valueNum)) : "",
+      closedAt: isWon ? (closedAt || todayIso()) : "",
+      lostReason: isLost ? (chosenReason?.name || "") : "",
+      lostReasonId: isLost ? lostReasonId : null,
+      lostNote: isLost ? lostNote.trim() : "",
+    };
+
+    try {
+      setSubmitting(true);
+      await onSubmit(payload);
+    } catch (err: any) {
+      setErrorText(err?.message || "Failed to save deal");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <FormShell
-      title={isEdit ? "Edit Deal" : "Create Deal"}
-      description={
-        isEdit
-          ? "Update this deal's stage, value, and ownership."
-          : "Add a deal to the pipeline and set its expected value."
-      }
-      error={errorMessage}
-      dirty={dirty}
-      onClose={onClose}
-      onSubmit={submit}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-150"
+      onClick={onClose}
     >
-      {/* Maps to: Deal (name, customerId, leadId, productServiceId, stageId, status) */}
-      <FormSection
-        icon={<CircleDollarSign size={17} />}
-        title="Deal Information"
-        description="What is being sold, and to whom."
-        aside="* Required fields"
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? "Edit deal" : "Create deal"}
+        className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-150"
+        onClick={e => e.stopPropagation()}
       >
-        <div className={cellClass}>
-          <Field
-            label="Deal Name"
-            value={form.name}
-            onChange={value => update("name", value)}
-            required
-            placeholder="e.g. Rangoni — Florence rollout"
-            invalid={showErrors && nameInvalid}
-            hint="Deal name is required."
-          />
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#1d61e7]">
+              <CircleDollarSign size={20} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">
+                {isEdit ? "Edit Deal" : "Create New Deal"}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {isEdit
+                  ? "Update deal pipeline stage, value, and customer relations."
+                  : "Add a prospective deal to the pipeline."}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Customer"
-            value={form.customer}
-            onChange={value => update("customer", value)}
-            options={customerOptions}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Source Lead"
-            value={form.lead}
-            onChange={value => update("lead", value)}
-            options={leadOptions}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Product"
-            value={form.product}
-            onChange={value => update("product", value)}
-            options={DEAL_PRODUCTS}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Stage"
-            value={form.stage}
-            onChange={value => update("stage", value)}
-            options={STAGE_NAMES}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Status"
-            value={form.status}
-            onChange={value => update("status", value as DealStatus)}
-            options={STATUS_OPTIONS}
-          />
-        </div>
-      </FormSection>
 
-      {/* Maps to: Deal (ownerId, estimatedValue, expectedCloseDate, nextAction) */}
-      <FormSection
-        icon={<Handshake size={17} />}
-        title="Value & Ownership"
-        description="Pipeline value, who owns it, and the next step."
-      >
-        <div className={cellClass}>
-          <Field
-            label="Estimated Value"
-            value={form.estimatedValue}
-            onChange={value => update("estimatedValue", value)}
-            type="number"
-            placeholder="0"
-            invalid={showErrors && valueInvalid}
-            hint="Enter a number."
-          />
-        </div>
-        <div className={cellClass}>
-          <Field
-            label="Expected Close"
-            value={form.expectedCloseDate}
-            onChange={value => update("expectedCloseDate", value)}
-            type="date"
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Owner"
-            value={form.owner}
-            onChange={value => update("owner", value)}
-            options={DEAL_OWNERS}
-          />
-        </div>
-        <div className={cellClass}>
-          <TextAreaField
-            label="Next Action"
-            value={form.nextAction}
-            onChange={value => update("nextAction", value)}
-            placeholder="The agreed next step for this deal."
-            rows={2}
-          />
-        </div>
-      </FormSection>
+        {/* Error alert if any */}
+        {errorText && (
+          <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 border border-rose-200">
+            <AlertCircle size={15} className="shrink-0 text-rose-500" />
+            <span className="flex-1">{errorText}</span>
+          </div>
+        )}
 
-      {/* Maps to: Deal.closedRevenue / Deal.closedAt — only when WON */}
-      {form.status === "WON" && (
-        <FormSection
-          icon={<Trophy size={17} />}
-          title="Closed Revenue"
-          description="Recorded because this deal is marked Won."
-        >
-          <div className={cellClass}>
-            <Field
-              label="Revenue"
-              value={form.wonRevenue}
-              onChange={value => update("wonRevenue", value)}
-              type="number"
-              placeholder="0"
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Deal Name */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              Deal Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Acme Corp — Enterprise CRM Expansion"
+              className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
+                showErrors && nameInvalid
+                  ? "border-rose-300 bg-rose-50/20"
+                  : "border-slate-200"
+              }`}
             />
+            {showErrors && nameInvalid && (
+              <p className="mt-1 text-[11px] text-rose-500">
+                Deal name is required.
+              </p>
+            )}
           </div>
-          <div className={cellClass}>
-            <Field
-              label="Closed At"
-              value={form.closedAt}
-              onChange={value => update("closedAt", value)}
-              type="date"
-            />
-          </div>
-        </FormSection>
-      )}
 
-      {/* Maps to: Deal.lostReasonId / Deal.lostNote — only when LOST */}
-      {form.status === "LOST" && (
-        <FormSection
-          icon={<XCircle size={17} />}
-          title="Loss Details"
-          description="Recorded because this deal is marked Lost."
-        >
-          <div className={cellClass}>
-            <SelectField
-              label="Lost Reason"
-              value={form.lostReason}
-              onChange={value => update("lostReason", value)}
-              options={DEAL_LOST_REASONS}
-            />
-          </div>
-          <div className={cellClass}>
-            <TextAreaField
-              label="Lost Note"
-              value={form.lostNote}
-              onChange={value => update("lostNote", value)}
-              placeholder="Why the deal was lost."
-              rows={2}
-            />
-          </div>
-        </FormSection>
-      )}
+          {/* Value & Stage row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Estimated Value (USD) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <DollarSign
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={estimatedValue}
+                  onChange={e => setEstimatedValue(e.target.value)}
+                  placeholder="50000"
+                  className={`w-full rounded-lg border bg-white py-2.5 pl-8 pr-3 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
+                    showErrors && valueInvalid
+                      ? "border-rose-300 bg-rose-50/20"
+                      : "border-slate-200"
+                  }`}
+                />
+              </div>
+              {showErrors && valueInvalid && (
+                <p className="mt-1 text-[11px] text-rose-500">
+                  A valid non-negative number is required.
+                </p>
+              )}
+            </div>
 
-      {/* Read-only note about the pipeline value semantics */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <ListChecks size={17} />
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Pipeline Stage <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <Layers
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  value={stageId}
+                  onChange={e => {
+                    const sid = Number(e.target.value);
+                    setStageId(sid);
+                    const st = stageList.find(s => s.id === sid);
+                    if (st) {
+                      setStatus(st.kind === "WON" ? "WON" : st.kind === "LOST" ? "LOST" : "OPEN");
+                    }
+                  }}
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  {stageList.map(stage => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.name} {stage.kind !== "OPEN" ? `(${stage.kind})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-slate-500">
-            Estimated value is pipeline value, not revenue. Revenue is only
-            recorded on a Won deal.
-          </p>
-        </div>
-      </section>
-    </FormShell>
+
+          {/* Owner & Product row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Deal Owner <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <Users
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  value={ownerId}
+                  onChange={e => setOwnerId(Number(e.target.value))}
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  {userList.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Product / Service
+              </label>
+              <div className="relative">
+                <Package
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  value={productServiceId ?? ""}
+                  onChange={e =>
+                    setProductServiceId(
+                      e.target.value ? Number(e.target.value) : null,
+                    )
+                  }
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  <option value="">No product specified</option>
+                  {productList.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer & Lead row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Customer / Company
+              </label>
+              <div className="relative">
+                <Building2
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  value={customerId ?? ""}
+                  onChange={e =>
+                    setCustomerId(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  <option value="">None (Standalone Deal)</option>
+                  {customerList.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.company?.name || `Customer #${c.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Source Lead
+              </label>
+              <div className="relative">
+                <Users
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  value={leadId ?? ""}
+                  onChange={e =>
+                    setLeadId(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  <option value="">None</option>
+                  {leadList.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.contactName} {l.companyName ? `(${l.companyName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Expected Close Date & Next Action */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Expected Close Date
+              </label>
+              <div className="relative">
+                <Calendar
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="date"
+                  min={todayIso()}
+                  value={expectedCloseDate}
+                  onChange={e => setExpectedCloseDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                Next Action / Step
+              </label>
+              <div className="relative">
+                <ListChecks
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={nextAction}
+                  onChange={e => setNextAction(e.target.value)}
+                  placeholder="e.g. Send revised SOW with phased pricing"
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* WON state extra fields */}
+          {(currentSelectedStage?.kind === "WON" || status === "WON") && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold">
+                <Trophy size={16} className="text-emerald-600" />
+                Won Deal Details
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Closed Revenue
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={wonRevenue || estimatedValue}
+                    onChange={e => setWonRevenue(e.target.value)}
+                    placeholder="Same as estimated"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Closed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={closedAt || todayIso()}
+                    onChange={e => setClosedAt(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LOST state extra fields */}
+          {(currentSelectedStage?.kind === "LOST" || status === "LOST") && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-rose-800 text-xs font-semibold">
+                <XCircle size={16} className="text-rose-600" />
+                Lost Deal Details
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Lost Reason <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={lostReasonId ?? ""}
+                    onChange={e =>
+                      setLostReasonId(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-rose-500"
+                  >
+                    {reasonList.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Lost Note
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={lostNote}
+                    onChange={e => setLostNote(e.target.value)}
+                    placeholder="Provide details on why this deal was lost..."
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 outline-none focus:border-rose-500 placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer actions */}
+          <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={onClose}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-lg bg-[#1d61e7] px-5 py-2.5 text-xs font-medium text-white shadow-xs hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
+            >
+              {submitting
+                ? "Saving..."
+                : isEdit
+                  ? "Update Deal"
+                  : "Create Deal"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

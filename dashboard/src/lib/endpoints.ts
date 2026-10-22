@@ -64,7 +64,13 @@ export const ENDPOINTS = {
 
   deals: {
     list: "/deals",
+    options: "/deals/options",
     byId: (id: number) => `/deals/${id}`,
+    create: "/deals",
+    update: (id: number) => `/deals/${id}`,
+    delete: (id: number) => `/deals/${id}`,
+    moveStage: (id: number) => `/deals/${id}/stage`,
+    close: (id: number) => `/deals/${id}/close`,
   },
 
   health: "/health",

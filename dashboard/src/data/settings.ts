@@ -8,7 +8,7 @@
 // backend's own Zod enum (backend/src/modules/users/user.validation.ts) and the
 // seeded Role.description column (backend/prisma/seed/role.seed.ts).
 
-import type { RoleInfo, RoleName, UserRow } from "../types/settings";
+import type { RoleName, UserRow } from "../types/settings";
 
 export const initialUsers: UserRow[] = [
   {
@@ -85,19 +85,5 @@ export const roleDefinitions: { name: RoleName; description: string }[] = [
   },
 ];
 
-/** The four role names, for selects. */
-export const roleNames: RoleName[] = roleDefinitions.map(role => role.name);
-
-/** Count holders and pair each role with its description. */
-export function buildRoles(users: UserRow[]): RoleInfo[] {
-  const counts = new Map<string, number>();
-  for (const user of users) {
-    const name = user.role?.name;
-    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
-
-  return roleDefinitions.map(role => ({
-    ...role,
-    userCount: counts.get(role.name) ?? 0,
-  }));
-}
+import { roleNames, buildRoles } from "../lib/users";
+export { roleNames, buildRoles };

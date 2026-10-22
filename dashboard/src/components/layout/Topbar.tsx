@@ -10,6 +10,7 @@ import {
   Check,
   X,
   Command,
+  UserCog,
 } from "lucide-react";
 import { signOut } from "../../lib/auth";
 import { useSession } from "../../lib/useSession";
@@ -215,6 +216,18 @@ export default function Topbar() {
                 >
                   <UserRound size={15} />
                   My Profile
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfile(false);
+                    navigate("/users");
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  <UserCog size={15} />
+                  User Management
                 </button>
 
                 <button
