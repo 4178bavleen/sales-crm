@@ -25,7 +25,7 @@ const primaryNav = [
   { name: "Customers", path: "/customers", icon: UserRound },
 ];
 
-const salesNav = [                
+const salesNav = [
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
   { name: "Meetings", path: "/meetings", icon: CalendarDays },
   { name: "Deals & Pipeline", path: "/deals", icon: GitFork },
