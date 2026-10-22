@@ -136,7 +136,7 @@ export default function LoginHero() {
               clearly outside & above the main card
               ════════════════════════════════════════ */}
           <div
-            className="login-hero-top-chart absolute z-10 rounded-2xl bg-white border border-slate-100 px-5 py-4"
+            className="absolute z-30 rounded-2xl bg-white border border-slate-100 px-5 py-4"
             style={{
               top: -105,
               right: 150,
@@ -217,7 +217,7 @@ export default function LoginHero() {
           {/* ── Main dashboard mockup card ── */}
           <div
             ref={cardRef}
-            className="rounded-2xl bg-white border border-slate-100 overflow-hidden relative z-20 shadow-[0_16px_56px_rgba(0,0,0,0.43)]"
+            className="rounded-2xl bg-white border border-slate-100 overflow-hidden"
             style={{
               maxWidth: 500,
               marginLeft: 190,
