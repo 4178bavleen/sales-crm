@@ -137,6 +137,7 @@ export type CreateLeadInput = {
   email?: string;
   phone?: string;
   source?: string;
+  productService?: string;
   owner?: string;
   priority?: Priority;
   status?: LeadStatus;
@@ -165,6 +166,24 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
     else if (s.includes("webinar") || s.includes("seminar")) sourceId = 6;
   }
 
+  let productServiceId: number | undefined;
+  if (lead.productService) {
+    const p = lead.productService.toLowerCase().trim();
+    if (p.includes("crm")) productServiceId = 1;
+    else if (p.includes("training")) productServiceId = 2;
+    else if (p.includes("cloud") || p.includes("subscription")) productServiceId = 3;
+    else if (p.includes("support")) productServiceId = 4;
+  }
+
+  let ownerId: number | null | undefined = session.user?.id;
+  if (lead.owner) {
+    const o = lead.owner.toLowerCase().trim();
+    if (o === "unassigned") ownerId = null;
+    else if (o.includes("marcus")) ownerId = 3;
+    else if (o.includes("priya")) ownerId = 2;
+    else if (o.includes("admin")) ownerId = 1;
+  }
+
   const payload: Record<string, unknown> = {
     contactName,
     priority: lead.priority || "MEDIUM",
@@ -176,15 +195,13 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
   if (lead.email?.trim()) payload.email = lead.email.trim();
   if (lead.notes?.trim()) payload.notes = lead.notes.trim();
   if (sourceId !== undefined) payload.sourceId = sourceId;
+  if (productServiceId !== undefined) payload.productServiceId = productServiceId;
+  if (ownerId !== undefined) payload.ownerId = ownerId;
 
   if (lead.nextFollowUpAt) {
     payload.nextFollowUpAt = new Date(lead.nextFollowUpAt).toISOString();
   } else if (lead.noFollowUp) {
     payload.noFollowUpReasonId = 7;
-  }
-
-  if (session.user?.id) {
-    payload.ownerId = session.user.id;
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.list, {

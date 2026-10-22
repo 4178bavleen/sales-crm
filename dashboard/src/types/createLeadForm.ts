@@ -21,6 +21,7 @@ export type FormValues = {
   email: string;
   phone: string;
   source: string;
+  productService?: string;
   status: LeadStatus | "";
   priority: Priority;
   notes: string;

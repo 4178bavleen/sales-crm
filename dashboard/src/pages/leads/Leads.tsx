@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   Search,
   Plus,
   Filter,
   Upload,
+  Download,
+  RotateCw,
   MoreHorizontal,
   ChevronDown,
   Users,
@@ -50,35 +52,38 @@ export default function Leads() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshLeads = useCallback(async () => {
     setLoading(true);
     setApiError(null);
-    fetchLeads({ limit: 100 })
-      .then(({ leads: data }) => {
-        if (cancelled) return;
-        setLeads(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        if (cancelled) return;
-        setApiError(err instanceof Error ? err.message : "Failed to load leads");
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const { leads: data } = await fetchLeads({ limit: 100 });
+      setLeads(data);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Failed to load leads");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshLeads();
+  }, [refreshLeads]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -217,6 +222,7 @@ export default function Leads() {
         phone: lead.phone,
         source: lead.source,
         owner: lead.owner,
+        productService: (lead as any).productService,
         status: lead.status,
         priority: lead.priority,
         notes: lead.notes,
@@ -276,15 +282,91 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   }
 
+  function parseCsv(text: string): Record<string, string>[] {
+    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    const parseRow = (rowStr: string): string[] => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < rowStr.length; i++) {
+        const char = rowStr[i];
+        if (char === '"') {
+          if (inQuotes && rowStr[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseRow(lines[0]).map(h => h.replace(/^"|"$/g, "").trim().toLowerCase());
+    const rows: Record<string, string>[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseRow(lines[i]);
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = (values[idx] ?? "").replace(/^"|"$/g, "").trim();
+      });
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setLoading(true);
+      const text = await file.text();
+      const rows = parseCsv(text);
+      for (const row of rows) {
+        const nameParts = (row["contact name"] || row["name"] || "").split(" ");
+        const firstName = row["first name"] || row["firstname"] || nameParts[0] || "Imported";
+        const lastName = row["last name"] || row["lastname"] || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+        const statusVal = (row["lead status"] || row["status"] || "NEW").toUpperCase();
+        const priorityVal = (row["priority"] || "MEDIUM").toUpperCase();
+        await createLeadApi({
+          firstName,
+          lastName,
+          company: row["company"] || row["company name"] || undefined,
+          email: row["email"] || undefined,
+          phone: row["phone"] || row["phone number"] || undefined,
+          source: row["lead source"] || row["source"] || "Website",
+          productService: row["product"] || row["product / service"] || row["service"] || undefined,
+          status: (["NEW", "CONTACTED", "QUALIFIED", "CONVERTED"].includes(statusVal) ? statusVal : "NEW") as LeadStatus,
+          priority: (["LOW", "MEDIUM", "HIGH", "URGENT"].includes(priorityVal) ? priorityVal : "MEDIUM") as any,
+          noFollowUp: true,
+        });
+      }
+      await refreshLeads();
+    } catch (err) {
+      console.error("Import failed:", err);
+      setApiError(err instanceof Error ? err.message : "Failed to import CSV");
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   // Full-page create form
   if (showCreateModal) {
     return (
-      <div className="-m-4 md:-m-7">
-        <CreateLeadModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={createLead}
-        />
-      </div>
+      <CreateLeadModal
+        onClose={() => setShowCreateModal(false)}
+        onCreate={createLead}
+      />
     );
   }
 
@@ -302,9 +384,17 @@ export default function Leads() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+
           <button
             type="button"
-            onClick={exportCsv}
+            onClick={() => fileInputRef.current?.click()}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
           >
             <Upload size={14} className="text-slate-500" />
@@ -321,31 +411,70 @@ export default function Leads() {
             <ChevronDown size={14} className="ml-1 opacity-80" />
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={moreMenuRef}>
             <button
               type="button"
-              onClick={exportCsv}
+              onClick={() => setShowMoreMenu(prev => !prev)}
               title="More options"
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
             >
               <MoreHorizontal size={16} />
             </button>
+
+            {showMoreMenu && (
+              <div className="absolute right-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    exportCsv();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Download size={14} className="text-slate-400" />
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Upload size={14} className="text-slate-400" />
+                  Import CSV
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    refreshLeads();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <RotateCw size={14} className="text-slate-400" />
+                  Refresh Leads
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* KPI Cards Row (5 Cards) */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Leads */}
         <div
           onClick={() => filterByStatusCard()}
-          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer"
+          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer min-w-0"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
               <Users size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Total Leads</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.total}
@@ -356,8 +485,8 @@ export default function Leads() {
             </div>
           </div>
           {/* Smooth curved SVG with gradient fill */}
-          <div className="w-24 sm:w-28 shrink-0">
-            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
+            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
               <defs>
                 <linearGradient id="stat-grad-total" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
@@ -383,13 +512,13 @@ export default function Leads() {
         {/* New Leads */}
         <div
           onClick={() => filterByStatusCard("NEW")}
-          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer"
+          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <TrendingUp size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">New Leads</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.newLeads}
@@ -399,8 +528,8 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-24 sm:w-28 shrink-0">
-            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
+            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
               <defs>
                 <linearGradient id="stat-grad-new" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
@@ -426,13 +555,13 @@ export default function Leads() {
         {/* Contacted */}
         <div
           onClick={() => filterByStatusCard("CONTACTED")}
-          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer"
+          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer min-w-0"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
               <Phone size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Contacted</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.contacted}
@@ -442,8 +571,8 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-24 sm:w-28 shrink-0">
-            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
+            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
               <defs>
                 <linearGradient id="stat-grad-contacted" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
@@ -469,13 +598,13 @@ export default function Leads() {
         {/* Qualified */}
         <div
           onClick={() => filterByStatusCard("QUALIFIED")}
-          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer"
+          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer min-w-0"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
               <Award size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Qualified</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.qualified}
@@ -485,8 +614,8 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-24 sm:w-28 shrink-0">
-            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
+            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
               <defs>
                 <linearGradient id="stat-grad-qualified" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
@@ -512,13 +641,13 @@ export default function Leads() {
         {/* Converted */}
         <div
           onClick={() => filterByStatusCard("CONVERTED")}
-          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer"
+          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <Trophy size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Converted</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.converted}
@@ -528,8 +657,8 @@ export default function Leads() {
               </p>
             </div>
           </div>
-          <div className="w-24 sm:w-28 shrink-0">
-            <svg className="w-full h-11 overflow-visible" viewBox="0 0 120 48" fill="none">
+          <div className="w-16 sm:w-20 md:w-24 shrink-0 overflow-hidden flex items-center justify-end">
+            <svg className="w-full h-10 sm:h-11 overflow-hidden" viewBox="0 0 120 48" fill="none">
               <defs>
                 <linearGradient id="stat-grad-converted" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
@@ -556,11 +685,11 @@ export default function Leads() {
       {/* Search and Filters Bar */}
       <div
         ref={dropdownRef}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs"
+        className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs sm:flex-row sm:items-center sm:justify-between"
       >
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-1 flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Search leads */}
-          <div className="relative">
+          <div className="relative w-full sm:w-56 md:w-64">
             <Search
               size={15}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -573,7 +702,7 @@ export default function Leads() {
                 setPage(1);
               }}
               placeholder="Search leads..."
-              className="w-56 md:w-64 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500"
             />
           </div>
 
@@ -785,7 +914,7 @@ export default function Leads() {
         </div>
 
         {/* Right side: Clear filters + Filter action */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t border-slate-100 sm:border-0">
           {hasActiveFilters && (
             <button
               type="button"
@@ -799,7 +928,7 @@ export default function Leads() {
           <button
             type="button"
             onClick={() => setActiveDropdown(activeDropdown ? null : "status")}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition shadow-2xs cursor-pointer ml-auto sm:ml-0"
           >
             <Filter size={13} />
             Filter
@@ -814,9 +943,6 @@ export default function Leads() {
           rows={pageLeads}
           getRowId={lead => lead.id}
           onRowClick={lead => setDetailLead(lead)}
-          selectable
-          selectedIds={selectedIds}
-          onSelectionChange={ids => setSelectedIds(ids as number[])}
           getRowLabel={lead => `${lead.firstName} ${lead.lastName}`}
           renderRowMenu={lead => (
             <>
