@@ -1,5 +1,4 @@
 import type {
-  Preferences,
   RoleInfo,
   RoleName,
   UserListResponse,
@@ -111,52 +110,6 @@ export function buildRoles(users: UserRow[]): RoleInfo[] {
     ...role,
     userCount: counts.get(role.name) ?? 0,
   }));
-}
-
-/* -------------------------------------------------------------------------- */
-/* Preferences (client-only, localStorage)                                    */
-/* -------------------------------------------------------------------------- */
-
-const PREFS_KEY = "salesflow.preferences";
-
-export const DEFAULT_PREFERENCES: Preferences = {
-  theme: "light",
-  emailNotifications: true,
-  dealAlerts: true,
-  taskReminders: true,
-  weeklyDigest: false,
-  dateFormat: "medium",
-  defaultPageSize: 10,
-};
-
-function isBrowser() {
-  return typeof window !== "undefined" && !!window.localStorage;
-}
-
-/**
- * Read preferences, merged over the defaults.
- *
- * Merging rather than replacing means a stored object written by an older
- * build (missing keys, or holding a removed one) still loads safely.
- */
-export function readPreferences(): Preferences {
-  if (!isBrowser()) return DEFAULT_PREFERENCES;
-  try {
-    const raw = window.localStorage.getItem(PREFS_KEY);
-    if (!raw) return DEFAULT_PREFERENCES;
-    const parsed = JSON.parse(raw) as Partial<Preferences>;
-    return { ...DEFAULT_PREFERENCES, ...parsed, theme: "light" };
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
-
-/** Persist preferences. Returns the stored object. */
-export function writePreferences(next: Preferences): Preferences {
-  if (isBrowser()) {
-    window.localStorage.setItem(PREFS_KEY, JSON.stringify(next));
-  }
-  return next;
 }
 
 /** Human label for a role name, e.g. SALES_MANAGER -> "Sales Manager". */
