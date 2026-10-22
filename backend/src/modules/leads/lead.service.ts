@@ -36,6 +36,10 @@ const leadSelect = {
   disqualifyReasonId: true,
   disqualifyNote: true,
   disqualifiedAt: true,
+  contactId: true,
+  companyId: true,
+  convertedCustomerId: true,
+  convertedAt: true,
   createdAt: true,
   updatedAt: true,
   source: {
@@ -396,9 +400,8 @@ export async function deleteLead(id: number) {
     throw new LeadServiceError('Lead not found', 404)
   }
 
-  await prisma.lead.update({
+  await prisma.lead.delete({
     where: { id },
-    data: { deletedAt: new Date() },
   })
 
   return { id, deleted: true }
@@ -479,12 +482,25 @@ export async function assignLead(
 export async function updateLeadStatus(
   id: number,
   input: UpdateLeadStatusInput,
+  actorId: number,
 ) {
   const existing = await prisma.lead.findFirst({
     where: { id, deletedAt: null },
     select: {
       id: true,
       status: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
+      normalizedPhone: true,
+      normalizedEmail: true,
+      ownerId: true,
+      createdById: true,
+      productServiceId: true,
+      contactId: true,
+      companyId: true,
+      convertedCustomerId: true,
     },
   })
 
@@ -529,9 +545,140 @@ export async function updateLeadStatus(
         : null,
   }
 
-  return prisma.lead.update({
-    where: { id },
-    data,
-    select: leadSelect,
+  if (input.status !== 'CONVERTED' || existing.convertedCustomerId != null) {
+    return prisma.lead.update({
+      where: { id },
+      data,
+      select: leadSelect,
+    })
+  }
+
+  return prisma.$transaction(async (tx) => {
+    let companyId = existing.companyId
+
+    if (companyId == null && existing.companyName?.trim()) {
+      const companyName = existing.companyName.trim()
+      const normalizedName =
+        normalizeCompany(companyName) ?? companyName.toLowerCase()
+
+      const company = await tx.company.findFirst({
+        where: {
+          normalizedName,
+          deletedAt: null,
+        },
+        select: { id: true },
+      })
+
+      companyId =
+        company?.id ??
+        (
+          await tx.company.create({
+            data: {
+              name: companyName,
+              normalizedName,
+            },
+            select: { id: true },
+          })
+        ).id
+    }
+
+    let contactId = existing.contactId
+
+    if (contactId == null) {
+      const contact = await tx.contact.create({
+        data: {
+          companyId,
+          fullName: existing.contactName,
+          email: existing.normalizedEmail ?? normalizeEmail(existing.email),
+          normalizedEmail:
+            existing.normalizedEmail ?? normalizeEmail(existing.email),
+          phone: existing.phone,
+          normalizedPhone:
+            existing.normalizedPhone ?? normalizePhone(existing.phone),
+        },
+        select: { id: true },
+      })
+
+      contactId = contact.id
+    }
+
+    const customer = await tx.customer.create({
+      data: {
+        companyId,
+        primaryContactId: contactId,
+        ownerId: existing.ownerId ?? actorId,
+        convertedAt: now,
+        notes: `Converted from lead #${id}`,
+      },
+      select: { id: true },
+    })
+
+    const existingDealCount = await tx.deal.count({
+      where: {
+        leadId: id,
+        deletedAt: null,
+      },
+    })
+
+    if (existingDealCount > 0) {
+      await tx.deal.updateMany({
+        where: {
+          leadId: id,
+          customerId: null,
+          deletedAt: null,
+        },
+        data: { customerId: customer.id },
+      })
+    } else {
+      const stage = await tx.pipelineStage.findFirst({
+        where: { kind: 'OPEN', isActive: true },
+        orderBy: { position: 'asc' },
+        select: { id: true },
+      })
+
+      if (stage) {
+        const dealName = [existing.companyName, existing.contactName]
+          .filter((value): value is string => Boolean(value?.trim()))
+          .map((value) => value.trim())
+          .join(' - ')
+          .slice(0, 200)
+
+        const deal = await tx.deal.create({
+          data: {
+            name: dealName || `Lead #${id}`,
+            leadId: id,
+            customerId: customer.id,
+            ownerId: existing.ownerId ?? actorId,
+            createdById: actorId,
+            productServiceId: existing.productServiceId,
+            stageId: stage.id,
+            estimatedValue: 0,
+          },
+          select: { id: true },
+        })
+
+        await tx.dealStageHistory.create({
+          data: {
+            dealId: deal.id,
+            fromStageId: null,
+            toStageId: stage.id,
+            changedById: actorId,
+            note: 'Deal created from lead conversion',
+          },
+        })
+      }
+    }
+
+    return tx.lead.update({
+      where: { id },
+      data: {
+        ...data,
+        contactId,
+        companyId,
+        convertedCustomerId: customer.id,
+        convertedAt: now,
+      },
+      select: leadSelect,
+    })
   })
 }

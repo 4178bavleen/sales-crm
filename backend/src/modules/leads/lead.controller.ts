@@ -281,7 +281,7 @@ export async function changeLeadStatus(
     const id = leadIdSchema.parse(req.params.id)
     const input = updateLeadStatusSchema.parse(req.body)
 
-    const lead = await leadService.updateLeadStatus(id, input)
+    const lead = await leadService.updateLeadStatus(id, input, req.user.id)
 
     res.status(200).json({
       success: true,

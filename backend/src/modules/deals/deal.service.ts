@@ -391,7 +391,7 @@ export async function updateDeal(
     });
 }
 
-export async function softDeleteDeal(id: number, actorId: number) {
+export async function deleteDeal(id: number, actorId: number) {
     return prisma.$transaction(async (tx) => {
         const existing = await tx.deal.findFirst({
             where: { id, deletedAt: null },
@@ -403,11 +403,8 @@ export async function softDeleteDeal(id: number, actorId: number) {
             throw new DealValidationError("Closed deals cannot be deleted");
         }
 
-        const deletedAt = new Date();
-
-        const deal = await tx.deal.update({
+        const deal = await tx.deal.delete({
             where: { id },
-            data: { deletedAt },
         });
 
         await tx.auditLog.create({
@@ -417,7 +414,7 @@ export async function softDeleteDeal(id: number, actorId: number) {
                 entityType: "DEAL",
                 entityId: id,
                 before: { name: existing.name, status: existing.status },
-                after: { deletedAt: deletedAt.toISOString() },
+                after: { deleted: true },
             },
         });
 

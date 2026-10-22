@@ -1,13 +1,14 @@
+import { useEffect } from "react";
 import {
   X,
   Mail,
   Phone,
   Calendar,
   CheckCircle2,
-  Clock,
   Pencil,
   Power,
   ShieldCheck,
+  Hash,
 } from "lucide-react";
 import type { UserRow } from "../../types/user";
 import { ROLE_CONFIG, roleLabel } from "../../lib/users";
@@ -29,6 +30,15 @@ export default function UserDetailDialog({
   onEdit,
   onToggleActive,
 }: UserDetailDialogProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !user) return null;
 
   const roleName = user.role.name as keyof typeof ROLE_CONFIG;
@@ -46,102 +56,128 @@ export default function UserDetailDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-900/60 backdrop-blur-sm transition-opacity"
+      className="dialog-overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity"
       role="dialog"
       aria-modal="true"
+      onClick={onClose}
     >
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 my-8">
-        {/* Banner with avatar */}
-        <div className="relative bg-gradient-to-r from-[#0b1328] via-[#12234e] to-[#1d61e7] p-6 text-white">
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 rounded-lg bg-white/10 p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition"
-            aria-label="Close"
-          >
-            <X size={18} />
-          </button>
+      <div
+        className="dialog-enter flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 bg-white">
+          <div>
+            <p className="text-xs font-medium text-slate-500">User details</p>
+            <h2 className="mt-0.5 text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span>{user.name}</span>
+              {isSelf && (
+                <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-semibold text-blue-700 uppercase tracking-wider">
+                  You
+                </span>
+              )}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onEdit(user);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+            >
+              <Pencil size={13} className="text-slate-500" />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-md text-xl font-bold text-white border border-white/20 shadow-lg">
+        {/* Scrollable Content Body */}
+        <div className="overflow-y-auto p-6 space-y-5">
+          {/* User Profile Card */}
+          <div className="flex items-center gap-4 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#1d61e7] text-lg font-bold text-white shadow-md shadow-blue-500/20">
               {user.name.slice(0, 2).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg font-bold text-white truncate">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-base font-bold text-slate-900">
                   {user.name}
-                </h3>
-                {isSelf && (
-                  <span className="rounded-full bg-blue-500/30 border border-blue-400/40 px-2 py-0.5 text-[10px] font-semibold text-blue-200 uppercase tracking-wider">
-                    You
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-300 truncate mt-0.5">
-                {user.email}
-              </p>
-              <div className="mt-2 flex items-center gap-2">
+                </p>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${config.badgeBg} ${config.badgeText} ${config.badgeBorder}`}
-                >
-                  <ShieldCheck size={12} />
-                  {config.label}
-                </span>
-
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
                     user.isActive
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
-                      : "bg-slate-500/20 text-slate-300 border border-slate-400/30"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-slate-100 text-slate-600 border-slate-200"
                   }`}
                 >
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
-                      user.isActive ? "bg-emerald-400" : "bg-slate-400"
+                      user.isActive ? "bg-emerald-500" : "bg-slate-400"
                     }`}
                   />
-                  {user.isActive ? "Active Account" : "Suspended"}
+                  {user.isActive ? "Active" : "Inactive"}
+                </span>
+              </div>
+              <p className="mt-0.5 truncate text-xs text-slate-500 font-medium">
+                {user.email}
+              </p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${config.badgeBg} ${config.badgeText} ${config.badgeBorder}`}
+                >
+                  <ShieldCheck size={12} />
+                  {config.label}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  User ID #{user.id}
                 </span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Content body */}
-        <div className="p-6 space-y-6">
-          {/* Contact & Profile Details */}
+          {/* Account Details */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-              Account Details
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <Mail size={15} />
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Account Information
+            </h3>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Mail size={16} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium text-slate-400">Email Address</p>
-                  <p className="truncate text-xs font-semibold text-slate-800">
+                  <p className="truncate text-xs font-semibold text-slate-800" title={user.email}>
                     {user.email}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <Phone size={15} />
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <Phone size={16} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-slate-400">Phone</p>
+                  <p className="text-[10px] font-medium text-slate-400">Phone Number</p>
                   <p className="truncate text-xs font-semibold text-slate-800">
                     {user.phone || "No phone listed"}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                  <Calendar size={15} />
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                  <Calendar size={16} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium text-slate-400">Joined Date</p>
@@ -155,74 +191,77 @@ export default function UserDetailDialog({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                  <Clock size={15} />
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                  <Hash size={16} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-slate-400">User ID</p>
+                  <p className="text-[10px] font-medium text-slate-400">System Role</p>
                   <p className="truncate text-xs font-semibold text-slate-800">
-                    #{user.id}
+                    {config.label}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Role Permissions & Capabilities */}
+          {/* Role & Workspace Permissions */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Role Permissions ({config.label})
-            </h4>
-            <p className="text-xs text-slate-500 mb-3">{config.description}</p>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Workspace Capabilities
+              </h3>
+              <span className="text-[11px] font-semibold text-slate-500">
+                {config.label}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-2.5">{config.description}</p>
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3.5 space-y-2">
               {config.permissions.map((perm: string, idx: number) => (
                 <div key={idx} className="flex items-center gap-2.5 text-xs text-slate-700">
-                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                  <span>{perm}</span>
+                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <span className="font-medium">{perm}</span>
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        {/* Footer */}
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50/50 px-6 py-3.5">
+          <button
+            type="button"
+            disabled={isSelf}
+            onClick={() => onToggleActive(user)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              user.isActive
+                ? "border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
+                : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+            }`}
+          >
+            <Power size={13} />
+            {user.isActive ? "Deactivate" : "Activate"}
+          </button>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={isSelf}
-              onClick={() => {
-                onToggleActive(user);
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                user.isActive
-                  ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                  : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-              }`}
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
             >
-              <Power size={14} />
-              {user.isActive ? "Deactivate Account" : "Activate Account"}
+              Close
             </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onEdit(user);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition"
-              >
-                <Pencil size={13} />
-                Edit User
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onEdit(user);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
+            >
+              <Pencil size={13} />
+              Edit User
+            </button>
           </div>
         </div>
       </div>

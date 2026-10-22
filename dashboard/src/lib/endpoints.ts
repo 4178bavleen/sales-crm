@@ -73,6 +73,13 @@ export const ENDPOINTS = {
     close: (id: number) => `/deals/${id}/close`,
   },
 
+  permissions: {
+    roles: "/permissions/roles",
+    list: "/permissions/permissions",
+    rolePermissions: (roleId: number) => `/permissions/roles/${roleId}/permissions`,
+    me: "/permissions/me",
+  },
+
   health: "/health",
 } as const;
 

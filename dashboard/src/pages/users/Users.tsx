@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   Users,
   UserPlus,
@@ -22,6 +22,8 @@ import {
   Sparkles,
   TrendingUp,
   SlidersHorizontal,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import type {
   CreateUserInput,
@@ -61,6 +63,31 @@ export default function UsersPage() {
     status: "ALL",
   });
   const [view, setView] = useState<"table" | "grid">("table");
+
+  // Custom filter dropdowns state
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        roleDropdownRef.current &&
+        !roleDropdownRef.current.contains(event.target as Node)
+      ) {
+        setRoleDropdownOpen(false);
+      }
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node)
+      ) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Dialogs state
   const [formOpen, setFormOpen] = useState(false);
@@ -239,6 +266,8 @@ export default function UsersPage() {
 
   function resetFilters() {
     setFilters({ search: "", role: "ALL", status: "ALL" });
+    setRoleDropdownOpen(false);
+    setStatusDropdownOpen(false);
   }
 
   const hasActiveFilters =
@@ -495,37 +524,193 @@ export default function UsersPage() {
               )}
             </div>
 
-            {/* Right toolbar controls: Status filter & View toggle */}
-            <div className="flex items-center gap-2.5">
-              {/* Status Filter */}
-              <div className="flex items-center gap-1.5">
-                <SlidersHorizontal size={13} className="text-slate-400 hidden sm:block" />
-                <select
-                  value={filters.status}
-                  onChange={(e) =>
-                    setFilters((prev: UsersFilterState) => ({
-                      ...prev,
-                      status: e.target.value as UsersFilterState["status"],
-                    }))
-                  }
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+            {/* Right toolbar controls: Custom Role filter, Status filter & View toggle */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Custom Role Filter Dropdown */}
+              <div className="relative" ref={roleDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleDropdownOpen((prev) => !prev);
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition cursor-pointer shadow-2xs ${
+                    filters.role !== "ALL"
+                      ? "border-blue-500 bg-blue-50/50 text-blue-700 ring-2 ring-blue-500/10 font-semibold"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
-                  <option value="ALL">All Status</option>
-                  <option value="ACTIVE">Active Only</option>
-                  <option value="INACTIVE">Inactive Only</option>
-                </select>
+                  <ShieldCheck
+                    size={14}
+                    className={filters.role !== "ALL" ? "text-blue-600" : "text-slate-400"}
+                  />
+                  <span>
+                    {filters.role === "ALL"
+                      ? "All Roles"
+                      : filters.role === "ADMIN"
+                      ? "Admins"
+                      : filters.role === "SALES_MANAGER"
+                      ? "Sales Managers"
+                      : filters.role === "SALES_EMPLOYEE"
+                      ? "Sales Reps"
+                      : "Report Viewers"}
+                  </span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      filters.role !== "ALL"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {roleCounts[filters.role] ?? roleCounts.ALL}
+                  </span>
+                  <ChevronDown
+                    size={13}
+                    className={`text-slate-400 transition-transform duration-150 ${
+                      roleDropdownOpen ? "rotate-180 text-blue-600" : ""
+                    }`}
+                  />
+                </button>
+
+                {roleDropdownOpen && (
+                  <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 z-40 w-52 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Filter by Role
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {[
+                        { id: "ALL" as const, label: "All Roles", count: roleCounts.ALL },
+                        { id: "ADMIN" as const, label: "Admins", count: roleCounts.ADMIN },
+                        { id: "SALES_MANAGER" as const, label: "Sales Managers", count: roleCounts.SALES_MANAGER },
+                        { id: "SALES_EMPLOYEE" as const, label: "Sales Reps", count: roleCounts.SALES_EMPLOYEE },
+                        { id: "REPORT_VIEWER" as const, label: "Report Viewers", count: roleCounts.REPORT_VIEWER },
+                      ].map((opt) => {
+                        const isSelected = filters.role === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setFilters((prev) => ({ ...prev, role: opt.id }));
+                              setRoleDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
+                              isSelected
+                                ? "bg-blue-50 text-blue-700 font-semibold"
+                                : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isSelected ? (
+                                <Check size={14} className="text-blue-600 shrink-0" />
+                              ) : (
+                                <span className="w-3.5" />
+                              )}
+                              <span>{opt.label}</span>
+                            </span>
+                            <span
+                              className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                                isSelected
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {opt.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* View Switcher */}
+              {/* Custom Status Filter Dropdown */}
+              <div className="relative" ref={statusDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusDropdownOpen((prev) => !prev);
+                    setRoleDropdownOpen(false);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition cursor-pointer shadow-2xs ${
+                    filters.status !== "ALL"
+                      ? "border-blue-500 bg-blue-50/50 text-blue-700 ring-2 ring-blue-500/10 font-semibold"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <SlidersHorizontal
+                    size={13}
+                    className={filters.status !== "ALL" ? "text-blue-600" : "text-slate-400"}
+                  />
+                  <span>
+                    {filters.status === "ALL"
+                      ? "All Status"
+                      : filters.status === "ACTIVE"
+                      ? "Active Only"
+                      : "Inactive Only"}
+                  </span>
+                  <ChevronDown
+                    size={13}
+                    className={`text-slate-400 transition-transform duration-150 ${
+                      statusDropdownOpen ? "rotate-180 text-blue-600" : ""
+                    }`}
+                  />
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 z-40 w-44 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Filter by Status
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {[
+                        { id: "ALL" as const, label: "All Status", dot: "bg-slate-400" },
+                        { id: "ACTIVE" as const, label: "Active Only", dot: "bg-emerald-500" },
+                        { id: "INACTIVE" as const, label: "Inactive Only", dot: "bg-slate-300" },
+                      ].map((opt) => {
+                        const isSelected = filters.status === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setFilters((prev) => ({ ...prev, status: opt.id }));
+                              setStatusDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
+                              isSelected
+                                ? "bg-blue-50 text-blue-700 font-semibold"
+                                : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isSelected ? (
+                                <Check size={14} className="text-blue-600 shrink-0" />
+                              ) : (
+                                <span className={`h-2 w-2 rounded-full ${opt.dot} ml-1 mr-0.5`} />
+                              )}
+                              <span>{opt.label}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* View Switcher (Table vs Grid) */}
               <div className="flex items-center rounded-xl border border-slate-200 p-0.5 bg-slate-50">
                 <button
                   type="button"
                   onClick={() => setView("table")}
-                  title="Table view"
-                  className={`rounded-lg p-1.5 transition ${
+                  title="Table view (Three lines)"
+                  aria-label="Table view"
+                  className={`rounded-lg p-1.5 transition cursor-pointer ${
                     view === "table"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
                   }`}
                 >
                   <List size={16} />
@@ -534,10 +719,11 @@ export default function UsersPage() {
                   type="button"
                   onClick={() => setView("grid")}
                   title="Cards view"
-                  className={`rounded-lg p-1.5 transition ${
+                  aria-label="Cards view"
+                  className={`rounded-lg p-1.5 transition cursor-pointer ${
                     view === "grid"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
                   }`}
                 >
                   <LayoutGrid size={16} />
@@ -556,47 +742,6 @@ export default function UsersPage() {
                 </button>
               )}
             </div>
-          </div>
-
-          {/* Role Filter Tabs (Segmented Control) */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto max-w-full">
-            {[
-              { id: "ALL", label: "All Roles", count: roleCounts.ALL },
-              { id: "ADMIN", label: "Admins", count: roleCounts.ADMIN },
-              { id: "SALES_MANAGER", label: "Sales Managers", count: roleCounts.SALES_MANAGER },
-              { id: "SALES_EMPLOYEE", label: "Sales Reps", count: roleCounts.SALES_EMPLOYEE },
-              { id: "REPORT_VIEWER", label: "Report Viewers", count: roleCounts.REPORT_VIEWER },
-            ].map(({ id, label, count }) => {
-              const active = filters.role === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() =>
-                    setFilters((prev: UsersFilterState) => ({
-                      ...prev,
-                      role: id as UsersFilterState["role"],
-                    }))
-                  }
-                  className={`shrink-0 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
-                    active
-                      ? "bg-white text-slate-900 font-semibold shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                  }`}
-                >
-                  <span>{label}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                      active
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-slate-200/80 text-slate-500"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
           </div>
         </div>
 

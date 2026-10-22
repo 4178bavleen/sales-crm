@@ -4,6 +4,9 @@ import { authenticateToken } from '../auth/auth.middleware.js'
 import { requirePermission } from '../permission/permission.middleware.js'
 import {
   listRoles,
+  createRole,
+  updateRole,
+  deleteRole,
   listPermissions,
   getRolePermissions,
   updateRolePermissions,
@@ -19,6 +22,24 @@ router.get(
   '/roles',
   requirePermission('permissions.view'),
   listRoles,
+)
+
+router.post(
+  '/roles',
+  requirePermission('permissions.manage'),
+  createRole,
+)
+
+router.patch(
+  '/roles/:roleId',
+  requirePermission('permissions.manage'),
+  updateRole,
+)
+
+router.delete(
+  '/roles/:roleId',
+  requirePermission('permissions.manage'),
+  deleteRole,
 )
 
 router.get(

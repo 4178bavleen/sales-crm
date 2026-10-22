@@ -5,7 +5,6 @@ import {
   Bell,
   ChevronDown,
   UserRound,
-  Settings,
   LogOut,
   Check,
   X,
@@ -228,18 +227,6 @@ export default function Topbar() {
                 >
                   <UserCog size={15} />
                   User Management
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfile(false);
-                    navigate("/settings");
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
-                >
-                  <Settings size={15} />
-                  Account Settings
                 </button>
 
                 <div className="my-1 border-t border-slate-100" />

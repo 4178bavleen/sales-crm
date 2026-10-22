@@ -7,7 +7,7 @@ import {
   listDeals,
   getDealById,
   updateDeal,
-  softDeleteDeal,
+  deleteDeal,
   moveDealStage,
   closeDeal,
   getDealOptions,
@@ -306,7 +306,7 @@ export async function deleteDealController(
       return;
     }
 
-    const deal = await softDeleteDeal(id, req.user.id);
+    const deal = await deleteDeal(id, req.user.id);
 
     if (!deal) {
       res.status(404).json({

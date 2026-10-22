@@ -10,8 +10,8 @@ import Customers from "./pages/customers/Customers";
 import Deals from "./pages/deals/Deals";
 import Tasks from "./pages/tasks/Tasks";
 import Profile from "./pages/profile/Profile";
-import Settings from "./pages/settings/Settings";
 import Users from "./pages/users/Users";
+import RolesAndPermissions from "./pages/permissions/RolesAndPermissions";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 import "./App.css";
@@ -35,9 +35,10 @@ function AppShell() {
             <Route path="/deals" element={<Deals />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
             <Route path="/users" element={<Users />} />
             <Route path="/user-management" element={<Users />} />
+            <Route path="/permissions" element={<RolesAndPermissions />} />
+            <Route path="/roles-permissions" element={<RolesAndPermissions />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

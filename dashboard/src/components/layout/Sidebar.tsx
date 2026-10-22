@@ -10,9 +10,9 @@ import {
   Target,
   BarChart3,
   FileText,
-  Settings,
   ChevronDown,
   UserCog,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
@@ -25,18 +25,18 @@ const primaryNav = [
   { name: "Customers", path: "/customers", icon: UserRound },
 ];
 
-const salesNav = [
+const salesNav = [                
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
   { name: "Meetings", path: "/meetings", icon: CalendarDays },
-  { name: "Sales Pipeline", path: "/deals", icon: GitFork },
+  { name: "Deals & Pipeline", path: "/deals", icon: GitFork },
   { name: "Sales Targets", path: "/targets", icon: Target },
 ];
 
 const managementNav = [
   { name: "User Management", path: "/users", icon: UserCog },
+  { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck },
   { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Documents", path: "/documents", icon: FileText },
-  { name: "Settings", path: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
