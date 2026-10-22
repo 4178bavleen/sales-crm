@@ -24,8 +24,7 @@ import {
   taskCsvFields,
   taskStatusLabels,
   taskStatusStyles,
-  todayIso,
-} from "../../data/taskColumns";
+} from "./taskColumns";
 import type { TaskDueFilter, TasksFilter } from "../../types/tasksPage";
 import TaskForm from "../../components/ui/TaskForm";
 import DataTable, { TablePagination } from "../../components/ui/DataTable";
@@ -39,10 +38,6 @@ import TaskDetailDialog from "../../components/ui/TaskDetailDialog";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
-import { initialLeads } from "../../data/leads";
-import { initialDeals } from "../../data/deals";
-import { initialCustomers } from "../../data/customers";
-import { initialCompanies } from "../../data/companies";
 
 type ApiTask = {
   id: number;
@@ -58,6 +53,7 @@ type ApiTask = {
   completedBy?: { id: number; name: string } | null;
   completedAt: string | null;
   completionNote: string | null;
+  cancelReason?: { id: number; name: string } | null;
   rescheduleCount: number;
   lead?: { id: number; contactName: string; companyName: string | null } | null;
   deal?: { id: number; name: string } | null;
@@ -74,20 +70,27 @@ function mapApiTask(item: ApiTask): Task {
     title: item.title,
     description: item.description ?? "",
     assignedTo: item.assignedTo?.name ?? "",
+    assignedToId: item.assignedToId,
     createdBy: item.createdBy?.name ?? "",
-    dueAt: item.dueAt,
+    createdById: item.createdById,
+    dueAt: item.dueAt ? item.dueAt.slice(0, 10) : "",
     priority: item.priority,
     status: item.status,
-    completedAt: item.completedAt ?? "",
+    completedAt: item.completedAt ? item.completedAt.slice(0, 10) : "",
     completedBy: item.completedBy?.name ?? "",
     completionNote: item.completionNote ?? "",
-    cancelReason: "",
+    cancelReason: item.cancelReason?.name ?? "",
     rescheduleCount: item.rescheduleCount ?? 0,
     lead: item.lead?.contactName ?? "",
+    leadId: item.lead?.id ?? null,
     deal: item.deal?.name ?? "",
+    dealId: item.deal?.id ?? null,
     customer: item.customer ? `Customer #${item.customer.id}` : "",
+    customerId: item.customer?.id ?? null,
     company: item.company?.name ?? "",
+    companyId: item.company?.id ?? null,
     meeting: item.meeting?.title ?? "",
+    meetingId: item.meeting?.id ?? null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -104,50 +107,30 @@ const iconButtonActive = "border-blue-100 bg-blue-50 text-blue-600";
 const searchInputClass =
   "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
-/** Form values -> the stored Task, filling server-maintained fields. */
-function toTask(id: number, values: TaskFormValues, today: string): Task {
-  return {
-    id,
-    title: values.title,
-    description: values.description,
-    assignedTo: values.assignedTo,
-    createdBy: "Gabriel Deora",
-    dueAt: values.dueAt,
-    priority: values.priority,
-    status: values.status,
-    completedAt: values.completedAt,
-    completedBy: values.completedBy,
-    completionNote: values.completionNote,
-    cancelReason: values.cancelReason,
-    rescheduleCount: 0,
-    lead: values.lead,
-    deal: values.deal,
-    customer: values.customer,
-    company: values.company,
-    meeting: values.meeting,
-    createdAt: today,
-    updatedAt: today,
-  };
-}
-
 /** Stored Task -> form values. */
 function toFormValues(task: Task): TaskFormValues {
   return {
     title: task.title,
     description: task.description,
     assignedTo: task.assignedTo,
-    dueAt: task.dueAt,
+    assignedToId: task.assignedToId,
+    dueAt: task.dueAt ? task.dueAt.slice(0, 10) : "",
     priority: task.priority,
     status: task.status,
-    completedAt: task.completedAt,
+    completedAt: task.completedAt ? task.completedAt.slice(0, 10) : "",
     completedBy: task.completedBy,
     completionNote: task.completionNote,
     cancelReason: task.cancelReason,
     lead: task.lead,
+    leadId: task.leadId ?? null,
     deal: task.deal,
+    dealId: task.dealId ?? null,
     customer: task.customer,
+    customerId: task.customerId ?? null,
     company: task.company,
+    companyId: task.companyId ?? null,
     meeting: task.meeting,
+    meetingId: task.meetingId ?? null,
   };
 }
 
@@ -338,27 +321,6 @@ export default function Tasks() {
     setFormValues(toFormValues(task));
     setDetailTask(null);
   }
-  type ApiUser = {
-    id: number;
-    name: string;
-    email: string;
-    isActive: boolean;
-  };
-
-  type ApiUsersResponse = {
-    success: boolean;
-    message: string;
-    data: {
-      users: ApiUser[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-      };
-    };
-  }
-
   async function saveTask(values: TaskFormValues) {
     const token = getSession()?.token;
       console.log("saveTask called with payload:", values);
@@ -372,63 +334,20 @@ export default function Tasks() {
       setApiError("");
 
       if (formTaskId === null) {
-        // Resolve the selected assignee to a real backend user ID.
-        const response = await request<ApiUsersResponse>(
-          ENDPOINTS.users.list,
-          { token }
-        );
-  
-        const users = response.data.users.filter(user => user.isActive);
+        let assignedToId = values.assignedToId;
 
-        const assignee = users.find(
-          user => user.name === values.assignedTo
-        );
-
-        if (!assignee) {
-          setApiError(
-            "Selected assignee does not exist. Select an active backend user."
+        if (!assignedToId) {
+          const opts = await request<{ users: { id: number; name: string }[] }>(
+            ENDPOINTS.tasks.options,
+            { token },
           );
-          return;
+          const found = opts.users.find((u) => u.name === values.assignedTo);
+          if (found) assignedToId = found.id;
         }
 
-        if (!assignee) {
-          setApiError("Selected assignee was not found in the backend.");
+        if (!assignedToId) {
+          setApiError("Please select a valid assignee.");
           return;
-        }
-
-        // Map form values to IDs for related records
-        let leadId: number | null = null;
-        let dealId: number | null = null;
-        let customerId: number | null = null;
-        let companyId: number | null = null;
-        
-        if (values.lead) {
-          const lead = initialLeads.find(
-            (l) => `${l.firstName} ${l.lastName}` === values.lead,
-          );
-          if (lead) leadId = lead.id;
-        } else if (values.deal) {
-          const deal = initialDeals.find((d) => d.name === values.deal);
-          if (deal) dealId = deal.id;
-        } else if (values.customer) {
-          const customer = initialCustomers.find(
-            (c) => c.company === values.customer || `Customer #${c.id}` === values.customer,
-          );
-          if (customer) customerId = customer.id;
-        } else if (values.company) {
-          const company = initialCompanies.find((c) => c.name === values.company);
-          if (company) companyId = company.id;
-        } else {
-          // If nothing linked, try to link to first lead as fallback (backend requires exactly one)
-          if (initialLeads.length > 0) {
-            leadId = initialLeads[0].id;
-          } else if (initialDeals.length > 0) {
-            dealId = initialDeals[0].id;
-          } else if (initialCustomers.length > 0) {
-            customerId = initialCustomers[0].id;
-          } else if (initialCompanies.length > 0) {
-            companyId = initialCompanies[0].id;
-          }
         }
 
         const payload = {
@@ -436,11 +355,10 @@ export default function Tasks() {
           description: values.description || null,
           dueAt: new Date(values.dueAt).toISOString(),
           priority: values.priority,
-          assignedToId: assignee.id,
-          leadId,
-          dealId,
-          customerId,
-          companyId,
+          status: values.status,
+          assignedToId,
+          leadId: values.leadId ?? null,
+          dealId: values.dealId ?? null,
         };
 
         await request(ENDPOINTS.tasks.create, {
@@ -449,26 +367,38 @@ export default function Tasks() {
           body: payload,
         });
       } else {
-        // Editing requires the existing task ID.
+        const updatePayload: Record<string, unknown> = {
+          title: values.title,
+          description: values.description || null,
+          dueAt: new Date(values.dueAt).toISOString(),
+          priority: values.priority,
+          status: values.status,
+        };
+
+        if (values.assignedToId) {
+          updatePayload.assignedToId = values.assignedToId;
+        }
+        if (values.leadId !== undefined) {
+          updatePayload.leadId = values.leadId;
+        }
+        if (values.dealId !== undefined) {
+          updatePayload.dealId = values.dealId;
+        }
+
         await request(ENDPOINTS.tasks.update(formTaskId), {
           method: "PATCH",
           token,
-          body: {
-            title: values.title,
-            description: values.description || null,
-            dueAt: new Date(values.dueAt).toISOString(),
-            priority: values.priority,
-          },
+          body: updatePayload,
         });
       }
 
       setFormValues(null);
       setFormTaskId(null);
 
-      // Reload from the database instead of adding a fake local task.
+      // Reload from the database
       const result = await request<{ items: ApiTask[] }>(
         ENDPOINTS.tasks.list,
-        { token }
+        { token },
       );
 
       setTasks(result.items.map(mapApiTask));
@@ -477,44 +407,74 @@ export default function Tasks() {
       setApiError(
         error instanceof ApiError
           ? error.message
-          : "Unable to save the task. Please try again."
+          : "Unable to save the task. Please try again.",
       );
     }
   }
 
-  function deleteTask(id: number) {
-    setTasks(previous => previous.filter(task => task.id !== id));
-    setSelectedIds(previous => previous.filter(item => item !== id));
-    setDetailTask(null);
+  async function deleteTask(id: number) {
+    const token = getSession()?.token;
+    if (!token) {
+      setApiError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      setApiError("");
+      await request(ENDPOINTS.tasks.delete(id), {
+        method: "DELETE",
+        token,
+      });
+
+      setTasks(previous => previous.filter(task => task.id !== id));
+      setSelectedIds(previous => previous.filter(item => item !== id));
+      if (detailTask?.id === id) setDetailTask(null);
+    } catch (error) {
+      setApiError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to delete the task. Please try again.",
+      );
+    }
   }
 
-  /** Toggle a task straight to Completed, recording who and when. */
-  function toggleComplete(task: Task) {
-    const today = todayIso();
-    const completing = task.status !== "COMPLETED";
-    setTasks(previous =>
-      previous.map(item =>
-        item.id === task.id
-          ? completing
-            ? {
-              ...item,
-              status: "COMPLETED",
-              completedAt: today,
-              completedBy: item.assignedTo,
-              cancelReason: "",
-              updatedAt: today,
-            }
-            : {
-              ...item,
-              status: "OPEN",
-              completedAt: "",
-              completedBy: "",
-              completionNote: "",
-              updatedAt: today,
-            }
-          : item,
-      ),
-    );
+  /** Toggle a task straight to Completed / Open via backend PATCH /status. */
+  async function toggleComplete(task: Task) {
+    const token = getSession()?.token;
+    if (!token) {
+      setApiError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    const nextStatus = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
+
+    try {
+      setApiError("");
+      const updated = await request<ApiTask>(
+        ENDPOINTS.tasks.updateStatus(task.id),
+        {
+          method: "PATCH",
+          token,
+          body: {
+            status: nextStatus,
+          },
+        },
+      );
+
+      const mapped = mapApiTask(updated);
+      setTasks(previous =>
+        previous.map(item => (item.id === task.id ? mapped : item)),
+      );
+      if (detailTask?.id === task.id) {
+        setDetailTask(mapped);
+      }
+    } catch (error) {
+      setApiError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to update task status. Please try again.",
+      );
+    }
   }
 
   function exportCsv() {
@@ -744,6 +704,19 @@ export default function Tasks() {
         </div>
       </div>
 
+      {apiError && (
+        <div className="mx-6 mt-3 flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs text-rose-700">
+          <span>{apiError}</span>
+          <button
+            type="button"
+            onClick={() => setApiError("")}
+            className="ml-3 font-semibold underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Main workspace */}
       <div className="flex h-[calc(100vh-220px)] min-h-0 items-stretch overflow-hidden">
         {showFilters && (
@@ -820,31 +793,42 @@ export default function Tasks() {
                 </>
               )}
               empty={
-                <div>
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                    <Search size={20} className="text-slate-400" />
+                loading ? (
+                  <div className="py-12 text-center text-slate-500">
+                    <p className="text-sm font-medium">Loading tasks...</p>
                   </div>
-                  <p className="mt-3 text-sm font-medium text-slate-700">
-                    No tasks found
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Try changing your search or filters.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="mt-3 text-xs font-medium text-blue-600 hover:underline"
-                  >
-                    Clear filters
-                  </button>
-                </div>
+                ) : (
+                  <div>
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                      <Search size={20} className="text-slate-400" />
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-slate-700">
+                      No tasks found
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Try changing your search or filters.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="mt-3 text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )
               }
             />
           )}
 
           {view === "grid" && (
             <div className="grid min-h-0 flex-1 gap-3 overflow-auto p-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pageTasks.map(task => (
+              {loading && (
+                <p className="col-span-full py-16 text-center text-sm text-slate-500">
+                  Loading tasks...
+                </p>
+              )}
+              {!loading && pageTasks.map(task => (
                 <button
                   key={task.id}
                   type="button"
@@ -886,7 +870,7 @@ export default function Tasks() {
                   </div>
                 </button>
               ))}
-              {pageTasks.length === 0 && (
+              {!loading && pageTasks.length === 0 && (
                 <p className="col-span-full py-16 text-center text-sm text-slate-500">
                   No tasks match your filters.
                 </p>

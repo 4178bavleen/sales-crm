@@ -54,13 +54,17 @@ export function toLead(backendLead: BackendLead): Lead {
     email: backendLead.email || "",
     phone: backendLead.phone || "",
     source: backendLead.source?.name || "Unknown",
+    sourceId: backendLead.sourceId ?? backendLead.source?.id ?? null,
+    productService: backendLead.productService?.name || undefined,
     owner: backendLead.owner?.name || "Unassigned",
+    ownerId: backendLead.ownerId ?? backendLead.owner?.id ?? null,
     status: backendLead.status,
     priority: backendLead.priority,
     createdAt: backendLead.createdAt ? backendLead.createdAt.slice(0, 10) : "",
     notes: backendLead.notes || undefined,
     nextFollowUpAt: backendLead.nextFollowUpAt || undefined,
     noFollowUp: !backendLead.nextFollowUpAt && !!backendLead.noFollowUpReasonId,
+    noFollowUpReasonId: backendLead.noFollowUpReasonId ?? null,
   };
 }
 
@@ -137,12 +141,16 @@ export type CreateLeadInput = {
   email?: string;
   phone?: string;
   source?: string;
+  sourceId?: number | null;
+  productService?: string;
   owner?: string;
+  ownerId?: number | null;
   priority?: Priority;
   status?: LeadStatus;
   notes?: string;
   nextFollowUpAt?: string;
   noFollowUp?: boolean;
+  noFollowUpReasonId?: number | null;
 };
 
 /**
@@ -154,8 +162,8 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
 
   const contactName = `${lead.firstName} ${lead.lastName || ""}`.trim();
 
-  let sourceId: number | undefined;
-  if (lead.source) {
+  let sourceId = lead.sourceId;
+  if (sourceId === undefined && lead.source) {
     const s = lead.source.toLowerCase().trim();
     if (s.includes("web") && !s.includes("webinar")) sourceId = 1;
     else if (s.includes("referral")) sourceId = 2;
@@ -163,6 +171,20 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
     else if (s.includes("ad") || s.includes("google")) sourceId = 4;
     else if (s.includes("cold")) sourceId = 5;
     else if (s.includes("webinar") || s.includes("seminar")) sourceId = 6;
+  }
+
+  let ownerId = lead.ownerId;
+  if (ownerId === undefined) {
+    if (lead.owner) {
+      const o = lead.owner.toLowerCase().trim();
+      if (o === "unassigned") ownerId = null;
+      else if (o.includes("marcus")) ownerId = 3;
+      else if (o.includes("priya")) ownerId = 2;
+      else if (o.includes("admin")) ownerId = 1;
+      else ownerId = session.user?.id ?? 1;
+    } else {
+      ownerId = session.user?.id ?? 1;
+    }
   }
 
   const payload: Record<string, unknown> = {
@@ -175,22 +197,82 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
   if (lead.phone?.trim()) payload.phone = lead.phone.trim();
   if (lead.email?.trim()) payload.email = lead.email.trim();
   if (lead.notes?.trim()) payload.notes = lead.notes.trim();
-  if (sourceId !== undefined) payload.sourceId = sourceId;
+  if (sourceId !== undefined && sourceId !== null) payload.sourceId = sourceId;
+  if (ownerId !== undefined) payload.ownerId = ownerId;
 
   if (lead.nextFollowUpAt) {
     payload.nextFollowUpAt = new Date(lead.nextFollowUpAt).toISOString();
-  } else if (lead.noFollowUp) {
-    payload.noFollowUpReasonId = 7;
-  }
-
-  if (session.user?.id) {
-    payload.ownerId = session.user.id;
+  } else if (lead.noFollowUp || lead.noFollowUpReasonId) {
+    payload.noFollowUpReasonId = lead.noFollowUpReasonId ?? 7;
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.list, {
     method: "POST",
     token: session.token,
     body: payload,
+  });
+
+  return toLead(res.lead);
+}
+
+/**
+ * Update general lead details via PATCH /api/v1/leads/:id.
+ */
+export async function updateLead(id: number, updates: Partial<CreateLeadInput>): Promise<Lead> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  const payload: Record<string, unknown> = {};
+  if (updates.firstName !== undefined || updates.lastName !== undefined) {
+    payload.contactName = `${updates.firstName || ""} ${updates.lastName || ""}`.trim();
+  }
+  if (updates.company !== undefined) payload.companyName = updates.company.trim() || null;
+  if (updates.phone !== undefined) payload.phone = updates.phone.trim() || null;
+  if (updates.email !== undefined) payload.email = updates.email.trim() || null;
+  if (updates.notes !== undefined) payload.notes = updates.notes.trim() || null;
+  if (updates.priority !== undefined) payload.priority = updates.priority;
+  if (updates.sourceId !== undefined) payload.sourceId = updates.sourceId;
+
+  if (updates.nextFollowUpAt) {
+    payload.nextFollowUpAt = new Date(updates.nextFollowUpAt).toISOString();
+    payload.noFollowUpReasonId = null;
+  } else if (updates.noFollowUp || updates.noFollowUpReasonId) {
+    payload.nextFollowUpAt = null;
+    payload.noFollowUpReasonId = updates.noFollowUpReasonId ?? 7;
+  }
+
+  if (Object.keys(payload).length > 0) {
+    await request<{ lead: BackendLead }>(ENDPOINTS.leads.byId(id), {
+      method: "PATCH",
+      token: session.token,
+      body: payload,
+    });
+  }
+
+  // If status is provided and changed
+  if (updates.status) {
+    await updateLeadStatus(id, updates.status);
+  }
+
+  // If ownerId is provided and changed
+  if (updates.ownerId !== undefined) {
+    await assignLead(id, updates.ownerId);
+  }
+
+  return getLeadById(id);
+}
+
+/**
+ * Assign lead to an owner via PATCH /api/v1/leads/:id/assign.
+ */
+export async function assignLead(id: number, ownerId: number | null): Promise<Lead> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  const res = await request<{ lead: BackendLead }>(`${ENDPOINTS.leads.byId(id)}/assign`, {
+    method: "PATCH",
+    token: session.token,
+    body: { ownerId },
   });
 
   return toLead(res.lead);
@@ -232,6 +314,26 @@ export async function deleteLead(id: number): Promise<void> {
 
   await request<{ id: number; deleted: boolean }>(ENDPOINTS.leads.byId(id), {
     method: "DELETE",
+    token: session.token,
+  });
+}
+
+export type LeadOptionsData = {
+  sources: { id: number; name: string }[];
+  owners: { id: number; name: string; email?: string }[];
+  statuses?: LeadStatus[];
+  priorities?: Priority[];
+  noFollowUpReasons?: { id: number; name: string }[];
+};
+
+/**
+ * Fetch lead options (sources and owners) from the backend API.
+ */
+export async function fetchLeadOptions(): Promise<LeadOptionsData> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  return request<LeadOptionsData>(ENDPOINTS.leads.options, {
     token: session.token,
   });
 }

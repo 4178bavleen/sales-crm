@@ -9,8 +9,10 @@ export type {
 } from "./formControls";
 
 export type CreateLeadFormProps = {
+  initialLead?: Lead | null;
   onClose: () => void;
-  onCreate: (lead: Lead) => void;
+  onCreate: (lead: Lead) => Promise<void> | void;
+  onUpdate?: (id: number, lead: Lead) => Promise<void> | void;
 };
 
 export type FormValues = {
@@ -21,6 +23,7 @@ export type FormValues = {
   email: string;
   phone: string;
   source: string;
+  productService?: string;
   status: LeadStatus | "";
   priority: Priority;
   notes: string;

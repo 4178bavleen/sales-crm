@@ -42,19 +42,24 @@ export const ENDPOINTS = {
     /** GET / PATCH / DELETE — the method is chosen by the caller. */
     byId: (id: number) => `/users/${id}`,
   },
+  /** Leads management. */
+  leads: {
+    list: "/leads",
+    options: "/leads/options",
+    stats: "/leads/stats",
+    byId: (id: number) => `/leads/${id}`,
+    assign: (id: number) => `/leads/${id}/assign`,
+    status: (id: number) => `/leads/${id}/status`,
+  },
   
   tasks: {
     list: "/tasks",
+    options: "/tasks/options",
     byId: (id: number) => `/tasks/${id}`,
     create: "/tasks",
     update: (id: number) => `/tasks/${id}`,
     updateStatus: (id: number) => `/tasks/${id}/status`,
     delete: (id: number) => `/tasks/${id}`,
-  },
-
-  leads: {
-    list: "/leads",
-    byId: (id: number) => `/leads/${id}`,
   },
 
   deals: {

@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.js'
-import { TaskStatus } from '../../generated/prisma/client.js'
+import { Priority, TaskStatus } from '../../generated/prisma/client.js'
 
 type TaskInput = Record<string, unknown>
 
@@ -42,6 +42,9 @@ const taskInclude = {
     },
     meeting: {
         select: { id: true, title: true, startsAt: true },
+    },
+    cancelReason: {
+        select: { id: true, name: true },
     },
 } as const
 
@@ -244,3 +247,36 @@ export async function deleteTask(id: number) {
 
     return prisma.task.delete({ where: { id } })
 }
+
+export async function getTaskOptions() {
+    const [users, leads, deals] = await Promise.all([
+        prisma.user.findMany({
+            where: { isActive: true, deletedAt: null },
+            select: { id: true, name: true, email: true },
+            orderBy: { name: 'asc' },
+        }),
+        prisma.lead.findMany({
+            where: { deletedAt: null },
+            select: { id: true, contactName: true, companyName: true },
+            orderBy: { contactName: 'asc' },
+            take: 100,
+        }),
+        prisma.deal.findMany({
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+            take: 100,
+        }),
+    ])
+
+    const priorities: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+    const statuses: TaskStatus[] = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+
+    return {
+        users,
+        leads,
+        deals,
+        priorities,
+        statuses,
+    }
+}
+
