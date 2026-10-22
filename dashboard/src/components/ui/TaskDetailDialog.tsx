@@ -8,7 +8,7 @@ import {
   taskDetailFields,
   taskStatusLabels,
   taskStatusStyles,
-} from "../../data/taskColumns";
+} from "../../pages/tasks/taskColumns";
 
 /**
  * Centered modal showing a single task's details.

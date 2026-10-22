@@ -54,6 +54,7 @@ export const ENDPOINTS = {
   
   tasks: {
     list: "/tasks",
+    options: "/tasks/options",
     byId: (id: number) => `/tasks/${id}`,
     create: "/tasks",
     update: (id: number) => `/tasks/${id}`,

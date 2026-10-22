@@ -13,9 +13,9 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import type { TaskColumn, TaskCsvField, TaskField } from "../types/taskUi";
-import type { Priority, TaskLinkKind, TaskStatus } from "../types/task";
-import { TASK_LINK_LABELS } from "../types/task";
+import type { TaskColumn, TaskCsvField, TaskField } from "../../types/taskUi";
+import type { Priority, TaskLinkKind, TaskStatus } from "../../types/task";
+import { TASK_LINK_LABELS } from "../../types/task";
 
 export function formatTaskDate(date: string) {
   if (!date) return "—";

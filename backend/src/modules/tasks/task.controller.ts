@@ -4,6 +4,7 @@ import {
   createTask,
   deleteTask,
   getTaskById,
+  getTaskOptions,
   listTasks,
   TaskServiceError,
   updateTask,
@@ -186,6 +187,22 @@ export async function deleteTaskController(
     res.json({
       success: true,
       message: 'Task deleted successfully',
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+export async function getTaskOptionsController(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const options = await getTaskOptions()
+    res.json({
+      success: true,
+      data: options,
     })
   } catch (error) {
     handleError(error, res, next)

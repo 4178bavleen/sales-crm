@@ -41,8 +41,10 @@ export type Task = {
   description: string;
   /** Resolved from Task.assignedToId -> User.name. */
   assignedTo: string;
+  assignedToId?: number;
   /** Resolved from Task.createdById -> User.name. */
   createdBy: string;
+  createdById?: number;
   /** Task.dueAt (ISO date). Required in the schema. */
   dueAt: string;
   priority: Priority;
@@ -65,14 +67,19 @@ export type Task = {
   // The five optional links. Empty string means "not linked".
   /** Resolved from Task.leadId -> Lead name. */
   lead: string;
+  leadId?: number | null;
   /** Resolved from Task.dealId -> Deal.name. */
   deal: string;
+  dealId?: number | null;
   /** Resolved from Task.customerId -> Customer (shown as its company name). */
   customer: string;
+  customerId?: number | null;
   /** Resolved from Task.companyId -> Company.name. */
   company: string;
+  companyId?: number | null;
   /** Resolved from Task.meetingId -> Meeting.title. */
   meeting: string;
+  meetingId?: number | null;
 
   /** ISO date strings (Task.createdAt / updatedAt). */
   createdAt: string;
@@ -84,6 +91,7 @@ export type TaskFormValues = {
   title: string;
   description: string;
   assignedTo: string;
+  assignedToId?: number;
   dueAt: string;
   priority: Priority;
   status: TaskStatus;
@@ -92,10 +100,15 @@ export type TaskFormValues = {
   completionNote: string;
   cancelReason: string;
   lead: string;
+  leadId?: number | null;
   deal: string;
+  dealId?: number | null;
   customer: string;
+  customerId?: number | null;
   company: string;
+  companyId?: number | null;
   meeting: string;
+  meetingId?: number | null;
 };
 
 /** Priority options (Prisma enum Priority), highest first for display. */

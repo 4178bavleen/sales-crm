@@ -14,9 +14,6 @@ import {
 } from "../../types/task";
 import type { TaskFormProps } from "../../types/taskForm";
 import { cellClass } from "../../types/formControls";
-import { initialDeals } from "../../data/deals";
-import { initialCustomers } from "../../data/customers";
-import { initialCompanies } from "../../data/companies";
 import {
   Field,
   FormSection,
@@ -31,14 +28,27 @@ import { ENDPOINTS } from "../../lib/endpoints";
 type ApiUser = {
   id: number;
   name: string;
+  email: string;
   isActive?: boolean;
 };
 
-type UsersApiResponse = {
-  users?: ApiUser[];
-  data?: {
-    users?: ApiUser[];
-  };
+type ApiLeadOption = {
+  id: number;
+  contactName: string;
+  companyName: string | null;
+};
+
+type ApiDealOption = {
+  id: number;
+  name: string;
+};
+
+type TaskOptionsResponse = {
+  users: ApiUser[];
+  leads: ApiLeadOption[];
+  deals: ApiDealOption[];
+  priorities: Priority[];
+  statuses: TaskStatus[];
 };
 
 const emptyValues: TaskFormValues = {
@@ -111,19 +121,20 @@ export default function TaskForm({
   const initialValues: TaskFormValues = values ?? emptyValues;
   const [form, setForm] = useState<TaskFormValues>(initialValues);
   const [showErrors, setShowErrors] = useState(false);
+  const [options, setOptions] = useState<TaskOptionsResponse | null>(null);
   const [users, setUsers] = useState<ApiUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [usersError, setUsersError] = useState("");
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
 
   const isEdit = mode === "edit";
 
-  // Load active assignees from the backend instead of using a hardcoded list.
+  // Load task options (users, leads, deals, priorities, statuses) from the backend.
   useEffect(() => {
     let cancelled = false;
 
-    async function loadUsers() {
-      setLoadingUsers(true);
-      setUsersError("");
+    async function loadOptions() {
+      setLoadingOptions(true);
+      setOptionsError("");
 
       try {
         const token = getSession()?.token;
@@ -131,36 +142,33 @@ export default function TaskForm({
           throw new Error("Your session has expired. Please sign in again.");
         }
 
-        const response = await request<UsersApiResponse>(
-          ENDPOINTS.users.list,
+        const res = await request<TaskOptionsResponse>(
+          ENDPOINTS.tasks.options,
           { token },
         );
 
-        // Support both an already-unwrapped API response and a full { data } response.
-        const payload = response as UsersApiResponse;
-        const fetchedUsers = payload.users ?? payload.data?.users ?? [];
-        const activeUsers = fetchedUsers.filter(
-          (user) => user.isActive !== false && Number.isFinite(user.id) && user.name,
-        );
-
-        if (!cancelled) {
+        if (!cancelled && res) {
+          setOptions(res);
+          const activeUsers = (res.users ?? []).filter(
+            (user) => user.isActive !== false && Number.isFinite(user.id) && user.name,
+          );
           setUsers(activeUsers);
           if (activeUsers.length === 0) {
-            setUsersError("No active users are available to assign.");
+            setOptionsError("No active users are available to assign.");
           }
         }
       } catch (error) {
         if (!cancelled) {
-          setUsersError(
-            error instanceof Error ? error.message : "Unable to load users.",
+          setOptionsError(
+            error instanceof Error ? error.message : "Unable to load task options.",
           );
         }
       } finally {
-        if (!cancelled) setLoadingUsers(false);
+        if (!cancelled) setLoadingOptions(false);
       }
     }
 
-    void loadUsers();
+    void loadOptions();
     return () => {
       cancelled = true;
     };
@@ -177,6 +185,7 @@ export default function TaskForm({
       assignedTo: userNames.includes(previous.assignedTo)
         ? previous.assignedTo
         : users[0].name,
+      assignedToId: users.find((u) => u.name === previous.assignedTo)?.id ?? users[0].id,
       completedBy: userNames.includes(previous.completedBy)
         ? previous.completedBy
         : users[0].name,
@@ -194,8 +203,6 @@ export default function TaskForm({
     setForm(previous => ({ ...previous, [key]: value }));
   }
 
-
-  
   // Esc closes the form (same as the cancel button)
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -205,10 +212,50 @@ export default function TaskForm({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const leadOptions: string[] = [];
-  const dealOptions = initialDeals.map(deal => deal.name);
-  const customerOptions = initialCustomers.map(customer => customer.company);
-  const companyOptions = initialCompanies.map(company => company.name);
+  const leads = options?.leads ?? [];
+  const deals = options?.deals ?? [];
+
+  const leadOptions = [
+    "None",
+    ...leads.map((l) =>
+      l.companyName ? `${l.contactName} (${l.companyName})` : l.contactName,
+    ),
+  ];
+  const dealOptions = ["None", ...deals.map((d) => d.name)];
+
+  function handleLeadChange(label: string) {
+    if (label === "None" || !label) {
+      setForm((prev) => ({ ...prev, lead: "", leadId: null }));
+    } else {
+      const match = leads.find(
+        (l) =>
+          (l.companyName ? `${l.contactName} (${l.companyName})` : l.contactName) ===
+          label,
+      );
+      setForm((prev) => ({
+        ...prev,
+        lead: label,
+        leadId: match ? match.id : null,
+        deal: "",
+        dealId: null,
+      }));
+    }
+  }
+
+  function handleDealChange(label: string) {
+    if (label === "None" || !label) {
+      setForm((prev) => ({ ...prev, deal: "", dealId: null }));
+    } else {
+      const match = deals.find((d) => d.name === label);
+      setForm((prev) => ({
+        ...prev,
+        deal: label,
+        dealId: match ? match.id : null,
+        lead: "",
+        leadId: null,
+      }));
+    }
+  }
 
   const title = form.title.trim();
   const titleInvalid = !title;
@@ -228,10 +275,14 @@ export default function TaskForm({
     const isCompleted = form.status === "COMPLETED";
     const isCancelled = form.status === "CANCELLED";
 
+    const selectedUser = users.find((u) => u.name === form.assignedTo);
+    const assignedToId = form.assignedToId ?? selectedUser?.id;
+
     onSubmit({
       title,
       description: form.description.trim(),
       assignedTo: form.assignedTo,
+      assignedToId,
       dueAt: form.dueAt,
       priority: form.priority,
       status: form.status,
@@ -240,10 +291,15 @@ export default function TaskForm({
       completionNote: isCompleted ? form.completionNote.trim() : "",
       cancelReason: isCancelled ? form.cancelReason : "",
       lead: form.lead,
+      leadId: form.leadId ?? null,
       deal: form.deal,
-      customer: form.customer,
-      company: form.company,
-      meeting: form.meeting,
+      dealId: form.dealId ?? null,
+      customer: "",
+      customerId: null,
+      company: "",
+      companyId: null,
+      meeting: "",
+      meetingId: null,
     });
   }
 
@@ -293,14 +349,21 @@ export default function TaskForm({
           <SelectField
             label="Assignee"
             value={form.assignedTo}
-            onChange={value => update("assignedTo", value)}
+            onChange={(value) => {
+              const matched = users.find((u) => u.name === value);
+              setForm((prev) => ({
+                ...prev,
+                assignedTo: value,
+                assignedToId: matched?.id ?? prev.assignedToId,
+              }));
+            }}
             options={users.map((user) => user.name)}
           />
-          {loadingUsers && (
-            <p className="mt-1 text-xs text-slate-500">Loading users…</p>
+          {loadingOptions && (
+            <p className="mt-1 text-xs text-slate-500">Loading assignees…</p>
           )}
-          {!loadingUsers && usersError && (
-            <p className="mt-1 text-xs text-red-600">{usersError}</p>
+          {!loadingOptions && optionsError && (
+            <p className="mt-1 text-xs text-red-600">{optionsError}</p>
           )}
         </div>
         <div className={cellClass}>
@@ -330,42 +393,26 @@ export default function TaskForm({
         </div>
       </FormSection>
 
-      {/* Maps to: Task.leadId / dealId / customerId / companyId / meetingId */}
+      {/* Maps to: Task.leadId / dealId */}
       <FormSection
         icon={<Handshake size={17} />}
         title="Related To"
-        description="Optionally link this task to a record. Leave blank for a standalone task."
+        description="Optionally link this task to a Lead or Deal. Leave as None for a standalone task."
       >
         <div className={cellClass}>
           <SelectField
             label="Lead"
-            value={form.lead}
-            onChange={value => update("lead", value)}
+            value={form.lead || "None"}
+            onChange={handleLeadChange}
             options={leadOptions}
           />
         </div>
         <div className={cellClass}>
           <SelectField
             label="Deal"
-            value={form.deal}
-            onChange={value => update("deal", value)}
+            value={form.deal || "None"}
+            onChange={handleDealChange}
             options={dealOptions}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Customer"
-            value={form.customer}
-            onChange={value => update("customer", value)}
-            options={customerOptions}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Company"
-            value={form.company}
-            onChange={value => update("company", value)}
-            options={companyOptions}
           />
         </div>
       </FormSection>
