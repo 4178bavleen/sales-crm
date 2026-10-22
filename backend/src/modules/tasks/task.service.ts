@@ -102,9 +102,9 @@ export async function createTask(data: TaskInput, actorId: number) {
         (key) => data[key] !== undefined && data[key] !== null,
     )
 
-    if (links.length !== 1) {
+    if (links.length > 1) {
         throw new TaskServiceError(
-            'A task must be linked to exactly one lead, deal, customer, or company',
+            'A task can be linked to at most one lead, deal, customer, or company',
         )
     }
 
@@ -116,6 +116,7 @@ export async function createTask(data: TaskInput, actorId: number) {
             createdById: actorId,
             dueAt: data.dueAt as Date,
             priority: (data.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') ?? 'MEDIUM',
+            status: (data.status as TaskStatus) ?? 'OPEN',
             leadId: (data.leadId as number | null | undefined) ?? null,
             dealId: (data.dealId as number | null | undefined) ?? null,
             customerId: (data.customerId as number | null | undefined) ?? null,
@@ -194,7 +195,15 @@ export async function updateTask(id: number, data: TaskInput) {
 
     const updated = await prisma.task.update({
         where: { id },
-        data,
+        data: {
+            ...data,
+            ...(data.status === 'COMPLETED' && !existing.completedAt
+                ? { completedAt: new Date() }
+                : {}),
+            ...(data.status === 'OPEN' || data.status === 'IN_PROGRESS'
+                ? { completedAt: null, completedById: null, completionNote: null }
+                : {}),
+        },
         include: taskInclude,
     })
 
@@ -210,13 +219,6 @@ export async function updateTaskStatus(
     const existing = await prisma.task.findUnique({ where: { id } })
     
     if (!existing) throw new TaskServiceError('Task not found', 404)
-
-    if (existing.status === 'COMPLETED' || existing.status === 'CANCELLED') {
-        throw new TaskServiceError(
-            'A completed or cancelled task cannot be changed through this endpoint',
-            409,
-        )
-    }
 
     return prisma.task.update({
         where: { id },
@@ -242,4 +244,3 @@ export async function deleteTask(id: number) {
 
     return prisma.task.delete({ where: { id } })
 }
-

@@ -1,5 +1,5 @@
 
-import { Prisma, DealStatus, StageKind } from "../../generated/prisma/client.js";
+import { Prisma, DealStatus, StageKind ,ReasonType } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/database.js";
 import type { DealInput } from "./deal.validation.js";
 import { DealValidationError } from "./deal.validation.js";
@@ -365,4 +365,199 @@ export async function softDeleteDeal(id: number, actorId: number) {
 
         return deal;
     });
+}
+export async function moveDealStage(
+  dealId: number,
+  stageId: number,
+  actorId: number,
+  note?: string,
+) {
+  return prisma.$transaction(async (tx) => {
+    const deal = await tx.deal.findFirst({
+      where: { id: dealId, deletedAt: null },
+      include: { stage: true },
+    });
+
+    if (!deal) {
+      throw new DealValidationError("Deal not found");
+    }
+
+    if (deal.status !== DealStatus.OPEN) {
+      throw new DealValidationError("Closed deals cannot be moved");
+    }
+
+    const targetStage = await tx.pipelineStage.findFirst({
+      where: {
+        id: stageId,
+        isActive: true,
+        kind: StageKind.OPEN,
+      },
+    });
+
+    if (!targetStage) {
+      throw new DealValidationError("Active open pipeline stage not found");
+    }
+
+    if (deal.stageId === targetStage.id) {
+      return deal;
+    }
+
+    const updatedDeal = await tx.deal.update({
+      where: { id: dealId },
+      data: {
+        stageId: targetStage.id,
+        stageEnteredAt: new Date(),
+        lastActivityAt: new Date(),
+      },
+      include: dealInclude,
+    });
+
+    await tx.dealStageHistory.create({
+      data: {
+        dealId,
+        fromStageId: deal.stageId,
+        toStageId: targetStage.id,
+        changedById: actorId,
+        note: note?.trim() || "Pipeline stage changed",
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId,
+        action: "DEAL_STAGE_CHANGED",
+        entityType: "Deal",
+        entityId: dealId,
+        before: { stageId: deal.stageId, stageName: deal.stage.name },
+        after: { stageId: targetStage.id, stageName: targetStage.name },
+      },
+    });
+
+    return updatedDeal;
+  });
+}
+
+export async function closeDeal(
+  dealId: number,
+  actorId: number,
+  input: {
+    status: "WON" | "LOST";
+    closedRevenue?: number | null;
+    lostReasonId?: number | null;
+    lostNote?: string | null;
+  },
+) {
+  return prisma.$transaction(async (tx) => {
+    const deal = await tx.deal.findFirst({
+      where: { id: dealId, deletedAt: null },
+      include: { stage: true },
+    });
+
+    if (!deal) {
+      throw new DealValidationError("Deal not found");
+    }
+
+    if (deal.status !== DealStatus.OPEN) {
+      throw new DealValidationError("Deal is already closed");
+    }
+
+    if (input.status === DealStatus.LOST && !input.lostReasonId) {
+      throw new DealValidationError("A loss reason is required");
+    }
+
+    if (input.status === DealStatus.WON && input.closedRevenue == null) {
+      throw new DealValidationError("Closed revenue is required for won deals");
+    }
+
+    if (
+      input.closedRevenue != null &&
+      (!Number.isFinite(input.closedRevenue) || input.closedRevenue < 0)
+    ) {
+      throw new DealValidationError("Closed revenue must be a non-negative number");
+    }
+
+    if (input.status === DealStatus.LOST && input.lostReasonId) {
+      const reason = await tx.reason.findFirst({
+        where: {
+          id: input.lostReasonId,
+          type: ReasonType.DEAL_LOST,
+        },
+      });
+
+      if (!reason) {
+        throw new DealValidationError("Invalid deal loss reason");
+      }
+    }
+
+    const targetKind =
+      input.status === DealStatus.WON ? StageKind.WON : StageKind.LOST;
+
+    const targetStage = await tx.pipelineStage.findFirst({
+      where: { kind: targetKind, isActive: true },
+      orderBy: { position: "asc" },
+    });
+
+    if (!targetStage) {
+      throw new DealValidationError(
+        `No active ${input.status.toLowerCase()} pipeline stage is configured`,
+      );
+    }
+
+    const now = new Date();
+
+    const updatedDeal = await tx.deal.update({
+      where: { id: dealId },
+      data: {
+        status: input.status,
+        stageId: targetStage.id,
+        stageEnteredAt: now,
+        lastActivityAt: now,
+        closedAt: now,
+        closedRevenue:
+          input.status === DealStatus.WON && input.closedRevenue != null
+            ? new Prisma.Decimal(input.closedRevenue)
+            : null,
+        lostReasonId:
+          input.status === DealStatus.LOST ? input.lostReasonId : null,
+        lostNote:
+          input.status === DealStatus.LOST
+            ? input.lostNote?.trim() || null
+            : null,
+      },
+      include: dealInclude,
+    });
+
+    await tx.dealStageHistory.create({
+      data: {
+        dealId,
+        fromStageId: deal.stageId,
+        toStageId: targetStage.id,
+        changedById: actorId,
+        note: `Deal closed as ${input.status}`,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId,
+        action: `DEAL_${input.status}`,
+        entityType: "Deal",
+        entityId: dealId,
+        before: {
+          status: deal.status,
+          stageId: deal.stageId,
+          stageName: deal.stage.name,
+        },
+        after: {
+          status: input.status,
+          stageId: targetStage.id,
+          stageName: targetStage.name,
+          closedRevenue: input.closedRevenue ?? null,
+          lostReasonId: input.lostReasonId ?? null,
+        },
+      },
+    });
+
+    return updatedDeal;
+  });
 }

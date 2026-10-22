@@ -9,9 +9,10 @@ async function main(): Promise<void> {
   console.log('🌱 Starting database seed...')
 
  
-  await createAdmin()
+  
   await seedRoles()
   await seedPermissions()
+  await createAdmin()
 
   console.log('✅ Database seed completed.')
 }

@@ -1,3 +1,4 @@
+
 import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../src/config/database.js'
@@ -17,7 +18,6 @@ export async function createAdmin(): Promise<void> {
     throw new Error('Admin password must be at most 72 bytes.')
   }
 
-  // Create the ADMIN role if it does not already exist.
   const adminRole = await prisma.role.upsert({
     where: { name: 'ADMIN' },
     update: {},
@@ -51,12 +51,3 @@ export async function createAdmin(): Promise<void> {
 
   console.log(`Admin account created successfully for ${email}.`)
 }
-
-createAdmin()
-  .catch((error: unknown) => {
-    console.error('Failed to create admin:', error)
-    process.exitCode = 1
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })

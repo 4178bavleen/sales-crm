@@ -38,6 +38,6 @@ router.put(
   requirePermission('permissions.manage'),
   updateRolePermissions,
 )
-router.get('/me', requirePermission('permissions.view'), getMyPermissions)
+router.get('/me', getMyPermissions)
 
 export default router

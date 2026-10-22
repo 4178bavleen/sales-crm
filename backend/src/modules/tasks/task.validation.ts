@@ -51,11 +51,11 @@ export function parseTaskInput(
   }
 
   if (!partial || 'dueAt' in body) {
-    if (typeof body.dueAt !== 'string' || !body.dueAt.trim()) {
+    if (typeof body.dueAt !== 'string' && !(body.dueAt instanceof Date)) {
       throw new TaskValidationError('dueAt is required')
     }
 
-    const dueAt = new Date(body.dueAt)
+    const dueAt = new Date(body.dueAt as string | Date)
 
     if (Number.isNaN(dueAt.getTime())) {
       throw new TaskValidationError('dueAt must be a valid date')
@@ -74,28 +74,41 @@ export function parseTaskInput(
     data.priority = body.priority
   }
 
+  if ('status' in body) {
+    data.status = parseTaskStatus(body.status)
+  }
+
   if ('assignedToId' in body) {
     data.assignedToId = parseId(body.assignedToId, 'assignedToId')
   } else if (!partial) {
     throw new TaskValidationError('assignedToId is required')
   }
 
-  const linkedRecords = ['leadId', 'dealId', 'customerId', 'companyId']
-  const suppliedLinks = linkedRecords.filter((field) => field in body)
+  const linkedRecords = [
+    'leadId',
+    'dealId',
+    'customerId',
+    'companyId',
+  ]
 
-  if (!partial && suppliedLinks.length !== 1) {
+  const activeLinks = linkedRecords.filter(
+    (field) => body[field] !== undefined && body[field] !== null && body[field] !== '',
+  )
+
+  if (activeLinks.length > 1) {
     throw new TaskValidationError(
-      'Provide exactly one of leadId, dealId, customerId, or companyId',
+      'Provide at most one of leadId, dealId, customerId, or companyId',
     )
   }
+  for (const field of linkedRecords) {
+    if (field in body) {
+      const value = body[field]
 
-  for (const field of suppliedLinks) {
-    const value = body[field]
-
-    data[field] =
-      value === null || value === ''
-        ? null
-        : parseId(value, field)
+      data[field] =
+        value === null || value === ''
+          ? null
+          : parseId(value, field)
+    }
   }
 
   if ('meetingId' in body) {

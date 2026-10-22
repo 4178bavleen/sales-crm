@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import type { Priority, TaskFormValues, TaskStatus } from "../../types/task";
 import {
-  TASK_ASSIGNEES,
   TASK_CANCEL_REASONS,
   TASK_PRIORITIES,
   TASK_STATUSES,
@@ -25,16 +24,32 @@ import {
   SelectField,
   TextAreaField,
 } from "./FormControls";
+import { request } from "../../lib/api";
+import { getSession } from "../../lib/auth";
+import { ENDPOINTS } from "../../lib/endpoints";
+
+type ApiUser = {
+  id: number;
+  name: string;
+  isActive?: boolean;
+};
+
+type UsersApiResponse = {
+  users?: ApiUser[];
+  data?: {
+    users?: ApiUser[];
+  };
+};
 
 const emptyValues: TaskFormValues = {
   title: "",
   description: "",
-  assignedTo: TASK_ASSIGNEES[0] ?? "",
+  assignedTo: "",
   dueAt: "",
   priority: "MEDIUM",
   status: "OPEN",
   completedAt: "",
-  completedBy: TASK_ASSIGNEES[0] ?? "",
+  completedBy: "",
   completionNote: "",
   cancelReason: "",
   lead: "",
@@ -96,8 +111,78 @@ export default function TaskForm({
   const initialValues: TaskFormValues = values ?? emptyValues;
   const [form, setForm] = useState<TaskFormValues>(initialValues);
   const [showErrors, setShowErrors] = useState(false);
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState("");
 
   const isEdit = mode === "edit";
+
+  // Load active assignees from the backend instead of using a hardcoded list.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUsers() {
+      setLoadingUsers(true);
+      setUsersError("");
+
+      try {
+        const token = getSession()?.token;
+        if (!token) {
+          throw new Error("Your session has expired. Please sign in again.");
+        }
+
+        const response = await request<UsersApiResponse>(
+          ENDPOINTS.users.list,
+          { token },
+        );
+
+        // Support both an already-unwrapped API response and a full { data } response.
+        const payload = response as UsersApiResponse;
+        const fetchedUsers = payload.users ?? payload.data?.users ?? [];
+        const activeUsers = fetchedUsers.filter(
+          (user) => user.isActive !== false && Number.isFinite(user.id) && user.name,
+        );
+
+        if (!cancelled) {
+          setUsers(activeUsers);
+          if (activeUsers.length === 0) {
+            setUsersError("No active users are available to assign.");
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setUsersError(
+            error instanceof Error ? error.message : "Unable to load users.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingUsers(false);
+      }
+    }
+
+    void loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // For a new task, select the first active user by default once users load.
+  // Existing edit values are preserved.
+  useEffect(() => {
+    if (isEdit || users.length === 0) return;
+
+    const userNames = users.map((user) => user.name);
+    setForm((previous) => ({
+      ...previous,
+      assignedTo: userNames.includes(previous.assignedTo)
+        ? previous.assignedTo
+        : users[0].name,
+      completedBy: userNames.includes(previous.completedBy)
+        ? previous.completedBy
+        : users[0].name,
+    }));
+  }, [isEdit, users]);
+
   const dirty = (Object.keys(initialValues) as (keyof TaskFormValues)[]).some(
     key => form[key] !== initialValues[key],
   );
@@ -109,6 +194,8 @@ export default function TaskForm({
     setForm(previous => ({ ...previous, [key]: value }));
   }
 
+
+  
   // Esc closes the form (same as the cancel button)
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -207,8 +294,14 @@ export default function TaskForm({
             label="Assignee"
             value={form.assignedTo}
             onChange={value => update("assignedTo", value)}
-            options={TASK_ASSIGNEES}
+            options={users.map((user) => user.name)}
           />
+          {loadingUsers && (
+            <p className="mt-1 text-xs text-slate-500">Loading users…</p>
+          )}
+          {!loadingUsers && usersError && (
+            <p className="mt-1 text-xs text-red-600">{usersError}</p>
+          )}
         </div>
         <div className={cellClass}>
           <SelectField
@@ -297,7 +390,7 @@ export default function TaskForm({
               label="Completed By"
               value={form.completedBy}
               onChange={value => update("completedBy", value)}
-              options={TASK_ASSIGNEES}
+              options={users.map((user) => user.name)}
             />
           </div>
           <div className={cellClass}>

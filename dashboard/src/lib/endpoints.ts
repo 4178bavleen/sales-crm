@@ -51,6 +51,26 @@ export const ENDPOINTS = {
     assign: (id: number) => `/leads/${id}/assign`,
     status: (id: number) => `/leads/${id}/status`,
   },
+  
+  tasks: {
+    list: "/tasks",
+    byId: (id: number) => `/tasks/${id}`,
+    create: "/tasks",
+    update: (id: number) => `/tasks/${id}`,
+    updateStatus: (id: number) => `/tasks/${id}/status`,
+    delete: (id: number) => `/tasks/${id}`,
+  },
+
+  leads: {
+    list: "/leads",
+    byId: (id: number) => `/leads/${id}`,
+  },
+
+  deals: {
+    list: "/deals",
+    byId: (id: number) => `/deals/${id}`,
+  },
+
   health: "/health",
 } as const;
 
