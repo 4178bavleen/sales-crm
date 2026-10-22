@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -150,15 +151,23 @@ export default function DataTable<T>({
   minWidth = "min-w-[1050px]",
 }: DataTableProps<T>) {
   const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
 
-  // Close row actions menu on click outside
+  // Close row actions menu on click outside, scroll, or resize
   useEffect(() => {
     if (openMenuId === null) return;
     function close() {
       setOpenMenuId(null);
+      setMenuPosition(null);
     }
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
   }, [openMenuId]);
 
   const rowIds = rows.map(getRowId);
@@ -226,7 +235,9 @@ export default function DataTable<T>({
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={`group transition-colors hover:bg-slate-50/70 ${
                   isSelected ? "bg-blue-50/30" : "bg-white"
-                } ${onRowClick ? "cursor-pointer" : ""}`}
+                } ${onRowClick ? "cursor-pointer" : ""} ${
+                  openMenuId === id ? "relative z-30" : ""
+                }`}
               >
                 {selectable && (
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -243,23 +254,30 @@ export default function DataTable<T>({
                   </td>
                 ))}
                 {renderRowMenu && (
-                  <td className="relative px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={() => setOpenMenuId(openMenuId === id ? null : id)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (openMenuId === id) {
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                          return;
+                        }
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        const openUp = spaceBelow < 250;
+                        setMenuPosition({
+                          top: openUp ? Math.max(10, rect.top - 240) : rect.bottom + 4,
+                          right: Math.max(10, window.innerWidth - rect.right),
+                        });
+                        setOpenMenuId(id);
+                      }}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                       aria-label="Row actions"
                     >
                       <MoreHorizontal size={16} />
                     </button>
-                    {openMenuId === id && (
-                      <div
-                        className="absolute right-4 top-10 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-left"
-                        onClick={() => setOpenMenuId(null)}
-                      >
-                        {renderRowMenu(row)}
-                      </div>
-                    )}
                   </td>
                 )}
               </tr>
@@ -277,10 +295,36 @@ export default function DataTable<T>({
     </div>
   );
 
-  if (!pagination) return table;
+  const activeRow = openMenuId !== null ? rows.find(r => getRowId(r) === openMenuId) : null;
+
+  const content = (
+    <>
+      {table}
+      {openMenuId !== null && menuPosition !== null && activeRow && renderRowMenu && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: `${menuPosition.top}px`,
+            right: `${menuPosition.right}px`,
+          }}
+          className="z-[9999] w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl text-left"
+          onClick={e => {
+            e.stopPropagation();
+            setOpenMenuId(null);
+            setMenuPosition(null);
+          }}
+        >
+          {renderRowMenu(activeRow)}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+
+  if (!pagination) return content;
   return (
     <div>
-      {table}
+      {content}
       <TablePagination {...pagination} />
     </div>
   );
