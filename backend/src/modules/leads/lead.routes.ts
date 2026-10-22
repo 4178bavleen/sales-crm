@@ -6,6 +6,8 @@ import {
   getLead,
   editLead,
   removeLead,
+  getLeadStats,
+  getLeadOptions,
 } from './lead.controller.js'
 import { authenticateToken } from '../auth/auth.middleware.js'
 import { assignLeadController } from './lead.controller.js'
@@ -17,8 +19,10 @@ const router = Router()
 // All lead routes require authentication.
 router.use(authenticateToken)
 
-router.post('/',requirePermission('leads.create'), createLead)
+router.post('/', requirePermission('leads.create'), createLead)
 router.get('/', requirePermission('leads.view'), listLeads)
+router.get('/options', requirePermission('leads.view'), getLeadOptions)
+router.get('/stats', requirePermission('leads.view'), getLeadStats)
 router.get('/:id', requirePermission('leads.view'), getLead)
 router.patch('/:id', requirePermission('leads.edit'), editLead)
 router.delete('/:id', requirePermission('leads.delete'), removeLead)

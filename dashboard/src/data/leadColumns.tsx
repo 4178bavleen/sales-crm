@@ -19,11 +19,18 @@ export const priorityStyles: Record<string, string> = {
 };
 
 export function formatDate(date: string) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  if (!date) return "—";
+  try {
+    const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+    if (isNaN(d.getTime())) return date;
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return date;
+  }
 }
 
 /** Render company logo or icon matching the screenshot */
@@ -93,11 +100,25 @@ export const leadCsvFields: LeadCsvField[] = [
 
 export const leadColumns: LeadColumn[] = [
   {
+    key: "sno",
+    header: "S.No",
+    className: "w-14 text-center text-xs font-medium text-slate-500 whitespace-nowrap",
+    headerClassName: "w-14 text-center whitespace-nowrap",
+    cell: (_lead, index) => (
+      <span className="text-slate-500 font-medium">
+        {typeof index === "number" ? index + 1 : "—"}
+      </span>
+    ),
+  },
+  {
     key: "name",
     header: "Lead Name",
     className: "min-w-[190px]",
     cell: lead => {
-      const initials = `${lead.firstName[0]}${lead.lastName[0]}`;
+      const initials =
+        `${lead.firstName[0] || ""}${lead.lastName[0] || ""}`.trim() ||
+        lead.firstName.slice(0, 2).toUpperCase() ||
+        "L";
       return (
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-[#1d61e7]">
@@ -164,11 +185,13 @@ export const leadColumns: LeadColumn[] = [
     header: "Owner",
     className: "whitespace-nowrap min-w-[140px]",
     cell: lead => {
-      const ownerInitials = lead.owner
+      const ownerInitials = (lead.owner || "Unassigned")
         .split(" ")
-        .map(p => p[0])
+        .map(p => p[0] || "")
+        .filter(Boolean)
         .slice(0, 2)
-        .join("");
+        .join("")
+        .toUpperCase() || "UN";
       return (
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700">

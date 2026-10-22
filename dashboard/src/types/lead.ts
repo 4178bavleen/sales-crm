@@ -23,6 +23,7 @@ export type Lead = {
   email: string;
   phone: string;
   source: string;
+  productService?: string;
   owner: string;
   status: LeadStatus;
   priority: Priority;

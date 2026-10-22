@@ -271,7 +271,7 @@ export async function getLeadStats() {
  * used for disqualifying a lead or for "no follow-up needed".
  */
 export async function getLeadOptions() {
-  const [sources, owners, reasons] = await Promise.all([
+  const [sources, owners, reasons, products] = await Promise.all([
     prisma.leadSource.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
@@ -290,9 +290,14 @@ export async function getLeadOptions() {
       select: { id: true, name: true, type: true },
       orderBy: { name: 'asc' },
     }),
+    prisma.productService.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ])
 
-  return { sources, owners, reasons }
+  return { sources, owners, reasons, products }
 }
 
 export async function getLeadById(id: number) {

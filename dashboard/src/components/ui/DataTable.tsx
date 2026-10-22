@@ -217,7 +217,7 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const id = getRowId(row);
             const isSelected = selectedIds.includes(id);
             return (
@@ -239,7 +239,7 @@ export default function DataTable<T>({
                 )}
                 {columns.map(column => (
                   <td key={column.key} className={`px-4 py-3 text-xs ${column.className ?? ""}`}>
-                    {column.cell(row)}
+                    {column.cell(row, index)}
                   </td>
                 ))}
                 {renderRowMenu && (

@@ -54,6 +54,7 @@ export function toLead(backendLead: BackendLead): Lead {
     email: backendLead.email || "",
     phone: backendLead.phone || "",
     source: backendLead.source?.name || "Unknown",
+    productService: backendLead.productService?.name || undefined,
     owner: backendLead.owner?.name || "Unassigned",
     status: backendLead.status,
     priority: backendLead.priority,
@@ -249,6 +250,25 @@ export async function deleteLead(id: number): Promise<void> {
 
   await request<{ id: number; deleted: boolean }>(ENDPOINTS.leads.byId(id), {
     method: "DELETE",
+    token: session.token,
+  });
+}
+
+export type LeadOptionsData = {
+  sources: { id: number; name: string }[];
+  owners: { id: number; name: string; email: string }[];
+  reasons: { id: number; name: string; type: string }[];
+  products?: { id: number; name: string }[];
+};
+
+/**
+ * Fetch lead options (sources, owners, reasons, products) from the backend API.
+ */
+export async function fetchLeadOptions(): Promise<LeadOptionsData> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  return request<LeadOptionsData>(ENDPOINTS.leads.options, {
     token: session.token,
   });
 }

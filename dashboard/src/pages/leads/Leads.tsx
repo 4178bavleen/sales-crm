@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import * as XLSX from "xlsx";
 import {
   Search,
   Plus,
@@ -7,6 +8,7 @@ import {
   Download,
   RotateCw,
   MoreHorizontal,
+  FileSpreadsheet,
   ChevronDown,
   Users,
   TrendingUp,
@@ -22,6 +24,7 @@ import type { Lead, LeadStatus } from "../../types/lead";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
 import {
   fetchLeads,
+  fetchLeadOptions,
   createLead as createLeadApi,
   updateLeadStatus as updateLeadStatusApi,
   deleteLead as deleteLeadApi,
@@ -55,6 +58,8 @@ export default function Leads() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backendSources, setBackendSources] = useState<string[]>([]);
+  const [backendOwners, setBackendOwners] = useState<string[]>([]);
 
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -75,6 +80,12 @@ export default function Leads() {
 
   useEffect(() => {
     refreshLeads();
+    fetchLeadOptions()
+      .then(data => {
+        if (data.sources) setBackendSources(data.sources.map(s => s.name));
+        if (data.owners) setBackendOwners(data.owners.map(o => o.name));
+      })
+      .catch(() => {});
   }, [refreshLeads]);
 
   useEffect(() => {
@@ -102,12 +113,23 @@ export default function Leads() {
 
   // Compute metrics from current leads
   const metrics = useMemo(() => {
+    const total = leads.length;
+    const newLeads = leads.filter(l => l.status === "NEW").length;
+    const contacted = leads.filter(l => l.status === "CONTACTED").length;
+    const qualified = leads.filter(l => l.status === "QUALIFIED").length;
+    const converted = leads.filter(l => l.status === "CONVERTED").length;
+
     return {
-      total: leads.length,
-      newLeads: leads.filter(l => l.status === "NEW").length,
-      contacted: leads.filter(l => l.status === "CONTACTED").length,
-      qualified: leads.filter(l => l.status === "QUALIFIED").length,
-      converted: leads.filter(l => l.status === "CONVERTED").length,
+      total,
+      newLeads,
+      contacted,
+      qualified,
+      converted,
+      totalPercent: "100%",
+      newPercent: total > 0 ? `${Math.round((newLeads / total) * 100)}%` : "0%",
+      contactedPercent: total > 0 ? `${Math.round((contacted / total) * 100)}%` : "0%",
+      qualifiedPercent: total > 0 ? `${Math.round((qualified / total) * 100)}%` : "0%",
+      convertedPercent: total > 0 ? `${Math.round((converted / total) * 100)}%` : "0%",
     };
   }, [leads]);
 
@@ -119,7 +141,7 @@ export default function Leads() {
     );
 
     return leads.filter(lead => {
-      // Search matching
+      // Search matching across all relevant fields
       const matchesSearch =
         !query ||
         [
@@ -130,6 +152,8 @@ export default function Leads() {
           lead.phone,
           lead.owner,
           lead.source,
+          lead.productService || "",
+          lead.notes || "",
         ].some(value => value.toLowerCase().includes(query));
 
       if (!matchesSearch) return false;
@@ -143,15 +167,20 @@ export default function Leads() {
       // Owner filter
       if (selectedOwner && lead.owner !== selectedOwner) return false;
 
-      // Date range filter
+      // Date range filter dynamically calculated
       if (dateRange === "Today") {
         const todayStr = new Date().toISOString().slice(0, 10);
-        if (lead.createdAt !== todayStr && !lead.createdAt.startsWith("2026-10-19")) return false;
+        if (!lead.createdAt.startsWith(todayStr)) return false;
       } else if (dateRange === "Last 7 Days") {
         const d = new Date();
         d.setDate(d.getDate() - 7);
         const sevenDaysAgo = d.toISOString().slice(0, 10);
-        if (lead.createdAt < sevenDaysAgo && lead.createdAt < "2026-10-12") return false;
+        if (lead.createdAt.slice(0, 10) < sevenDaysAgo) return false;
+      } else if (dateRange === "Last 30 Days") {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        const thirtyDaysAgo = d.toISOString().slice(0, 10);
+        if (lead.createdAt.slice(0, 10) < thirtyDaysAgo) return false;
       }
 
       return true;
@@ -163,6 +192,22 @@ export default function Leads() {
   const startIndex = (currentPage - 1) * pageSize;
   const pageLeads = filteredLeads.slice(startIndex, startIndex + pageSize);
 
+  const paginatedColumns = useMemo(() => {
+    return leadColumns.map(col => {
+      if (col.key === "sno") {
+        return {
+          ...col,
+          cell: (_lead: Lead, index?: number) => (
+            <span className="text-slate-500 font-medium">
+              {startIndex + (index ?? 0) + 1}
+            </span>
+          ),
+        };
+      }
+      return col;
+    });
+  }, [startIndex]);
+
   const hasActiveFilters =
     search !== "" ||
     Object.values(filters).some(list => list.length > 0) ||
@@ -170,20 +215,20 @@ export default function Leads() {
     dateRange !== "All Time";
 
   const availableOwners = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(backendOwners);
     for (const lead of leads) {
       if (lead.owner && lead.owner !== "Unassigned") set.add(lead.owner);
     }
-    return ["All Owners", ...Array.from(set)];
-  }, [leads]);
+    return ["All Owners", ...Array.from(set).sort()];
+  }, [leads, backendOwners]);
 
   const availableSources = useMemo(() => {
-    const set = new Set<string>(LEAD_SOURCES);
+    const set = new Set<string>(backendSources.length > 0 ? backendSources : LEAD_SOURCES);
     for (const lead of leads) {
       if (lead.source) set.add(lead.source);
     }
-    return Array.from(set);
-  }, [leads]);
+    return Array.from(set).sort();
+  }, [leads, backendSources]);
 
   function toggleMultiFilter(key: keyof LeadsFilter, value: string) {
     setFilters(prev => {
@@ -208,7 +253,11 @@ export default function Leads() {
       resetFilters();
       return;
     }
-    setFilters({ ...emptyFilters, status: [status] });
+    if (filters.status.length === 1 && filters.status[0] === status) {
+      setFilters(prev => ({ ...prev, status: [] }));
+    } else {
+      setFilters({ ...emptyFilters, status: [status] });
+    }
     setPage(1);
   }
 
@@ -234,6 +283,7 @@ export default function Leads() {
       resetFilters();
     } catch (err) {
       console.error("Failed to create lead:", err);
+      throw err;
     }
   }
 
@@ -282,6 +332,25 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   }
 
+  function exportExcel() {
+    const data = filteredLeads.map(lead => ({
+      "First Name": lead.firstName,
+      "Last Name": lead.lastName,
+      "Company": lead.company,
+      "Email": lead.email || "",
+      "Phone": lead.phone || "",
+      "Lead Source": lead.source,
+      "Lead Owner": lead.owner,
+      "Lead Status": lead.status,
+      "Priority": lead.priority,
+      "Created At": lead.createdAt,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leads");
+    XLSX.writeFile(workbook, "sales-crm-leads.xlsx");
+  }
+
   function parseCsv(text: string): Record<string, string>[] {
     const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
     if (lines.length < 2) return [];
@@ -324,27 +393,57 @@ export default function Leads() {
     return rows;
   }
 
+  function triggerImport(acceptType: ".csv" | ".xlsx, .xls" | ".csv, .xlsx, .xls") {
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = acceptType;
+      fileInputRef.current.click();
+    }
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       setLoading(true);
-      const text = await file.text();
-      const rows = parseCsv(text);
+      setApiError(null);
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let rows: Record<string, any>[] = [];
+
+      if (ext === "xlsx" || ext === "xls") {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
+      } else {
+        const text = await file.text();
+        rows = parseCsv(text);
+      }
+
+      if (rows.length === 0) {
+        throw new Error("No data rows found in the selected file.");
+      }
+
       for (const row of rows) {
-        const nameParts = (row["contact name"] || row["name"] || "").split(" ");
-        const firstName = row["first name"] || row["firstname"] || nameParts[0] || "Imported";
-        const lastName = row["last name"] || row["lastname"] || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
-        const statusVal = (row["lead status"] || row["status"] || "NEW").toUpperCase();
-        const priorityVal = (row["priority"] || "MEDIUM").toUpperCase();
+        const normalized: Record<string, string> = {};
+        for (const [k, v] of Object.entries(row)) {
+          normalized[k.trim().toLowerCase()] = String(v ?? "").trim();
+        }
+
+        const nameParts = (normalized["contact name"] || normalized["name"] || "").split(" ");
+        const firstName = normalized["first name"] || normalized["firstname"] || nameParts[0] || "Imported";
+        const lastName = normalized["last name"] || normalized["lastname"] || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+        const statusVal = (normalized["lead status"] || normalized["status"] || "NEW").toUpperCase();
+        const priorityVal = (normalized["priority"] || "MEDIUM").toUpperCase();
+
         await createLeadApi({
           firstName,
           lastName,
-          company: row["company"] || row["company name"] || undefined,
-          email: row["email"] || undefined,
-          phone: row["phone"] || row["phone number"] || undefined,
-          source: row["lead source"] || row["source"] || "Website",
-          productService: row["product"] || row["product / service"] || row["service"] || undefined,
+          company: normalized["company"] || normalized["company name"] || undefined,
+          email: normalized["email"] || undefined,
+          phone: normalized["phone"] || normalized["phone number"] || undefined,
+          source: normalized["lead source"] || normalized["source"] || "Website",
+          productService: normalized["product"] || normalized["product / service"] || normalized["service"] || undefined,
           status: (["NEW", "CONTACTED", "QUALIFIED", "CONVERTED"].includes(statusVal) ? statusVal : "NEW") as LeadStatus,
           priority: (["LOW", "MEDIUM", "HIGH", "URGENT"].includes(priorityVal) ? priorityVal : "MEDIUM") as any,
           noFollowUp: true,
@@ -353,7 +452,7 @@ export default function Leads() {
       await refreshLeads();
     } catch (err) {
       console.error("Import failed:", err);
-      setApiError(err instanceof Error ? err.message : "Failed to import CSV");
+      setApiError(err instanceof Error ? err.message : "Failed to import file");
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -387,19 +486,10 @@ export default function Leads() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv, .xlsx, .xls"
             className="hidden"
             onChange={handleFileUpload}
           />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
-          >
-            <Upload size={14} className="text-slate-500" />
-            Import
-          </button>
 
           <button
             type="button"
@@ -422,29 +512,60 @@ export default function Leads() {
             </button>
 
             {showMoreMenu && (
-              <div className="absolute right-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              <div className="absolute right-0 top-9 z-30 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Export Options
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     setShowMoreMenu(false);
                     exportCsv();
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Download size={14} className="text-slate-400" />
-                  Export CSV
+                  Export as CSV
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowMoreMenu(false);
-                    fileInputRef.current?.click();
+                    exportExcel();
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <FileSpreadsheet size={14} className="text-emerald-600" />
+                  Export as Excel (.xlsx)
+                </button>
+
+                <div className="my-1 border-t border-slate-100" />
+                <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Import Options
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    triggerImport(".csv");
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Upload size={14} className="text-slate-400" />
-                  Import CSV
+                  Import CSV (.csv)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    triggerImport(".xlsx, .xls");
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <FileSpreadsheet size={14} className="text-emerald-600" />
+                  Import Excel (.xlsx)
+                </button>
+
                 <div className="my-1 border-t border-slate-100" />
                 <button
                   type="button"
@@ -452,7 +573,7 @@ export default function Leads() {
                     setShowMoreMenu(false);
                     refreshLeads();
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <RotateCw size={14} className="text-slate-400" />
                   Refresh Leads
@@ -468,7 +589,9 @@ export default function Leads() {
         {/* Total Leads */}
         <div
           onClick={() => filterByStatusCard()}
-          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer min-w-0"
+          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer min-w-0 ${
+            filters.status.length === 0 ? "border-[#1d61e7] ring-2 ring-blue-500/10" : "border-slate-200"
+          }`}
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
@@ -479,8 +602,8 @@ export default function Leads() {
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.total}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> 12%
+              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
+                All active
               </p>
             </div>
           </div>
@@ -512,7 +635,9 @@ export default function Leads() {
         {/* New Leads */}
         <div
           onClick={() => filterByStatusCard("NEW")}
-          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0"
+          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0 ${
+            filters.status.includes("NEW") ? "border-emerald-500 ring-2 ring-emerald-500/15" : "border-slate-200"
+          }`}
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -524,7 +649,7 @@ export default function Leads() {
                 {metrics.newLeads}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> 8%
+                <span>↑</span> {metrics.newPercent}
               </p>
             </div>
           </div>
@@ -555,7 +680,9 @@ export default function Leads() {
         {/* Contacted */}
         <div
           onClick={() => filterByStatusCard("CONTACTED")}
-          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer min-w-0"
+          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer min-w-0 ${
+            filters.status.includes("CONTACTED") ? "border-purple-500 ring-2 ring-purple-500/15" : "border-slate-200"
+          }`}
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
@@ -566,8 +693,8 @@ export default function Leads() {
               <p className="text-2xl font-bold text-slate-900 leading-tight">
                 {metrics.contacted}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> 18%
+              <p className="mt-0.5 text-[11px] font-semibold text-purple-600 flex items-center gap-0.5">
+                <span>↑</span> {metrics.contactedPercent}
               </p>
             </div>
           </div>
@@ -598,7 +725,9 @@ export default function Leads() {
         {/* Qualified */}
         <div
           onClick={() => filterByStatusCard("QUALIFIED")}
-          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer min-w-0"
+          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer min-w-0 ${
+            filters.status.includes("QUALIFIED") ? "border-amber-500 ring-2 ring-amber-500/15" : "border-slate-200"
+          }`}
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
@@ -610,7 +739,7 @@ export default function Leads() {
                 {metrics.qualified}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-amber-500 flex items-center gap-0.5">
-                <span>↑</span> 25%
+                <span>↑</span> {metrics.qualifiedPercent}
               </p>
             </div>
           </div>
@@ -641,7 +770,9 @@ export default function Leads() {
         {/* Converted */}
         <div
           onClick={() => filterByStatusCard("CONVERTED")}
-          className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0"
+          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0 ${
+            filters.status.includes("CONVERTED") ? "border-emerald-500 ring-2 ring-emerald-500/15" : "border-slate-200"
+          }`}
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -653,7 +784,7 @@ export default function Leads() {
                 {metrics.converted}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> 30%
+                <span>↑</span> {metrics.convertedPercent}
               </p>
             </div>
           </div>
@@ -892,7 +1023,7 @@ export default function Leads() {
             {activeDropdown === "date" && (
               <div className="absolute left-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
                 <div className="space-y-1">
-                  {["All Time", "Today", "Last 7 Days"].map(range => (
+                  {["All Time", "Today", "Last 7 Days", "Last 30 Days"].map(range => (
                     <button
                       key={range}
                       type="button"
@@ -939,7 +1070,7 @@ export default function Leads() {
       {/* Main Leads Table Card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
         <DataTable<Lead>
-          columns={leadColumns}
+          columns={paginatedColumns}
           rows={pageLeads}
           getRowId={lead => lead.id}
           onRowClick={lead => setDetailLead(lead)}

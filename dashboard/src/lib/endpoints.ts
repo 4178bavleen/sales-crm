@@ -45,6 +45,8 @@ export const ENDPOINTS = {
   /** Leads management. */
   leads: {
     list: "/leads",
+    options: "/leads/options",
+    stats: "/leads/stats",
     byId: (id: number) => `/leads/${id}`,
     assign: (id: number) => `/leads/${id}/assign`,
     status: (id: number) => `/leads/${id}/status`,

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export type DataTableColumn<T> = {
   key: string;
   header: ReactNode;
-  cell: (row: T) => ReactNode;
+  cell: (row: T, index?: number) => ReactNode;
   /** Extra classes for the body cell (td) */
   className?: string;
   /** Extra classes for the header cell (th) */
