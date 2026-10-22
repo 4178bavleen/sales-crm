@@ -256,13 +256,11 @@ export async function deleteLead(id: number): Promise<void> {
 
 export type LeadOptionsData = {
   sources: { id: number; name: string }[];
-  owners: { id: number; name: string; email: string }[];
-  reasons: { id: number; name: string; type: string }[];
-  products?: { id: number; name: string }[];
+  owners: { id: number; name: string; email?: string }[];
 };
 
 /**
- * Fetch lead options (sources, owners, reasons, products) from the backend API.
+ * Fetch lead options (sources and owners) from the backend API.
  */
 export async function fetchLeadOptions(): Promise<LeadOptionsData> {
   const session = getSession();

@@ -58,7 +58,7 @@ export default function Sidebar() {
           <img
             src="/logo/vis-white.png"
             alt="Vibrantick Infotech Solutions"
-            className="h-10 w-auto object-contain"
+            className="h-16 w-auto object-contain"
             onError={(e) => {
               const target = e.currentTarget;
               target.style.display = "none";

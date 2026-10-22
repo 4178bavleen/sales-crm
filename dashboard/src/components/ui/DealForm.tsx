@@ -16,7 +16,6 @@ import {
 import type { DealFormProps } from "../../types/dealForm";
 import { cellClass } from "../../types/formControls";
 import { initialCustomers } from "../../data/customers";
-import { initialLeads } from "../../data/leads";
 import {
   Field,
   FormSection,
@@ -85,9 +84,7 @@ export default function DealForm({
   }, [onClose]);
 
   const customerOptions = initialCustomers.map(customer => customer.company);
-  const leadOptions = initialLeads.map(
-    lead => `${lead.firstName} ${lead.lastName}`,
-  );
+  const leadOptions: string[] = [];
 
   const name = form.name.trim();
   const nameInvalid = !name;

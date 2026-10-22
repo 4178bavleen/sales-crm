@@ -9,7 +9,6 @@ import {
   Mail,
   Phone,
   Plus,
-  Save,
   Sparkles,
   User,
   UserCheck,
@@ -20,33 +19,18 @@ import type { CreateLeadFormProps } from "../../types/createLeadForm";
 import { getSession } from "../../lib/auth";
 import { fetchLeadOptions } from "../../lib/leads";
 
-interface ProductOption {
-  id: number;
-  name: string;
-  desc: string;
-}
-
-const PRODUCTS: ProductOption[] = [
-  { id: 1, name: "CRM Implementation", desc: "Full CRM pipeline rollout & workflow automation" },
-  { id: 2, name: "Sales Training", desc: "Team sales enablement & coaching sessions" },
-  { id: 3, name: "Cloud Subscription", desc: "Enterprise cloud license and hosting" },
-  { id: 4, name: "Support Plan", desc: "24/7 dedicated engineering and support" },
-];
-
 interface SourceOption {
   id: number;
   name: string;
   icon: string;
 }
 
-const SOURCES: SourceOption[] = [
-  { id: 1, name: "Website", icon: "🌐" },
-  { id: 2, name: "Referral", icon: "🤝" },
-  { id: 3, name: "LinkedIn", icon: "💼" },
-  { id: 4, name: "Google Ads", icon: "📢" },
-  { id: 5, name: "Cold Call", icon: "📞" },
-  { id: 6, name: "Webinar", icon: "🎓" },
-];
+interface OwnerOption {
+  id: number;
+  name: string;
+  role: string;
+  initials: string;
+}
 
 const STATUSES: { value: LeadStatus; label: string; badgeClass: string; dotClass: string }[] = [
   {
@@ -82,28 +66,19 @@ const PRIORITIES: { value: Priority; label: string; dotClass: string }[] = [
   { value: "URGENT", label: "Urgent", dotClass: "bg-rose-500" },
 ];
 
-const OWNERS = [
-  { id: 1, name: "admin", role: "Administrator", initials: "AD" },
-  { id: 2, name: "Priya Sharma", role: "Senior Sales Rep", initials: "PS" },
-  { id: 3, name: "Marcus Webb", role: "Account Executive", initials: "MW" },
-  { id: 0, name: "Unassigned", role: "Queue", initials: "UN" },
-];
-
 export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormProps) {
   const sessionUser = getSession()?.user;
   const defaultOwner = sessionUser?.name || "admin";
 
-  const [sources, setSources] = useState<SourceOption[]>(SOURCES);
-  const [owners, setOwners] = useState(OWNERS);
-  const [products, setProducts] = useState<ProductOption[]>(PRODUCTS);
+  const [sources, setSources] = useState<SourceOption[]>([]);
+  const [owners, setOwners] = useState<OwnerOption[]>([]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("Website");
-  const [productService, setProductService] = useState("CRM Implementation");
+  const [source, setSource] = useState("");
   const [status, setStatus] = useState<LeadStatus>("NEW");
   const [priority, setPriority] = useState<Priority>("MEDIUM");
   const [owner, setOwner] = useState(defaultOwner);
@@ -114,7 +89,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  // Fetch dynamic sources, owners and products from backend
+  // Fetch dynamic sources and owners from backend
   useEffect(() => {
     let cancelled = false;
     fetchLeadOptions()
@@ -139,6 +114,7 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             };
           });
           setSources(mappedSources);
+          setSource(prev => prev || mappedSources[0]?.name || "");
         }
 
         if (data.owners && data.owners.length > 0) {
@@ -157,25 +133,6 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
           }));
           mappedOwners.push({ id: 0, name: "Unassigned", role: "Queue", initials: "UN" });
           setOwners(mappedOwners);
-        }
-
-        if (data.products && data.products.length > 0) {
-          const descMap: Record<string, string> = {
-            crm: "Full CRM pipeline rollout & workflow automation",
-            training: "Team sales enablement & coaching sessions",
-            cloud: "Enterprise cloud license and hosting",
-            support: "24/7 dedicated engineering and support",
-          };
-          const mappedProducts: ProductOption[] = data.products.map(p => {
-            const lower = p.name.toLowerCase();
-            const matchedKey = Object.keys(descMap).find(k => lower.includes(k));
-            return {
-              id: p.id,
-              name: p.name,
-              desc: matchedKey ? descMap[matchedKey] : "Enterprise solution & service package",
-            };
-          });
-          setProducts(mappedProducts);
         }
       })
       .catch(err => {
@@ -231,7 +188,6 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
         email: email.trim(),
         phone: phone.trim(),
         source,
-        productService,
         owner,
         status,
         priority,
@@ -294,8 +250,8 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             disabled={isSubmitting}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
           >
-            <Save size={15} />
-            {isSubmitting ? "Saving..." : "Save Lead"}
+            <Plus size={15} />
+            {isSubmitting ? "Creating Lead..." : "Create Lead"}
           </button>
         </div>
       </div>
@@ -416,53 +372,19 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
             </div>
           </div>
 
-          {/* Product & Acquisition Source Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-5">
+          {/* Lead Source Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
                 <Sparkles size={19} />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Product & Lead Source</h2>
-                <p className="text-xs text-slate-500">Service required and acquisition channel according to schema</p>
+                <h2 className="text-sm font-semibold text-slate-900">Lead Source</h2>
+                <p className="text-xs text-slate-500">Acquisition channel according to schema</p>
               </div>
             </div>
 
-            {/* Product / Service Selection */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2.5">
-                Product or Service Interest
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {products.map(prod => {
-                  const isSelected = productService === prod.name;
-                  return (
-                    <div
-                      key={prod.id}
-                      onClick={() => setProductService(prod.name)}
-                      className={`relative flex flex-col p-3 rounded-xl border transition cursor-pointer select-none ${
-                        isSelected
-                          ? "border-[#1d61e7] bg-blue-50/40 shadow-2xs"
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-semibold ${isSelected ? "text-[#1d61e7]" : "text-slate-800"}`}>
-                          {prod.name}
-                        </span>
-                        {isSelected && <Check size={14} className="text-[#1d61e7]" />}
-                      </div>
-                      <span className="mt-1 text-[11px] text-slate-500 leading-tight">
-                        {prod.desc}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Lead Source Selection */}
-            <div className="pt-2 border-t border-slate-100">
               <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2.5">
                 Lead Source
               </label>
@@ -741,27 +663,6 @@ export default function CreateLeadModal({ onClose, onCreate }: CreateLeadFormPro
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Bottom Actions Row */}
-        <div className="lg:col-span-3 flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#1d61e7] px-6 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
-          >
-            <Plus size={15} />
-            {isSubmitting ? "Creating Lead..." : "Create Lead"}
-          </button>
         </div>
       </form>
     </div>

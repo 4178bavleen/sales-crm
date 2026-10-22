@@ -15,7 +15,6 @@ import {
 } from "../../types/task";
 import type { TaskFormProps } from "../../types/taskForm";
 import { cellClass } from "../../types/formControls";
-import { initialLeads } from "../../data/leads";
 import { initialDeals } from "../../data/deals";
 import { initialCustomers } from "../../data/customers";
 import { initialCompanies } from "../../data/companies";
@@ -119,9 +118,7 @@ export default function TaskForm({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const leadOptions = initialLeads.map(
-    lead => `${lead.firstName} ${lead.lastName}`,
-  );
+  const leadOptions: string[] = [];
   const dealOptions = initialDeals.map(deal => deal.name);
   const customerOptions = initialCustomers.map(customer => customer.company);
   const companyOptions = initialCompanies.map(company => company.name);
