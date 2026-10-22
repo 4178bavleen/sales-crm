@@ -124,6 +124,7 @@ export type SignInResult =
 function describeAuthFailure(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 0) {
+      // the error confirms that backend is unreachable either backend is down or the user is offline 
       return "Cannot reach the server. Check that the backend is running.";
     }
     if (error.status === 401 || error.status === 403 || error.status >= 500) {
