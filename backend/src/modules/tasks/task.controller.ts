@@ -159,11 +159,22 @@ export async function updateTaskStatusController(
       throw new TaskValidationError('completionNote must be a string')
     }
 
+    const cancelReason =
+      typeof req.body.cancelReason === 'string'
+        ? req.body.cancelReason.trim()
+        : undefined
+
+    const cancelReasonId = req.body.cancelReasonId
+      ? parseId(req.body.cancelReasonId, 'cancelReasonId')
+      : undefined
+
     const task = await updateTaskStatus(
       parseId(req.params.id),
       status,
       actorId(req),
       req.body.completionNote,
+      cancelReason,
+      cancelReasonId,
     )
 
     res.json({

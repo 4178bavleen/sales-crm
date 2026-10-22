@@ -20,9 +20,10 @@ import {
   Check,
   LayoutGrid,
   List,
+  X,
 } from "lucide-react";
 import type { Priority, Task, TaskFormValues, TaskStatus } from "../../types/task";
-import { TASK_PRIORITIES, TASK_STATUSES } from "../../types/task";
+import { TASK_CANCEL_REASONS, TASK_PRIORITIES, TASK_STATUSES } from "../../types/task";
 import {
   dueBucket,
   dueLabel,
@@ -138,6 +139,10 @@ export default function Tasks() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [cancellingTask, setCancellingTask] = useState<Task | null>(null);
+  const [cancelReasonPreset, setCancelReasonPreset] = useState<string>(TASK_CANCEL_REASONS[0]);
+  const [customCancelReason, setCustomCancelReason] = useState<string>("");
+  const [isCancelling, setIsCancelling] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [view, setView] = useState<"list" | "grid">("list");
@@ -422,7 +427,7 @@ export default function Tasks() {
     }
   }
 
-  async function updateTaskStatus(id: number, status: TaskStatus) {
+  async function updateTaskStatus(id: number, status: TaskStatus, cancelReason?: string) {
     const token = getSession()?.token;
     if (!token) return;
 
@@ -430,7 +435,10 @@ export default function Tasks() {
       const updated = await request<ApiTask>(ENDPOINTS.tasks.updateStatus(id), {
         method: "PATCH",
         token,
-        body: { status },
+        body: {
+          status,
+          ...(status === "CANCELLED" && cancelReason ? { cancelReason } : {}),
+        },
       });
       const mapped = mapApiTask(updated);
       setTasks(prev => prev.map(t => (t.id === id ? mapped : t)));
@@ -532,7 +540,6 @@ export default function Tasks() {
           >
             <Plus size={15} />
             Create Task
-            <ChevronDown size={14} className="ml-1 opacity-80" />
           </button>
 
           <div className="relative" ref={moreMenuRef}>
@@ -1124,7 +1131,15 @@ export default function Tasks() {
                   <button
                     key={status}
                     type="button"
-                    onClick={() => updateTaskStatus(task.id, status)}
+                    onClick={() => {
+                      if (status === "CANCELLED") {
+                        setCancellingTask(task);
+                        setCancelReasonPreset(TASK_CANCEL_REASONS[0]);
+                        setCustomCancelReason("");
+                      } else {
+                        updateTaskStatus(task.id, status);
+                      }
+                    }}
                     className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     {taskStatusLabels[status] ?? status}
@@ -1273,6 +1288,141 @@ export default function Tasks() {
           task={detailTask}
           onClose={() => setDetailTask(null)}
         />
+      )}
+
+      {/* Cancel Task Modal */}
+      {cancellingTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+          onClick={() => !isCancelling && setCancellingTask(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Cancel Task</h3>
+                  <p className="text-xs text-slate-500">Provide a reason for cancelling</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancellingTask(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+                <p className="text-xs text-slate-500 font-medium">Task</p>
+                <p className="text-sm font-medium text-slate-800 mt-0.5 truncate">{cancellingTask.title}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Cancellation Reason <span className="text-rose-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  {TASK_CANCEL_REASONS.map(reason => (
+                    <label
+                      key={reason}
+                      className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-xs cursor-pointer transition ${
+                        cancelReasonPreset === reason
+                          ? "border-[#1d61e7] bg-blue-50/30 text-slate-800 font-medium"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="cancelReasonPreset"
+                        value={reason}
+                        checked={cancelReasonPreset === reason}
+                        onChange={() => setCancelReasonPreset(reason)}
+                        className="text-[#1d61e7] focus:ring-0"
+                      />
+                      <span>{reason}</span>
+                    </label>
+                  ))}
+                  <label
+                    className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-xs cursor-pointer transition ${
+                      cancelReasonPreset === "Other"
+                        ? "border-[#1d61e7] bg-blue-50/30 text-slate-800 font-medium"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="cancelReasonPreset"
+                      value="Other"
+                      checked={cancelReasonPreset === "Other"}
+                      onChange={() => setCancelReasonPreset("Other")}
+                      className="text-[#1d61e7] focus:ring-0"
+                    />
+                    <span>Other reason...</span>
+                  </label>
+                </div>
+              </div>
+
+              {cancelReasonPreset === "Other" && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Custom Reason
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={customCancelReason}
+                    onChange={e => setCustomCancelReason(e.target.value)}
+                    placeholder="Enter custom cancellation reason..."
+                    className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancellingTask(null)}
+                className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Keep Task
+              </button>
+              <button
+                type="button"
+                disabled={isCancelling || (cancelReasonPreset === "Other" && !customCancelReason.trim())}
+                onClick={async () => {
+                  if (!cancellingTask) return;
+                  const finalReason =
+                    cancelReasonPreset === "Other"
+                      ? customCancelReason.trim()
+                      : cancelReasonPreset;
+                  try {
+                    setIsCancelling(true);
+                    await updateTaskStatus(cancellingTask.id, "CANCELLED", finalReason);
+                    setCancellingTask(null);
+                  } finally {
+                    setIsCancelling(false);
+                  }
+                }}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-700 transition disabled:opacity-50 cursor-pointer"
+              >
+                {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

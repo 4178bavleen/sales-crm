@@ -218,10 +218,25 @@ export async function updateTaskStatus(
     status: TaskStatus,
     actorId: number,
     completionNote?: string,
+    cancelReason?: string,
+    cancelReasonId?: number,
 ) {
     const existing = await prisma.task.findUnique({ where: { id } })
     
     if (!existing) throw new TaskServiceError('Task not found', 404)
+
+    let resolvedCancelReasonId = cancelReasonId;
+    if (status === 'CANCELLED' && !resolvedCancelReasonId && cancelReason) {
+        let found = await prisma.reason.findFirst({
+            where: { name: cancelReason, type: 'TASK_CANCELLED' },
+        });
+        if (!found) {
+            found = await prisma.reason.create({
+                data: { name: cancelReason, type: 'TASK_CANCELLED' },
+            });
+        }
+        resolvedCancelReasonId = found.id;
+    }
 
     return prisma.task.update({
         where: { id },
@@ -231,6 +246,8 @@ export async function updateTaskStatus(
             completedById: status === 'COMPLETED' ? actorId : null,
             completionNote:
                 status === 'COMPLETED' ? completionNote?.trim() || null : null,
+            cancelReasonId:
+                status === 'CANCELLED' ? (resolvedCancelReasonId ?? existing.cancelReasonId) : null,
         },
         include: taskInclude,
     })

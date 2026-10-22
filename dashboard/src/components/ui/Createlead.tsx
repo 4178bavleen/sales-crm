@@ -234,6 +234,12 @@ export default function CreateLeadModal({
     setFollowUpDate(val);
   }
 
+  const getNowMin = () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   async function handleSubmit(e?: React.FormEvent) {
     if (e) e.preventDefault();
     setShowErrors(true);
@@ -673,6 +679,7 @@ export default function CreateLeadModal({
                 <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="datetime-local"
+                  min={getNowMin()}
                   disabled={isNoFollowUp}
                   value={followUpDate}
                   onChange={e => {

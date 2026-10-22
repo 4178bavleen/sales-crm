@@ -359,6 +359,7 @@ export default function TaskForm({
                     <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="date"
+                      min={todayIso()}
                       value={dueAt}
                       onChange={e => setDueAt(e.target.value)}
                       className={`w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
