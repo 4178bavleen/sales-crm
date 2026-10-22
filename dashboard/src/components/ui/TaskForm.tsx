@@ -89,7 +89,6 @@ function statusFromLabel(label: string): TaskStatus {
   const found = TASK_STATUSES.find(status => STATUS_LABELS[status] === label);
   return found ?? "OPEN";
 }
-
 function priorityFromLabel(label: string): Priority {
   const found = TASK_PRIORITIES.find(item => PRIORITY_LABELS[item] === label);
   return found ?? "MEDIUM";
@@ -267,6 +266,7 @@ export default function TaskForm({
       : "";
 
   function submit() {
+   
     setShowErrors(true);
     if (titleInvalid || dueInvalid) return;
 
