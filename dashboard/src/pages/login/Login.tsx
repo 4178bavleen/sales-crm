@@ -106,7 +106,7 @@ export default function Login({ initialMode }: LoginProps) {
 
       {/* Clean centered footer */}
       <footer className="relative z-10 w-full py-4 text-center text-xs text-slate-500 font-medium">
-        &copy; 2026 Sales CRM. All rights reserved.
+        &copy; 2028 Sales CRM. All rights reserved.
       </footer>
     </div>
   );
