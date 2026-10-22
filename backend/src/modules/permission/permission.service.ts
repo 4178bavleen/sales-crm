@@ -233,11 +233,10 @@ export async function replaceRolePermissions(
     throw new PermissionServiceError('Role not found', 404)
   }
 
-  // Keep at least one permission manager so the system cannot
-  // accidentally remove every administrator's permission to manage RBAC.
-  if (role.name === 'ADMIN' && !codes.includes('permissions.manage')) {
+  // The ADMIN system role always retains all permissions and cannot be modified.
+  if (role.name === 'ADMIN') {
     throw new PermissionServiceError(
-      'ADMIN must retain permissions.manage',
+      'The ADMIN role always retains full system privileges and its permissions cannot be modified.',
       400,
     )
   }

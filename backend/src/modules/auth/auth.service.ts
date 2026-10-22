@@ -2,16 +2,14 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../../config/database.js'
 import { env } from '../../config/env.js'
+import { AppError } from '../../common/errors/AppErrors.js'
 import type { LoginInput } from './auth.validation.js'
 
 const ACCESS_TOKEN_EXPIRY = '7h'
 
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number,
-  ) {
-    super(message)
+export class AuthError extends AppError {
+  constructor(message: string, statusCode: number) {
+    super(statusCode, message)
     this.name = 'AuthError'
   }
 }

@@ -37,8 +37,6 @@ const permissionDefinitions = [
   ['meetings.delete', 'Delete meetings'],
   ['reports.view', 'View reports'],
   ['reports.export', 'Export reports'],
-  ['settings.view', 'View settings'],
-  ['settings.edit', 'Edit settings'],
   ['users.view', 'View users'],
   ['users.create', 'Create users'],
   ['users.edit', 'Edit users'],
