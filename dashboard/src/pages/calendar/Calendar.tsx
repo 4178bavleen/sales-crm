@@ -373,13 +373,13 @@ export default function Calendar() {
   }, [meetings, tasks, eventTypeFilter, todayString]);
 
   const weekDayLabels = [
-    { short: "Sun", full: "Sunday", isWeekend: true },
     { short: "Mon", full: "Monday", isWeekend: false },
     { short: "Tue", full: "Tuesday", isWeekend: false },
     { short: "Wed", full: "Wednesday", isWeekend: false },
     { short: "Thu", full: "Thursday", isWeekend: false },
     { short: "Fri", full: "Friday", isWeekend: false },
     { short: "Sat", full: "Saturday", isWeekend: true },
+    { short: "Sun", full: "Sunday", isWeekend: true },
   ];
 
   return (
@@ -714,13 +714,15 @@ export default function Calendar() {
               </div>
             </div>
 
-            {/* Days of week header */}
+            {/* Days of week header (Monday to Sunday, with Saturday & Sunday together) */}
             <div className="grid grid-cols-7 border-b border-slate-200/80 pb-2.5 text-center">
               {weekDayLabels.map((day) => (
                 <div
                   key={day.short}
-                  className={`text-xs font-bold uppercase tracking-wider ${
-                    day.isWeekend ? "text-slate-400" : "text-slate-600"
+                  className={`text-xs font-bold uppercase tracking-wider py-1 rounded-md ${
+                    day.isWeekend
+                      ? "text-slate-700 bg-slate-100/70 font-extrabold"
+                      : "text-slate-600"
                   }`}
                 >
                   <span className="hidden sm:inline">{day.full}</span>
