@@ -89,7 +89,7 @@ const FEATURES: HeroFeature[] = [
  */
 export default function LoginHero() {
   return (
-    <div className="flex min-w-0 flex-col self-stretch lg:self-auto max-w-xl">
+    <div className="flex min-w-0 flex-col self-stretch lg:self-auto max-w-xl compact-md:hidden">
       {/* Brand mark */}
       <div className="mb-3 sm:mb-[clamp(14px,2.2vh,24px)] lg:mb-[clamp(2rem,8vh,5rem)]">
         <div className="flex items-center">
@@ -112,13 +112,13 @@ export default function LoginHero() {
       </h1>
 
       {/* Subtitle */}
-      <p className="mt-2 sm:mt-[18px] text-[13px] sm:text-[16px] text-[#475569] leading-[1.5] max-w-[420px] font-normal">
+      <p className="mt-2 sm:mt-[18px] text-[13px] sm:text-[16px] text-[#475569] leading-[1.5] max-w-[420px] font-normal compact:hidden">
         A simple and powerful CRM to manage
         <br className="hidden sm:inline" /> your leads, deals, and customers.
       </p>
 
       {/* 3 Features — a three-up grid below `lg`, the vertical list from `lg` up */}
-      <ul className="mt-3 sm:mt-[clamp(20px,2.6vh,40px)] lg:mt-[clamp(1.5rem,5.6vh,3.125rem)] grid grid-cols-3 gap-3 sm:gap-4 lg:flex lg:flex-col lg:gap-[clamp(0.875rem,2.3vh,1.3125rem)]">
+      <ul className="mt-3 sm:mt-[clamp(20px,2.6vh,40px)] lg:mt-[clamp(1.5rem,5.6vh,3.125rem)] grid grid-cols-3 gap-3 sm:gap-4 lg:flex lg:flex-col lg:gap-[clamp(0.875rem,2.3vh,1.3125rem)] compact:hidden">
         {FEATURES.map(({ icon, tileClass, title, description }) => (
           <li
             key={title}

@@ -83,7 +83,7 @@ export default function LoginForm({
               Email address
             </label>
             <div
-              className={`relative flex items-center h-[42px] sm:h-[46px] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl border bg-white transition-all ${
                 emailInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -115,7 +115,7 @@ export default function LoginForm({
               Password
             </label>
             <div
-              className={`relative flex items-center h-[42px] sm:h-[46px] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl border bg-white transition-all ${
                 passwordInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -176,7 +176,7 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={pending}
-            className="!mt-[12px] sm:!mt-[clamp(0.75rem,2.4vh,1.5rem)] w-full h-[42px] sm:h-[46px] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14px] sm:text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            className="!mt-[12px] sm:!mt-[clamp(0.75rem,2.4vh,1.5rem)] w-full h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14px] sm:text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           >
             {pending ? (
               <>
