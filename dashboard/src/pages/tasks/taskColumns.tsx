@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
-  Circle,
   CircleDollarSign,
   Handshake,
   ListChecks,
@@ -19,11 +18,38 @@ import { TASK_LINK_LABELS } from "../../types/task";
 
 export function formatTaskDate(date: string) {
   if (!date) return "—";
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  try {
+    const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+    if (isNaN(d.getTime())) return date;
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return date;
+  }
+}
+
+export function formatTaskDateTime(date: string) {
+  if (!date) return "—";
+  try {
+    const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+    if (isNaN(d.getTime())) return date;
+    const formattedDate = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const formattedTime = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${formattedDate}, ${formattedTime}`;
+  } catch {
+    return date;
+  }
 }
 
 /** Priority pill colours (Prisma enum Priority). */
@@ -117,15 +143,16 @@ export function dueLabel(task: { dueAt: string; status: TaskStatus }) {
   const bucket = dueBucket(task);
   if (bucket === "today") return "Due today";
   if (bucket === "overdue") {
-    const days = Math.max(
-      1,
-      Math.round(
-        (new Date(`${todayIso()}T12:00:00`).getTime() -
-          new Date(`${task.dueAt}T12:00:00`).getTime()) /
-          86_400_000,
-      ),
-    );
-    return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
+    try {
+      const today = new Date(`${todayIso()}T12:00:00`).getTime();
+      const taskDate = new Date(
+        task.dueAt.includes("T") ? task.dueAt : `${task.dueAt}T12:00:00`,
+      ).getTime();
+      const days = Math.max(1, Math.round((today - taskDate) / 86_400_000));
+      return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
+    } catch {
+      return "Overdue";
+    }
   }
   if (bucket === "upcoming") return `Due ${formatTaskDate(task.dueAt)}`;
   return formatTaskDate(task.dueAt);
@@ -185,7 +212,7 @@ export const taskDetailFields: TaskField[] = [
     Icon: Repeat,
     get: task => String(task.rescheduleCount),
   },
-  { label: "Created Time", Icon: CalendarDays, get: task => formatTaskDate(task.createdAt) },
+  { label: "Created Time", Icon: CalendarDays, get: task => formatTaskDateTime(task.createdAt) },
 ];
 
 /**
@@ -219,28 +246,19 @@ export const taskColumns: TaskColumn[] = [
     header: "Task",
     className: "min-w-[220px]",
     cell: task => (
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-          {task.status === "COMPLETED" ? (
-            <CheckCircle2 size={15} className="text-emerald-500" />
-          ) : (
-            <Circle size={15} />
-          )}
-        </div>
-        <div className="min-w-0">
-          <p
-            className={`truncate text-xs font-medium ${
-              task.status === "COMPLETED"
-                ? "text-slate-400 line-through"
-                : "text-blue-600 group-hover:text-blue-800"
-            }`}
-          >
-            {task.title}
-          </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {task.description || "No description"}
-          </p>
-        </div>
+      <div className="min-w-0">
+        <p
+          className={`truncate text-xs font-semibold ${
+            task.status === "COMPLETED"
+              ? "text-slate-400 line-through"
+              : "text-[#1d61e7] hover:underline cursor-pointer"
+          }`}
+        >
+          {task.title}
+        </p>
+        <p className="mt-0.5 truncate text-[10px] text-slate-400">
+          {task.description || `Task #${task.id}`}
+        </p>
       </div>
     ),
   },
@@ -316,7 +334,7 @@ export const taskColumns: TaskColumn[] = [
     key: "createdAt",
     header: "Created Time",
     className: "whitespace-nowrap text-xs text-slate-500",
-    cell: task => formatTaskDate(task.createdAt),
+    cell: task => formatTaskDateTime(task.createdAt),
   },
 ];
 

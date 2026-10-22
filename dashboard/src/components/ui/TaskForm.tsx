@@ -1,26 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
+  ArrowLeft,
+  Calendar,
   CalendarClock,
+  Check,
   CheckCircle2,
   CheckSquare,
+  Clock,
   Handshake,
+  Plus,
+  User,
+  UserCheck,
+  X,
   XCircle,
 } from "lucide-react";
-import type { Priority, TaskFormValues, TaskStatus } from "../../types/task";
-import {
-  TASK_CANCEL_REASONS,
-  TASK_PRIORITIES,
-  TASK_STATUSES,
-} from "../../types/task";
+import type { Priority, TaskStatus } from "../../types/task";
+import { TASK_CANCEL_REASONS } from "../../types/task";
 import type { TaskFormProps } from "../../types/taskForm";
-import { cellClass } from "../../types/formControls";
-import {
-  Field,
-  FormSection,
-  FormShell,
-  SelectField,
-  TextAreaField,
-} from "./FormControls";
 import { request } from "../../lib/api";
 import { getSession } from "../../lib/auth";
 import { ENDPOINTS } from "../../lib/endpoints";
@@ -51,96 +47,101 @@ type TaskOptionsResponse = {
   statuses: TaskStatus[];
 };
 
-const emptyValues: TaskFormValues = {
-  title: "",
-  description: "",
-  assignedTo: "",
-  dueAt: "",
-  priority: "MEDIUM",
-  status: "OPEN",
-  completedAt: "",
-  completedBy: "",
-  completionNote: "",
-  cancelReason: "",
-  lead: "",
-  deal: "",
-  customer: "",
-  company: "",
-  meeting: "",
-};
+const STATUS_CONFIG: {
+  value: TaskStatus;
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+}[] = [
+  {
+    value: "OPEN",
+    label: "Open",
+    badgeClass: "bg-sky-50 text-sky-700 border-sky-200 hover:border-sky-300",
+    dotClass: "bg-sky-600",
+  },
+  {
+    value: "IN_PROGRESS",
+    label: "In Progress",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300",
+    dotClass: "bg-amber-600",
+  },
+  {
+    value: "COMPLETED",
+    label: "Completed",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300",
+    dotClass: "bg-emerald-600",
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancelled",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300",
+    dotClass: "bg-slate-500",
+  },
+];
 
+const PRIORITY_CONFIG: {
+  value: Priority;
+  label: string;
+  dotClass: string;
+}[] = [
+  { value: "LOW", label: "Low", dotClass: "bg-slate-400" },
+  { value: "MEDIUM", label: "Medium", dotClass: "bg-blue-500" },
+  { value: "HIGH", label: "High", dotClass: "bg-amber-500" },
+  { value: "URGENT", label: "Urgent", dotClass: "bg-rose-500" },
+];
 
-/** Human labels for the enum selects, so the UI isn't shouting raw values. */
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  OPEN: "Open",
-  IN_PROGRESS: "In progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
-const PRIORITY_LABELS: Record<Priority, string> = {
-  URGENT: "Urgent",
-  HIGH: "High",
-  MEDIUM: "Medium",
-  LOW: "Low",
-};
-
-/** Map a label back to its enum value (selects deal in strings). */
-function statusFromLabel(label: string): TaskStatus {
-  const found = TASK_STATUSES.find(status => STATUS_LABELS[status] === label);
-  return found ?? "OPEN";
-}
-function priorityFromLabel(label: string): Priority {
-  const found = TASK_PRIORITIES.find(item => PRIORITY_LABELS[item] === label);
-  return found ?? "MEDIUM";
-}
-
-/** Today's ISO day, used to default the completion date. */
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Full-page create/edit form for a task.
- *
- * Maps onto the backend `Task` model. Completion fields (completedAt,
- * completedBy, completionNote) appear only when status = COMPLETED, and the
- * cancel reason only when status = CANCELLED — matching the schema's rule that
- * those columns are set only in that state.
- *
- * The five related-record selects map to the optional Task.*Id relations.
- * No meeting options are offered because no meetings exist yet; the field is
- * kept in the type so wiring it later needs no shape change.
- */
 export default function TaskForm({
   mode,
   values,
   onClose,
   onSubmit,
 }: TaskFormProps) {
-  const initialValues: TaskFormValues = values ?? emptyValues;
-  const [form, setForm] = useState<TaskFormValues>(initialValues);
-  const [showErrors, setShowErrors] = useState(false);
-  const [options, setOptions] = useState<TaskOptionsResponse | null>(null);
-  const [users, setUsers] = useState<ApiUser[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
-  const [optionsError, setOptionsError] = useState("");
-
   const isEdit = mode === "edit";
 
-  // Load task options (users, leads, deals, priorities, statuses) from the backend.
+  const [title, setTitle] = useState(values?.title ?? "");
+  const [description, setDescription] = useState(values?.description ?? "");
+  const [dueAt, setDueAt] = useState(values?.dueAt ?? "");
+  const [priority, setPriority] = useState<Priority>(values?.priority ?? "MEDIUM");
+  const [status, setStatus] = useState<TaskStatus>(values?.status ?? "OPEN");
+  const [assignedTo, setAssignedTo] = useState(values?.assignedTo ?? "");
+  const [assignedToId, setAssignedToId] = useState<number | undefined>(values?.assignedToId);
+
+  // Link state
+  const initialLinkType = values?.dealId || values?.deal
+    ? "deal"
+    : values?.leadId || values?.lead
+      ? "lead"
+      : "none";
+  const [linkType, setLinkType] = useState<"none" | "lead" | "deal">(initialLinkType);
+  const [leadId, setLeadId] = useState<number | null>(values?.leadId ?? null);
+  const [leadName, setLeadName] = useState(values?.lead ?? "");
+  const [dealId, setDealId] = useState<number | null>(values?.dealId ?? null);
+  const [dealName, setDealName] = useState(values?.deal ?? "");
+
+  // Completion & Cancellation
+  const [completedAt, setCompletedAt] = useState(values?.completedAt ?? "");
+  const [completedBy, setCompletedBy] = useState(values?.completedBy ?? "");
+  const [completionNote, setCompletionNote] = useState(values?.completionNote ?? "");
+  const [cancelReason, setCancelReason] = useState(values?.cancelReason ?? "");
+
+  const [options, setOptions] = useState<TaskOptionsResponse | null>(null);
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [showErrors, setShowErrors] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
+
+  // Load task options from backend
   useEffect(() => {
     let cancelled = false;
 
     async function loadOptions() {
-      setLoadingOptions(true);
-      setOptionsError("");
-
       try {
         const token = getSession()?.token;
-        if (!token) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
+        if (!token) return;
 
         const res = await request<TaskOptionsResponse>(
           ENDPOINTS.tasks.options,
@@ -150,21 +151,18 @@ export default function TaskForm({
         if (!cancelled && res) {
           setOptions(res);
           const activeUsers = (res.users ?? []).filter(
-            (user) => user.isActive !== false && Number.isFinite(user.id) && user.name,
+            u => u.isActive !== false && u.name,
           );
           setUsers(activeUsers);
-          if (activeUsers.length === 0) {
-            setOptionsError("No active users are available to assign.");
+
+          // Default assignee if creating
+          if (!isEdit && activeUsers.length > 0 && !assignedTo) {
+            setAssignedTo(activeUsers[0].name);
+            setAssignedToId(activeUsers[0].id);
           }
         }
-      } catch (error) {
-        if (!cancelled) {
-          setOptionsError(
-            error instanceof Error ? error.message : "Unable to load task options.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoadingOptions(false);
+      } catch (err) {
+        console.warn("Could not load task options:", err);
       }
     }
 
@@ -172,317 +170,626 @@ export default function TaskForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isEdit, assignedTo]);
 
-  // For a new task, select the first active user by default once users load.
-  // Existing edit values are preserved.
+  // Close on Escape
   useEffect(() => {
-    if (isEdit || users.length === 0) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
-    const userNames = users.map((user) => user.name);
-    setForm((previous) => ({
-      ...previous,
-      assignedTo: userNames.includes(previous.assignedTo)
-        ? previous.assignedTo
-        : users[0].name,
-      assignedToId: users.find((u) => u.name === previous.assignedTo)?.id ?? users[0].id,
-      completedBy: userNames.includes(previous.completedBy)
-        ? previous.completedBy
-        : users[0].name,
-    }));
-  }, [isEdit, users]);
-
-  const dirty = (Object.keys(initialValues) as (keyof TaskFormValues)[]).some(
-    key => form[key] !== initialValues[key],
-  );
-
-  function update<K extends keyof TaskFormValues>(
-    key: K,
-    value: TaskFormValues[K],
-  ) {
-    setForm(previous => ({ ...previous, [key]: value }));
+  function setQuickDue(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    setDueAt(date.toISOString().slice(0, 10));
   }
 
-  // Esc closes the form (same as the cancel button)
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+  // Validation
+  const trimmedTitle = title.trim();
+  const titleInvalid = !trimmedTitle;
+  const dueInvalid = !dueAt;
+
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setShowErrors(true);
+    setBackendError(null);
+
+    if (titleInvalid || dueInvalid) return;
+
+    setIsSubmitting(true);
+    try {
+      const isCompleted = status === "COMPLETED";
+      const isCancelled = status === "CANCELLED";
+
+      const selectedUser = users.find(u => u.name === assignedTo);
+      const finalAssignedToId = assignedToId ?? selectedUser?.id;
+
+      await onSubmit({
+        title: trimmedTitle,
+        description: description.trim(),
+        assignedTo,
+        assignedToId: finalAssignedToId,
+        dueAt,
+        priority,
+        status,
+        completedAt: isCompleted ? completedAt || todayIso() : "",
+        completedBy: isCompleted ? completedBy || assignedTo : "",
+        completionNote: isCompleted ? completionNote.trim() : "",
+        cancelReason: isCancelled ? cancelReason : "",
+        lead: linkType === "lead" ? leadName : "",
+        leadId: linkType === "lead" ? leadId : null,
+        deal: linkType === "deal" ? dealName : "",
+        dealId: linkType === "deal" ? dealId : null,
+        customer: "",
+        customerId: null,
+        company: "",
+        companyId: null,
+        meeting: "",
+        meetingId: null,
+      });
+    } catch (err) {
+      setBackendError(err instanceof Error ? err.message : "Failed to save task");
+    } finally {
+      setIsSubmitting(false);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }
 
   const leads = options?.leads ?? [];
   const deals = options?.deals ?? [];
 
-  const leadOptions = [
-    "None",
-    ...leads.map((l) =>
-      l.companyName ? `${l.contactName} (${l.companyName})` : l.contactName,
-    ),
-  ];
-  const dealOptions = ["None", ...deals.map((d) => d.name)];
-
-  function handleLeadChange(label: string) {
-    if (label === "None" || !label) {
-      setForm((prev) => ({ ...prev, lead: "", leadId: null }));
-    } else {
-      const match = leads.find(
-        (l) =>
-          (l.companyName ? `${l.contactName} (${l.companyName})` : l.contactName) ===
-          label,
-      );
-      setForm((prev) => ({
-        ...prev,
-        lead: label,
-        leadId: match ? match.id : null,
-        deal: "",
-        dealId: null,
-      }));
-    }
-  }
-
-  function handleDealChange(label: string) {
-    if (label === "None" || !label) {
-      setForm((prev) => ({ ...prev, deal: "", dealId: null }));
-    } else {
-      const match = deals.find((d) => d.name === label);
-      setForm((prev) => ({
-        ...prev,
-        deal: label,
-        dealId: match ? match.id : null,
-        lead: "",
-        leadId: null,
-      }));
-    }
-  }
-
-  const title = form.title.trim();
-  const titleInvalid = !title;
-  const dueInvalid = !form.dueAt;
-  const errorMessage = titleInvalid
-    ? "Please enter the task title before saving."
-    : dueInvalid
-      ? "Please set a due date before saving."
-      : "";
-
-  function submit() {
-   
-    setShowErrors(true);
-    if (titleInvalid || dueInvalid) return;
-
-    // Status-dependent fields are cleared when they don't apply, so a task
-    // never carries a completion note while cancelled (or vice versa).
-    const isCompleted = form.status === "COMPLETED";
-    const isCancelled = form.status === "CANCELLED";
-
-    const selectedUser = users.find((u) => u.name === form.assignedTo);
-    const assignedToId = form.assignedToId ?? selectedUser?.id;
-
-    onSubmit({
-      title,
-      description: form.description.trim(),
-      assignedTo: form.assignedTo,
-      assignedToId,
-      dueAt: form.dueAt,
-      priority: form.priority,
-      status: form.status,
-      completedAt: isCompleted ? form.completedAt || todayIso() : "",
-      completedBy: isCompleted ? form.completedBy : "",
-      completionNote: isCompleted ? form.completionNote.trim() : "",
-      cancelReason: isCancelled ? form.cancelReason : "",
-      lead: form.lead,
-      leadId: form.leadId ?? null,
-      deal: form.deal,
-      dealId: form.dealId ?? null,
-      customer: "",
-      customerId: null,
-      company: "",
-      companyId: null,
-      meeting: "",
-      meetingId: null,
-    });
-  }
-
   return (
-    <FormShell
-      title={isEdit ? "Edit Task" : "Create Task"}
-      description={
-        isEdit
-          ? "Update this task's details, status, and assignment."
-          : "Assign a task with a due date and priority."
-      }
-      error={errorMessage}
-      dirty={dirty}
-      onClose={onClose}
-      onSubmit={submit}
-    >
-      {/* Maps to: Task (title, description, assignedToId, dueAt, priority, status) */}
-      <FormSection
-        icon={<CheckSquare size={17} />}
-        title="Task Information"
-        description="What needs doing, and by when."
-        aside="* Required fields"
-      >
-        <div className={cellClass}>
-          <Field
-            label="Title"
-            value={form.title}
-            onChange={value => update("title", value)}
-            required
-            placeholder="e.g. Call Christopher about the rollout"
-            invalid={showErrors && titleInvalid}
-            hint="Task title is required."
-          />
-        </div>
-        <div className={cellClass}>
-          <Field
-            label="Due At"
-            value={form.dueAt}
-            onChange={value => update("dueAt", value)}
-            type="date"
-            required
-            invalid={showErrors && dueInvalid}
-            hint="A due date is required."
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Assignee"
-            value={form.assignedTo}
-            onChange={(value) => {
-              const matched = users.find((u) => u.name === value);
-              setForm((prev) => ({
-                ...prev,
-                assignedTo: value,
-                assignedToId: matched?.id ?? prev.assignedToId,
-              }));
-            }}
-            options={users.map((user) => user.name)}
-          />
-          {loadingOptions && (
-            <p className="mt-1 text-xs text-slate-500">Loading assignees…</p>
-          )}
-          {!loadingOptions && optionsError && (
-            <p className="mt-1 text-xs text-red-600">{optionsError}</p>
-          )}
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Priority"
-            value={PRIORITY_LABELS[form.priority]}
-            onChange={value => update("priority", priorityFromLabel(value))}
-            options={TASK_PRIORITIES.map(item => PRIORITY_LABELS[item])}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Status"
-            value={STATUS_LABELS[form.status]}
-            onChange={value => update("status", statusFromLabel(value))}
-            options={TASK_STATUSES.map(status => STATUS_LABELS[status])}
-          />
-        </div>
-        <div className={cellClass}>
-          <TextAreaField
-            label="Description"
-            value={form.description}
-            onChange={value => update("description", value)}
-            placeholder="Any detail the assignee needs."
-            rows={2}
-          />
-        </div>
-      </FormSection>
-
-      {/* Maps to: Task.leadId / dealId */}
-      <FormSection
-        icon={<Handshake size={17} />}
-        title="Related To"
-        description="Optionally link this task to a Lead or Deal. Leave as None for a standalone task."
-      >
-        <div className={cellClass}>
-          <SelectField
-            label="Lead"
-            value={form.lead || "None"}
-            onChange={handleLeadChange}
-            options={leadOptions}
-          />
-        </div>
-        <div className={cellClass}>
-          <SelectField
-            label="Deal"
-            value={form.deal || "None"}
-            onChange={handleDealChange}
-            options={dealOptions}
-          />
-        </div>
-      </FormSection>
-
-      {/* Maps to: Task.completedAt / completedById / completionNote — only when COMPLETED */}
-      {form.status === "COMPLETED" && (
-        <FormSection
-          icon={<CheckCircle2 size={17} />}
-          title="Completion"
-          description="Recorded because this task is marked Completed."
-        >
-          <div className={cellClass}>
-            <Field
-              label="Completed At"
-              value={form.completedAt}
-              onChange={value => update("completedAt", value)}
-              type="date"
-            />
-          </div>
-          <div className={cellClass}>
-            <SelectField
-              label="Completed By"
-              value={form.completedBy}
-              onChange={value => update("completedBy", value)}
-              options={users.map((user) => user.name)}
-            />
-          </div>
-          <div className={cellClass}>
-            <TextAreaField
-              label="Completion Note"
-              value={form.completionNote}
-              onChange={value => update("completionNote", value)}
-              placeholder="What was the outcome?"
-              rows={2}
-            />
-          </div>
-        </FormSection>
-      )}
-
-      {/* Maps to: Task.cancelReasonId -> Reason (type TASK_CANCELLED) — only when CANCELLED */}
-      {form.status === "CANCELLED" && (
-        <FormSection
-          icon={<XCircle size={17} />}
-          title="Cancellation"
-          description="Recorded because this task is marked Cancelled."
-        >
-          <div className={cellClass}>
-            <SelectField
-              label="Cancel Reason"
-              value={form.cancelReason}
-              onChange={value => update("cancelReason", value)}
-              options={TASK_CANCEL_REASONS}
-            />
-          </div>
-        </FormSection>
-      )}
-
-      {/* Read-only note about what the due date drives */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+    <div className="space-y-6 pb-12 animate-in fade-in-50 duration-200">
+      {/* Top Header matching Leads page */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <CalendarClock size={17} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+            title="Back to tasks list"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-400">Tasks</span>
+              <span className="text-xs text-slate-300">/</span>
+              <span className="text-xs font-medium text-[#1d61e7]">
+                {isEdit ? "Edit Task" : "Create Task"}
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              {isEdit ? "Edit Task" : "Create Task"}
+            </h1>
+            <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
+              {isEdit
+                ? "Update task details, schedule, priority, and assignments"
+                : "Assign a new task with a due date, priority, and link to a lead or deal"}
+            </p>
           </div>
-          <p className="text-xs text-slate-500">
-            The due date drives the Overdue, Due today, and Upcoming filters on
-            the tasks list.
-          </p>
         </div>
-      </section>
-    </FormShell>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+          >
+            <X size={14} className="text-slate-500" />
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
+          >
+            <Plus size={15} />
+            {isSubmitting
+              ? isEdit
+                ? "Saving..."
+                : "Creating Task..."
+              : isEdit
+                ? "Save Changes"
+                : "Create Task"}
+          </button>
+        </div>
+      </div>
+
+      {backendError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-700 shadow-2xs">
+          <p className="font-semibold">{backendError}</p>
+        </div>
+      )}
+
+      {showErrors && (titleInvalid || dueInvalid) && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-700 shadow-2xs">
+          <p className="font-semibold mb-1">Please correct the following before saving:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            {titleInvalid && <li>Task title is required.</li>}
+            {dueInvalid && <li>A due date is required.</li>}
+          </ul>
+        </div>
+      )}
+
+      {/* Main Form Grid */}
+      <form onSubmit={e => void handleSubmit(e)} className="grid grid-cols-1 lg:grid-cols-3 gap-6" noValidate>
+        {/* Left 2 Columns: Task Details, Related Record, Completion */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Task Information Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1d61e7]">
+                <CheckSquare size={19} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Task Information</h2>
+                <p className="text-xs text-slate-500">What needs doing, deadline, and instructions</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Task Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Follow up with Marcus regarding pricing proposal"
+                  className={`w-full rounded-lg border bg-white py-2 px-3 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
+                    showErrors && titleInvalid ? "border-rose-300 bg-rose-50/20" : "border-slate-200"
+                  }`}
+                />
+              </div>
+
+              {/* Due Date & Presets */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Due Date <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="date"
+                      min={todayIso()}
+                      value={dueAt}
+                      onChange={e => setDueAt(e.target.value)}
+                      className={`w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
+                        showErrors && dueInvalid ? "border-rose-300 bg-rose-50/20" : "border-slate-200"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Quick Due Presets
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setQuickDue(0)}
+                      className="rounded-lg border border-slate-200 bg-white py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDue(1)}
+                      className="rounded-lg border border-slate-200 bg-white py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      Tomorrow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDue(3)}
+                      className="rounded-lg border border-slate-200 bg-white py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      +3 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDue(7)}
+                      className="rounded-lg border border-slate-200 bg-white py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      +1 Week
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Description & Notes
+                </label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Add background details, key action items, links, or instructions for the assignee..."
+                  className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 resize-y"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Related Record Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                <Handshake size={19} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Related Record</h2>
+                <p className="text-xs text-slate-500">Optionally connect this task to a Lead or Deal</p>
+              </div>
+            </div>
+
+            {/* Segmented control for link type */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLinkType("none");
+                  setLeadId(null);
+                  setLeadName("");
+                  setDealId(null);
+                  setDealName("");
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                  linkType === "none"
+                    ? "border-blue-600 bg-blue-50 text-blue-700 shadow-2xs"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Standalone (None)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLinkType("lead");
+                  setDealId(null);
+                  setDealName("");
+                  if (!leadId && leads.length > 0) {
+                    setLeadId(leads[0].id);
+                    setLeadName(leads[0].contactName);
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                  linkType === "lead"
+                    ? "border-blue-600 bg-blue-50 text-blue-700 shadow-2xs"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Lead
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLinkType("deal");
+                  setLeadId(null);
+                  setLeadName("");
+                  if (!dealId && deals.length > 0) {
+                    setDealId(deals[0].id);
+                    setDealName(deals[0].name);
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                  linkType === "deal"
+                    ? "border-blue-600 bg-blue-50 text-blue-700 shadow-2xs"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Deal
+              </button>
+            </div>
+
+            {linkType === "lead" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Select Lead
+                </label>
+                <select
+                  value={leadId ?? ""}
+                  onChange={e => {
+                    const id = Number(e.target.value);
+                    const match = leads.find(l => l.id === id);
+                    setLeadId(id || null);
+                    setLeadName(match ? match.contactName : "");
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  <option value="">Select a lead...</option>
+                  {leads.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.contactName} {l.companyName ? `(${l.companyName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {linkType === "deal" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Select Deal
+                </label>
+                <select
+                  value={dealId ?? ""}
+                  onChange={e => {
+                    const id = Number(e.target.value);
+                    const match = deals.find(d => d.id === id);
+                    setDealId(id || null);
+                    setDealName(match ? match.name : "");
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  <option value="">Select a deal...</option>
+                  {deals.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Completion Details (Only when status is COMPLETED) */}
+          {status === "COMPLETED" && (
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 size={19} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Completion Details</h2>
+                  <p className="text-xs text-slate-500">Record when the task was finished and outcome notes</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Completed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={completedAt || todayIso()}
+                    onChange={e => setCompletedAt(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Completed By
+                  </label>
+                  <input
+                    type="text"
+                    value={completedBy || assignedTo}
+                    onChange={e => setCompletedBy(e.target.value)}
+                    placeholder="User name"
+                    className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7]"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Completion Outcome / Note
+                  </label>
+                  <textarea
+                    value={completionNote}
+                    onChange={e => setCompletionNote(e.target.value)}
+                    rows={2}
+                    placeholder="Summary of results or final outcome..."
+                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] resize-y"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cancellation Details (Only when status is CANCELLED) */}
+          {status === "CANCELLED" && (
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                  <XCircle size={19} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Cancellation Reason</h2>
+                  <p className="text-xs text-slate-500">Provide the reason for cancelling this task</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {TASK_CANCEL_REASONS.map(reason => {
+                  const isSelected = cancelReason === reason;
+                  return (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => setCancelReason(reason)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                        isSelected
+                          ? "border-rose-600 bg-rose-50 text-rose-700"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {reason}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right 1 Column: Status, Priority, Assignee & Live Preview */}
+        <div className="space-y-6">
+          {/* Status & Priority Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-5">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <UserCheck size={19} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Status & Priority</h2>
+                <p className="text-xs text-slate-500">Progress and urgency level</p>
+              </div>
+            </div>
+
+            {/* Status Selectable Pills */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                Task Status
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {STATUS_CONFIG.map(item => {
+                  const isSelected = status === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setStatus(item.value)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                        isSelected
+                          ? `${item.badgeClass} ring-2 ring-blue-500/20 font-bold`
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${item.dotClass}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {isSelected && <Check size={13} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Priority Selector */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                Priority
+              </label>
+              <div className="grid grid-cols-4 gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
+                {PRIORITY_CONFIG.map(p => {
+                  const isSelected = priority === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPriority(p.value)}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition cursor-pointer ${
+                        isSelected
+                          ? "bg-white text-slate-900 shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${p.dotClass}`} />
+                      <span>{p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Assignee Selector */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                Task Assignee
+              </label>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                {users.map(u => {
+                  const isSelected = assignedTo === u.name;
+                  const initials = u.name
+                    .split(" ")
+                    .map(part => part[0])
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase() || "US";
+
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => {
+                        setAssignedTo(u.name);
+                        setAssignedToId(u.id);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border transition cursor-pointer select-none ${
+                        isSelected
+                          ? "border-[#1d61e7] bg-blue-50/30"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-700">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-800 leading-none">{u.name}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{u.email}</p>
+                        </div>
+                      </div>
+                      {isSelected && <Check size={14} className="text-[#1d61e7]" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Clock size={14} />
+              <span>Live Card Preview</span>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {trimmedTitle || "Task Title Preview"}
+                </p>
+                <span
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                    STATUS_CONFIG.find(s => s.value === status)?.badgeClass ?? "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {STATUS_CONFIG.find(s => s.value === status)?.label ?? status}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-500 line-clamp-2">
+                {description.trim() || "No description provided."}
+              </p>
+
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-2.5 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1">
+                  <User size={12} className="text-slate-400" />
+                  {assignedTo || "Unassigned"}
+                </span>
+                <span className="flex items-center gap-1 font-medium text-slate-700">
+                  <CalendarClock size={12} className="text-slate-400" />
+                  {dueAt || "No date set"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
   );
 }

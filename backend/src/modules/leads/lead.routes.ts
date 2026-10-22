@@ -28,8 +28,7 @@ const router = Router()
 
 
 router.use(authenticateToken)
-
-router.post('/', requirePermission('leads.create'), createLead)
+router.post('/',  requirePermission('leads.create'), createLead)
 router.get('/', requirePermission('leads.view'), listLeads)
 router.get('/options', requirePermission('leads.view'), getLeadOptions)
 router.get('/stats', requirePermission('leads.view'), getLeadStats)

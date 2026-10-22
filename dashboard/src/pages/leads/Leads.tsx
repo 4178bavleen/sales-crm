@@ -553,7 +553,7 @@ export default function Leads() {
             </button>
 
             {showMoreMenu && (
-              <div className="absolute right-0 top-9 z-30 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              <div className="absolute right-0 top-9 z-50 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                 <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Export Options
                 </div>
