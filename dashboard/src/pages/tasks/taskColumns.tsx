@@ -31,6 +31,27 @@ export function formatTaskDate(date: string) {
   }
 }
 
+export function formatTaskDateTime(date: string) {
+  if (!date) return "—";
+  try {
+    const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+    if (isNaN(d.getTime())) return date;
+    const formattedDate = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const formattedTime = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${formattedDate}, ${formattedTime}`;
+  } catch {
+    return date;
+  }
+}
+
 /** Priority pill colours (Prisma enum Priority). */
 export const priorityStyles: Record<Priority, string> = {
   URGENT: "bg-rose-50 text-rose-700",
@@ -191,7 +212,7 @@ export const taskDetailFields: TaskField[] = [
     Icon: Repeat,
     get: task => String(task.rescheduleCount),
   },
-  { label: "Created Time", Icon: CalendarDays, get: task => formatTaskDate(task.createdAt) },
+  { label: "Created Time", Icon: CalendarDays, get: task => formatTaskDateTime(task.createdAt) },
 ];
 
 /**
@@ -313,7 +334,7 @@ export const taskColumns: TaskColumn[] = [
     key: "createdAt",
     header: "Created Time",
     className: "whitespace-nowrap text-xs text-slate-500",
-    cell: task => formatTaskDate(task.createdAt),
+    cell: task => formatTaskDateTime(task.createdAt),
   },
 ];
 
