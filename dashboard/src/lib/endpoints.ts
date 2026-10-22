@@ -61,11 +61,6 @@ export const ENDPOINTS = {
     delete: (id: number) => `/tasks/${id}`,
   },
 
-  leads: {
-    list: "/leads",
-    byId: (id: number) => `/leads/${id}`,
-  },
-
   deals: {
     list: "/deals",
     byId: (id: number) => `/deals/${id}`,
