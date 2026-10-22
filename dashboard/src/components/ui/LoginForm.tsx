@@ -43,13 +43,13 @@ export default function LoginForm({
       {/* Top Content */}
       <div>
         {/* Centered Sales CRM Logo */}
-        <div className="flex justify-center mb-[10px] sm:mb-[clamp(0.75rem,2vh,1.125rem)]">
+        <div className="flex justify-center mb-[10px] sm:mb-[clamp(0.75rem,2vh,1.125rem)] tiny:hidden">
           <SalesCrmLogo size="lg" />
         </div>
 
         {/* Header */}
         <div className="text-center">
-          <h2 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-slate-900 leading-tight">
+          <h2 className="text-[24px] sm:text-[clamp(22px,6.5vh,28px)] font-bold tracking-tight text-slate-900 leading-tight">
             Welcome Back
           </h2>
           <p className="mt-0.5 sm:mt-1 text-[12.5px] sm:text-[13.5px] text-slate-500 font-normal">
@@ -72,7 +72,7 @@ export default function LoginForm({
 
         <form
           onSubmit={handleSubmit}
-          className="mt-[14px] sm:mt-[clamp(1rem,2.6vh,1.75rem)] space-y-[10px] sm:space-y-[clamp(0.625rem,1.6vh,1rem)]"
+          className="mt-[14px] sm:mt-[clamp(0.5rem,2.6vh,1.75rem)] space-y-[10px] sm:space-y-[clamp(0.375rem,1.6vh,1rem)]"
         >
           {/* Email */}
           <div>
@@ -83,7 +83,7 @@ export default function LoginForm({
               Email address
             </label>
             <div
-              className={`relative flex items-center h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[46px] tiny:h-[36px] rounded-xl border bg-white transition-all ${
                 emailInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -115,7 +115,7 @@ export default function LoginForm({
               Password
             </label>
             <div
-              className={`relative flex items-center h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl border bg-white transition-all ${
+              className={`relative flex items-center h-[42px] sm:h-[46px] tiny:h-[36px] rounded-xl border bg-white transition-all ${
                 passwordInvalid
                   ? "border-rose-300 ring-2 ring-rose-100"
                   : "border-slate-200 hover:border-slate-300 focus-within:border-[#0062ff] focus-within:ring-2 focus-within:ring-blue-100"
@@ -176,7 +176,7 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={pending}
-            className="!mt-[12px] sm:!mt-[clamp(0.75rem,2.4vh,1.5rem)] w-full h-[42px] sm:h-[clamp(40px,5.6vh,46px)] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14px] sm:text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            className="!mt-[12px] sm:!mt-[clamp(0.5rem,2.4vh,1.5rem)] w-full h-[42px] sm:h-[46px] tiny:h-[36px] rounded-xl bg-[#0062ff] hover:bg-[#0052d9] active:bg-[#0047bd] text-white font-medium text-[14px] sm:text-[14.5px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           >
             {pending ? (
               <>
@@ -194,7 +194,7 @@ export default function LoginForm({
       </div>
 
       {/* Footer copyright inside card */}
-      <div className="pt-[4px] sm:pt-[6px] pb-0 text-center text-[11px] sm:text-[12px] text-slate-400 font-normal">
+      <div className="pt-[4px] sm:pt-[clamp(2px,1.2vh,6px)] pb-0 text-center text-[11px] sm:text-[12px] text-slate-400 font-normal">
         &copy; 2026 Sales CRM. All rights reserved.
       </div>
     </div>
