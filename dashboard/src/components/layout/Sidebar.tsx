@@ -2,7 +2,6 @@ import {
   Home,
   Users,
   Contact,
-  Boxes,
   Building2,
   UserRound,
   CheckSquare,
@@ -21,7 +20,6 @@ const primaryNav = [
   { name: "Dashboard", path: "/", icon: Home },
   { name: "Leads", path: "/leads", icon: Users },
   { name: "Contacts", path: "/contacts", icon: Contact },
-  { name: "Deals", path: "/deals", icon: Boxes },
   { name: "Companies", path: "/companies", icon: Building2 },
   { name: "Customers", path: "/customers", icon: UserRound },
 ];

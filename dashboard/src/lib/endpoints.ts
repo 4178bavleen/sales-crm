@@ -42,6 +42,13 @@ export const ENDPOINTS = {
     /** GET / PATCH / DELETE — the method is chosen by the caller. */
     byId: (id: number) => `/users/${id}`,
   },
+  /** Leads management. */
+  leads: {
+    list: "/leads",
+    byId: (id: number) => `/leads/${id}`,
+    assign: (id: number) => `/leads/${id}/assign`,
+    status: (id: number) => `/leads/${id}/status`,
+  },
   health: "/health",
 } as const;
 

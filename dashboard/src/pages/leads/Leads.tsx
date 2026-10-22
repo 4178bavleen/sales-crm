@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import type { Lead, LeadStatus } from "../../types/lead";
 import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
-import { initialLeads } from "../../data/leads";
+import {
+  fetchLeads,
+  createLead as createLeadApi,
+  updateLeadStatus as updateLeadStatusApi,
+  deleteLead as deleteLeadApi,
+} from "../../lib/leads";
 import {
   leadColumns,
   leadCsvFields,
@@ -30,9 +35,12 @@ import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 
 // Filter state
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
+const initialLeads: Lead[] = [];
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<LeadsFilter>(emptyFilters);
   const [selectedOwner, setSelectedOwner] = useState<string>("");
@@ -46,6 +54,26 @@ export default function Leads() {
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setApiError(null);
+    fetchLeads({ limit: 100 })
+      .then(({ leads: data }) => {
+        if (cancelled) return;
+        setLeads(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setApiError(err instanceof Error ? err.message : "Failed to load leads");
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -112,9 +140,13 @@ export default function Leads() {
 
       // Date range filter
       if (dateRange === "Today") {
-        if (!lead.createdAt.startsWith("2026-10-19")) return false;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        if (lead.createdAt !== todayStr && !lead.createdAt.startsWith("2026-10-19")) return false;
       } else if (dateRange === "Last 7 Days") {
-        if (lead.createdAt < "2026-10-12") return false;
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        const sevenDaysAgo = d.toISOString().slice(0, 10);
+        if (lead.createdAt < sevenDaysAgo && lead.createdAt < "2026-10-12") return false;
       }
 
       return true;
@@ -131,6 +163,22 @@ export default function Leads() {
     Object.values(filters).some(list => list.length > 0) ||
     selectedOwner !== "" ||
     dateRange !== "All Time";
+
+  const availableOwners = useMemo(() => {
+    const set = new Set<string>();
+    for (const lead of leads) {
+      if (lead.owner && lead.owner !== "Unassigned") set.add(lead.owner);
+    }
+    return ["All Owners", ...Array.from(set)];
+  }, [leads]);
+
+  const availableSources = useMemo(() => {
+    const set = new Set<string>(LEAD_SOURCES);
+    for (const lead of leads) {
+      if (lead.source) set.add(lead.source);
+    }
+    return Array.from(set);
+  }, [leads]);
 
   function toggleMultiFilter(key: keyof LeadsFilter, value: string) {
     setFilters(prev => {
@@ -159,25 +207,53 @@ export default function Leads() {
     setPage(1);
   }
 
-  function createLead(lead: Lead) {
-    setLeads(previous => [lead, ...previous]);
-    setShowCreateModal(false);
-    resetFilters();
+  async function createLead(lead: Lead) {
+    try {
+      const created = await createLeadApi({
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        company: lead.company,
+        email: lead.email,
+        phone: lead.phone,
+        source: lead.source,
+        owner: lead.owner,
+        status: lead.status,
+        priority: lead.priority,
+        notes: lead.notes,
+        nextFollowUpAt: lead.nextFollowUpAt,
+        noFollowUp: lead.noFollowUp,
+      });
+      setLeads(previous => [created, ...previous]);
+      setShowCreateModal(false);
+      resetFilters();
+    } catch (err) {
+      console.error("Failed to create lead:", err);
+    }
   }
 
-  function updateLeadStatus(id: number, status: LeadStatus) {
-    setLeads(previous =>
-      previous.map(lead => (lead.id === id ? { ...lead, status } : lead)),
-    );
-    setDetailLead(previous =>
-      previous?.id === id ? { ...previous, status } : previous,
-    );
+  async function updateLeadStatus(id: number, status: LeadStatus) {
+    try {
+      const updated = await updateLeadStatusApi(id, status);
+      setLeads(previous =>
+        previous.map(lead => (lead.id === id ? updated : lead)),
+      );
+      setDetailLead(previous =>
+        previous?.id === id ? updated : previous,
+      );
+    } catch (err) {
+      console.error("Failed to update lead status:", err);
+    }
   }
 
-  function deleteLead(id: number) {
-    setLeads(previous => previous.filter(lead => lead.id !== id));
-    setSelectedIds(previous => previous.filter(item => item !== id));
-    setDetailLead(null);
+  async function deleteLead(id: number) {
+    try {
+      await deleteLeadApi(id);
+      setLeads(previous => previous.filter(lead => lead.id !== id));
+      setSelectedIds(previous => previous.filter(item => item !== id));
+      setDetailLead(null);
+    } catch (err) {
+      console.error("Failed to delete lead:", err);
+    }
   }
 
   function exportCsv() {
@@ -608,7 +684,7 @@ export default function Leads() {
                   Select Source
                 </p>
                 <div className="space-y-1 mt-1 max-h-60 overflow-y-auto">
-                  {LEAD_SOURCES.map(source => {
+                  {availableSources.map(source => {
                     const checked = filters.source.includes(source);
                     return (
                       <button
@@ -646,7 +722,7 @@ export default function Leads() {
             {activeDropdown === "owner" && (
               <div className="absolute left-0 top-9 z-30 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
                 <div className="space-y-1">
-                  {["All Owners", "Gabriel Deora"].map(owner => (
+                  {availableOwners.map(owner => (
                     <button
                       key={owner}
                       type="button"
@@ -778,24 +854,53 @@ export default function Leads() {
             </>
           )}
           empty={
-            <div>
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <Search size={20} className="text-slate-400" />
+            loading ? (
+              <div className="py-8 text-center text-slate-500">
+                <p className="text-sm font-medium">Loading leads...</p>
               </div>
-              <p className="mt-3 text-sm font-medium text-slate-700">
-                No leads found
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Try changing your search or filters.
-              </p>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="mt-3 text-xs font-medium text-blue-600 hover:underline"
-              >
-                Clear filters
-              </button>
-            </div>
+            ) : apiError ? (
+              <div className="py-8 text-center">
+                <p className="text-sm font-medium text-rose-600">{apiError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoading(true);
+                    setApiError(null);
+                    fetchLeads({ limit: 100 })
+                      .then(({ leads: data }) => {
+                        setLeads(data);
+                        setLoading(false);
+                      })
+                      .catch(err => {
+                        setApiError(err instanceof Error ? err.message : "Failed to load leads");
+                        setLoading(false);
+                      });
+                  }}
+                  className="mt-2 text-xs font-medium text-blue-600 hover:underline cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <Search size={20} className="text-slate-400" />
+                </div>
+                <p className="mt-3 text-sm font-medium text-slate-700">
+                  No leads found
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Try changing your search or filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="mt-3 text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )
           }
           pagination={{
             total: filteredLeads.length,
