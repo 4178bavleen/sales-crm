@@ -76,45 +76,61 @@ export async function fetchContacts(params?: FetchContactsParams): Promise<{
   const qs = query.toString();
   const path = `${ENDPOINTS.contacts.list}${qs ? `?${qs}` : ""}`;
 
-  const res = await request<{
-    success: boolean;
-    data: {
-      contacts: BackendContact[];
-      pagination: {
+  type FetchResponse = {
+    contacts?: BackendContact[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    data?: {
+      contacts?: BackendContact[];
+      pagination?: {
         page: number;
         limit: number;
         total: number;
         totalPages: number;
       };
     };
-  }>(path, {
+  };
+
+  const res = await request<FetchResponse>(path, {
     token: authToken(),
   });
 
-  const list = res.data?.contacts || [];
+  const list = res.contacts ?? res.data?.contacts ?? [];
+  const pagination = res.pagination ?? res.data?.pagination;
   return {
     contacts: list.map(toContact),
-    total: res.data?.pagination?.total ?? list.length,
-    totalPages: res.data?.pagination?.totalPages ?? 1,
+    total: pagination?.total ?? list.length,
+    totalPages: pagination?.totalPages ?? 1,
   };
 }
 
 export async function getContactById(id: number): Promise<Contact> {
-  const res = await request<{
-    success: boolean;
-    data: { contact: BackendContact };
-  }>(ENDPOINTS.contacts.byId(id), {
+  type SingleResponse = {
+    contact?: BackendContact;
+    data?: { contact?: BackendContact };
+  };
+
+  const res = await request<SingleResponse>(ENDPOINTS.contacts.byId(id), {
     token: authToken(),
   });
 
-  return toContact(res.data.contact);
+  const contact = res.contact ?? res.data?.contact;
+  if (!contact) throw new ApiError("Contact not found in response", 500);
+
+  return toContact(contact);
 }
 
 export async function createContact(input: CreateContactInput): Promise<Contact> {
-  const res = await request<{
-    success: boolean;
-    data: { contact: BackendContact };
-  }>(ENDPOINTS.contacts.create, {
+  type SingleResponse = {
+    contact?: BackendContact;
+    data?: { contact?: BackendContact };
+  };
+
+  const res = await request<SingleResponse>(ENDPOINTS.contacts.create, {
     method: "POST",
     token: authToken(),
     body: {
@@ -127,7 +143,10 @@ export async function createContact(input: CreateContactInput): Promise<Contact>
     },
   });
 
-  return toContact(res.data.contact);
+  const contact = res.contact ?? res.data?.contact;
+  if (!contact) throw new ApiError("Failed to parse created contact", 500);
+
+  return toContact(contact);
 }
 
 export async function updateContact(
@@ -142,24 +161,29 @@ export async function updateContact(
   if (input.phone !== undefined) payload.phone = input.phone?.trim() || null;
   if (input.notes !== undefined) payload.notes = input.notes?.trim() || null;
 
-  const res = await request<{
-    success: boolean;
-    data: { contact: BackendContact };
-  }>(ENDPOINTS.contacts.update(id), {
+  type SingleResponse = {
+    contact?: BackendContact;
+    data?: { contact?: BackendContact };
+  };
+
+  const res = await request<SingleResponse>(ENDPOINTS.contacts.update(id), {
     method: "PATCH",
     token: authToken(),
     body: payload,
   });
 
-  return toContact(res.data.contact);
+  const contact = res.contact ?? res.data?.contact;
+  if (!contact) throw new ApiError("Failed to parse updated contact", 500);
+
+  return toContact(contact);
 }
 
 export async function deleteContact(id: number): Promise<void> {
-  await request<{
-    success: boolean;
-    data: { id: number; deleted: boolean };
-  }>(ENDPOINTS.contacts.delete(id), {
-    method: "DELETE",
-    token: authToken(),
-  });
+  await request<{ id: number; deleted: boolean } | { data: { id: number; deleted: boolean } }>(
+    ENDPOINTS.contacts.delete(id),
+    {
+      method: "DELETE",
+      token: authToken(),
+    },
+  );
 }

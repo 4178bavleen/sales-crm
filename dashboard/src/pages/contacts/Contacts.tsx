@@ -32,6 +32,7 @@ import ContactForm from "../../components/ui/ContactForm";
 import DataTable from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";
 import ContactDetailDialog from "../../components/ui/ContactDetailDialog";
+import ContactDeleteDialog from "../../components/ui/ContactDeleteDialog";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import Avatar from "../../components/ui/Avatar";
 import {
@@ -69,6 +70,7 @@ export default function Contacts() {
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formContactId, setFormContactId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deletingContact, setDeletingContact] = useState<Contact | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
 
   // Dropdown states
@@ -351,17 +353,16 @@ export default function Contacts() {
     setFormContactId(null);
   }
 
-  async function handleDeleteContact(id: number) {
-    if (!window.confirm("Are you sure you want to delete this contact?")) return;
-    try {
-      await deleteContactApi(id);
-      setContacts(prev => prev.filter(c => c.id !== id));
-      setSelectedIds(prev => prev.filter(item => item !== id));
-      setTotalCount(prev => Math.max(0, prev - 1));
-      if (detailContact?.id === id) setDetailContact(null);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete contact");
-    }
+  function requestDeleteContact(contact: Contact) {
+    setDeletingContact(contact);
+  }
+
+  async function handleConfirmDelete(contact: Contact) {
+    await deleteContactApi(contact.id);
+    setContacts(prev => prev.filter(c => c.id !== contact.id));
+    setSelectedIds(prev => prev.filter(item => item !== contact.id));
+    setTotalCount(prev => Math.max(0, prev - 1));
+    if (detailContact?.id === contact.id) setDetailContact(null);
   }
 
   async function handleCopyEmail(email: string) {
@@ -803,7 +804,7 @@ export default function Contacts() {
                 <div className="my-1 border-t border-slate-100" />
                 <button
                   type="button"
-                  onClick={() => handleDeleteContact(contact.id)}
+                  onClick={() => requestDeleteContact(contact)}
                   className="w-full rounded px-3 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer"
                 >
                   Delete contact
@@ -966,7 +967,7 @@ export default function Contacts() {
                       type="button"
                       onClick={e => {
                         e.stopPropagation();
-                        handleDeleteContact(contact.id);
+                        requestDeleteContact(contact);
                       }}
                       className="text-slate-400 hover:text-rose-600 transition"
                       title="Delete contact"
@@ -1016,7 +1017,17 @@ export default function Contacts() {
           contact={detailContact}
           onClose={() => setDetailContact(null)}
           onEdit={() => openEdit(detailContact)}
-          onDelete={() => handleDeleteContact(detailContact.id)}
+          onDelete={() => requestDeleteContact(detailContact)}
+        />
+      )}
+
+      {/* Delete Contact Modal */}
+      {deletingContact && (
+        <ContactDeleteDialog
+          contact={deletingContact}
+          isOpen={Boolean(deletingContact)}
+          onClose={() => setDeletingContact(null)}
+          onConfirm={handleConfirmDelete}
         />
       )}
 
