@@ -60,9 +60,9 @@ export function TablePagination({
 
   return (
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-3.5">
-      <div className="text-xs text-slate-600">
-        Showing <span className="font-semibold text-slate-800">{startIndex}–{endIndex}</span> of{" "}
-        <span className="font-semibold text-slate-800">{total}</span> leads
+      <div className="text-xs text-slate-700 font-medium">
+        Showing <span className="font-bold text-slate-950">{startIndex}–{endIndex}</span> of{" "}
+        <span className="font-bold text-slate-950">{total}</span> leads
       </div>
 
       <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export function TablePagination({
           type="button"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
           aria-label="Previous page"
         >
           <ChevronLeft size={14} />
@@ -82,7 +82,7 @@ export function TablePagination({
           {pages.map((p, index) => {
             if (p === "...") {
               return (
-                <span key={`ellipsis-${index}`} className="px-1 text-xs text-slate-400">
+                <span key={`ellipsis-${index}`} className="px-1 text-xs text-slate-500 font-semibold">
                   ...
                 </span>
               );
@@ -94,10 +94,10 @@ export function TablePagination({
                 key={pageNum}
                 type="button"
                 onClick={() => onPageChange(pageNum)}
-                className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition ${
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-xs transition cursor-pointer ${
                   isActive
-                    ? "border border-blue-600 bg-white font-semibold text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "border border-blue-600 bg-blue-50/50 font-bold text-blue-700 shadow-2xs"
+                    : "text-slate-800 font-semibold hover:bg-slate-100"
                 }`}
               >
                 {pageNum}
@@ -111,7 +111,7 @@ export function TablePagination({
           type="button"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
           aria-label="Next page"
         >
           <ChevronRight size={14} />
@@ -122,7 +122,7 @@ export function TablePagination({
           <select
             value={pageSize}
             onChange={e => onPageSizeChange(Number(e.target.value))}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 outline-none hover:border-slate-300"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 font-semibold outline-none hover:border-slate-400 cursor-pointer"
           >
             {pageSizeOptions.map(size => (
               <option key={size} value={size}>
@@ -196,9 +196,9 @@ export default function DataTable<T>({
 
   const table = (
     <div className="w-full overflow-x-auto">
-      <table className={`w-full ${minWidth} border-collapse text-left text-slate-800`}>
+      <table className={`w-full ${minWidth} border-collapse text-left text-slate-900`}>
         <thead>
-          <tr className="border-b border-slate-200 bg-white">
+          <tr className="border-b border-slate-200 bg-slate-50/80">
             {selectable && (
               <th className="w-10 px-4 py-3.5">
                 <Checkbox
@@ -211,7 +211,7 @@ export default function DataTable<T>({
             {columns.map(column => (
               <th
                 key={column.key}
-                className={`whitespace-nowrap px-4 py-3.5 text-xs font-semibold text-slate-700 ${
+                className={`whitespace-nowrap px-4 py-3.5 text-xs font-bold text-slate-800 tracking-tight ${
                   column.headerClassName ?? ""
                 }`}
               >
@@ -219,13 +219,13 @@ export default function DataTable<T>({
               </th>
             ))}
             {renderRowMenu && (
-              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold text-slate-700">
+              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-bold text-slate-800 tracking-tight">
                 Actions
               </th>
             )}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white text-slate-800">
+        <tbody className="divide-y divide-slate-200 bg-white text-slate-900">
           {rows.map((row, index) => {
             const id = getRowId(row);
             const isSelected = selectedIds.includes(id);
@@ -233,14 +233,14 @@ export default function DataTable<T>({
               <tr
                 key={id}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={`group transition-colors hover:bg-slate-50/70 ${
-                  isSelected ? "bg-blue-50/30" : "bg-white"
+                className={`group transition-colors hover:bg-slate-50 ${
+                  isSelected ? "bg-blue-50/40" : "bg-white"
                 } ${onRowClick ? "cursor-pointer" : ""} ${
                   openMenuId === id ? "relative z-30" : ""
                 }`}
               >
                 {selectable && (
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
                     <Checkbox
                       checked={isSelected}
                       onChange={() => toggleRow(id)}
@@ -249,12 +249,12 @@ export default function DataTable<T>({
                   </td>
                 )}
                 {columns.map(column => (
-                  <td key={column.key} className={`px-4 py-3 text-xs text-slate-800 ${column.className ?? ""}`}>
+                  <td key={column.key} className={`px-4 py-3.5 text-xs font-medium text-slate-900 ${column.className ?? ""}`}>
                     {column.cell(row, index)}
                   </td>
                 ))}
                 {renderRowMenu && (
-                  <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={e => {
@@ -273,7 +273,7 @@ export default function DataTable<T>({
                         });
                         setOpenMenuId(id);
                       }}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
                       aria-label="Row actions"
                     >
                       <MoreHorizontal size={16} />
