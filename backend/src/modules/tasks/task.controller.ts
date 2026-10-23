@@ -68,34 +68,60 @@ export async function createTaskController(
 }
 
 export async function listTasksController(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const query = req.query
+    const query = req.query;
+
+    const userId = Number(req.user?.id);
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    if (!userId || !Number.isSafeInteger(userId)) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+      return;
+    }
 
     const result = await listTasks({
       page: query.page ? parseId(query.page, 'page') : 1,
       limit: query.limit ? parseId(query.limit, 'limit') : 20,
+
       status: query.status
         ? parseTaskStatus(query.status)
         : undefined,
-      priority: query.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | undefined,
-      assignedToId: query.assignedToId
-        ? parseId(query.assignedToId, 'assignedToId')
-        : undefined,
+
+      priority: query.priority as
+        | 'LOW'
+        | 'MEDIUM'
+        | 'HIGH'
+        | 'URGENT'
+        | undefined,
+
+      // Admin sees all tasks; employees see their assigned tasks.
+      // Ignore the frontend's assignedToId filter for this access rule.
+      assignedToId: isAdmin
+        ? undefined
+        : userId,
+
       dueFrom: query.dueFrom
         ? new Date(String(query.dueFrom))
         : undefined,
+
       dueTo: query.dueTo
         ? new Date(String(query.dueTo))
         : undefined,
-    })
+    });
 
-    res.json({ success: true, data: result })
+    res.json({
+      success: true,
+      data: result,
+    });
   } catch (error) {
-    handleError(error, res, next)
+    handleError(error, res, next);
   }
 }
 
