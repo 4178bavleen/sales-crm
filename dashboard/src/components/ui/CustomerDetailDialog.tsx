@@ -3,7 +3,7 @@ import type { CustomerDetailDialogProps } from "../../types/customerUi";
 import {
   customerDetailFields,
   formatCurrency,
-} from "../../data/customerColumns";
+} from "../../columns/customerColumns";
 
 /**
  * Centered modal showing a single customer's details.

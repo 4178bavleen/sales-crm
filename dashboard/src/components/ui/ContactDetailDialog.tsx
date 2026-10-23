@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import type { ContactDetailDialogProps } from "../../types/contactUi";
-import { contactDetailFields } from "../../data/contactColumns";
+import { contactDetailFields } from "../../columns/contactColumns";
 import Avatar from "./Avatar";
 
 /**

@@ -14,12 +14,11 @@ import {
 } from "lucide-react";
 import type { Contact, ContactFormValues } from "../../types/contact";
 import { CONTACT_JOB_TITLES } from "../../types/contact";
-import { initialContacts } from "../../data/contacts";
 import {
   contactColumns,
   contactColumnOptions,
   contactCsvFields,
-} from "../../data/contactColumns";
+} from "../../columns/contactColumns";
 import type { ContactsFilter } from "../../types/contactsPage";
 import ContactForm from "../../components/ui/ContactForm";
 import DataTable, {
@@ -44,7 +43,7 @@ const searchInputClass =
   "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
 export default function Contacts() {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ContactsFilter>(emptyFilters);
   const [sortNewest, setSortNewest] = useState(true);

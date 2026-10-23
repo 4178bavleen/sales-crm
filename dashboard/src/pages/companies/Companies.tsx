@@ -15,13 +15,12 @@ import {
 } from "lucide-react";
 import type { Company, CompanyFormValues } from "../../types/company";
 import { COMPANY_INDUSTRIES } from "../../types/company";
-import { initialCompanies } from "../../data/companies";
 import {
   companyColumns,
   companyColumnOptions,
   companyCsvFields,
   industryStyles,
-} from "../../data/companyColumns";
+} from "../../columns/companyColumns";
 import type { CompaniesFilter } from "../../types/companiesPage";
 import CompanyForm from "../../components/ui/CompanyForm";
 import DataTable, {
@@ -45,7 +44,7 @@ const searchInputClass =
   "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
 export default function Companies() {
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<CompaniesFilter>(emptyFilters);
   const [sortNewest, setSortNewest] = useState(true);

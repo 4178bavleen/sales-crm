@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { PipelineBoardProps } from "../../types/dealUi";
 import type { StageKind, Deal } from "../../types/deal";
-import { formatCurrency, formatDealDate } from "../../data/dealColumns";
+import { formatCurrency, formatDealDate } from "../../columns/dealColumns";
 
 /** Column accent color per StageKind */
 const stageBadgeColor: Record<StageKind, { dot: string; bg: string; text: string; border: string }> = {

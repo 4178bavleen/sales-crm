@@ -15,15 +15,13 @@ import {
 } from "lucide-react";
 import type { Customer, CustomerFormValues } from "../../types/customer";
 import { CUSTOMER_OWNERS } from "../../types/customer";
-import { initialCustomers } from "../../data/customers";
 import {
   customerColumns,
   customerColumnOptions,
   customerCsvFields,
   formatCurrency,
-} from "../../data/customerColumns";
+} from "../../columns/customerColumns";
 import type { CustomersFilter } from "../../types/customersPage";
-import { initialCompanies } from "../../data/companies";
 import CustomerForm from "../../components/ui/CustomerForm";
 import DataTable, {
   TablePagination,
@@ -46,7 +44,7 @@ const searchInputClass =
   "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
 export default function Customers() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<CustomersFilter>(emptyFilters);
   const [sortNewest, setSortNewest] = useState(true);
@@ -154,11 +152,8 @@ export default function Customers() {
   }
 
   function saveCustomer(values: CustomerFormValues) {
-    // Industry is not a Customer column — it belongs to the linked Company, so
-    // it is resolved from the companies seed exactly as the API would nest it.
-    const industry =
-      initialCompanies.find(company => company.name === values.company)?.industry ??
-      "";
+    // Industry is not a Customer column — it belongs to the linked Company.
+    const industry = "";
     if (formCustomerId === null) {
       const nextId =
         customers.reduce((max, customer) => Math.max(max, customer.id), 0) + 1;

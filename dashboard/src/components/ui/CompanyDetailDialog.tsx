@@ -1,6 +1,6 @@
 import { X, Building2 } from "lucide-react";
 import type { CompanyDetailDialogProps } from "../../types/companyUi";
-import { companyDetailFields } from "../../data/companyColumns";
+import { companyDetailFields } from "../../columns/companyColumns";
 
 /**
  * Centered modal showing a single company's details.

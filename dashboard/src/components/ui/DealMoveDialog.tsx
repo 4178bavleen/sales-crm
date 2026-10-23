@@ -2,7 +2,7 @@ import { X, Trophy, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DealMoveDialogProps } from "../../types/dealUi";
 import { DEAL_LOST_REASONS } from "../../types/deal";
-import { formatCurrency } from "../../data/dealColumns";
+import { formatCurrency } from "../../columns/dealColumns";
 import { Field, SelectField, TextAreaField } from "./FormControls";
 import {
   cellClass,

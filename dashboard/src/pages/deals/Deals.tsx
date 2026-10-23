@@ -32,7 +32,7 @@ import {
   formatDealDate,
   statusLabels,
   statusStyles,
-} from "../../data/dealColumns";
+} from "../../columns/dealColumns";
 import DealForm from "../../components/ui/DealForm";
 import DataTable, { TablePagination } from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";

@@ -5,7 +5,7 @@ import {
   formatCurrency,
   statusLabels,
   statusStyles,
-} from "../../data/dealColumns";
+} from "../../columns/dealColumns";
 
 /**
  * Centered modal showing a single deal's details.

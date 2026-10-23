@@ -4,8 +4,6 @@ import type { CustomerFormValues } from "../../types/customer";
 import { CUSTOMER_OWNERS } from "../../types/customer";
 import type { CustomerFormProps } from "../../types/customerForm";
 import { cellClass } from "../../types/formControls";
-import { initialCompanies } from "../../data/companies";
-import { initialContacts } from "../../data/contacts";
 import {
   Field,
   FormSection,
@@ -66,9 +64,8 @@ export default function CustomerForm({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Link targets come from the existing records, like a lookup at the API boundary.
-  const companyOptions = initialCompanies.map(company => company.name);
-  const contactOptions = initialContacts.map(contact => contact.fullName);
+  const companyOptions: string[] = [];
+  const contactOptions: string[] = [];
 
   const companyInvalid = !form.company;
   const errorMessage = companyInvalid
