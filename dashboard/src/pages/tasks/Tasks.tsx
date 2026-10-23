@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import type { Priority, Task, TaskFormValues, TaskStatus } from "../../types/task";
-import { TASK_CANCEL_REASONS, TASK_PRIORITIES, TASK_STATUSES } from "../../types/task";
+import { TASK_CANCEL_REASONS } from "../../types/task";
 import {
   dueBucket,
   dueLabel,
@@ -151,6 +151,11 @@ export default function Tasks() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
+  // Backend options
+  const [backendStatuses, setBackendStatuses] = useState<TaskStatus[]>([]);
+  const [backendPriorities, setBackendPriorities] = useState<Priority[]>([]);
+  const [backendUsers, setBackendUsers] = useState<{ id: number; name: string }[]>([]);
+
   // Dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -177,6 +182,20 @@ export default function Tasks() {
 
   useEffect(() => {
     void refreshTasks();
+    const token = getSession()?.token;
+    if (token) {
+      request<{
+        users?: { id: number; name: string }[];
+        priorities?: Priority[];
+        statuses?: TaskStatus[];
+      }>(ENDPOINTS.tasks.options, { token })
+        .then(data => {
+          if (data.statuses) setBackendStatuses(data.statuses);
+          if (data.priorities) setBackendPriorities(data.priorities);
+          if (data.users) setBackendUsers(data.users);
+        })
+        .catch(() => {});
+    }
   }, [refreshTasks]);
 
   useEffect(() => {
@@ -275,12 +294,28 @@ export default function Tasks() {
 
   // Available assignees list
   const availableAssignees = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(backendUsers.map(u => u.name));
     for (const task of tasks) {
-      if (task.assignedTo) set.add(task.assignedTo);
+      if (task.assignedTo && task.assignedTo !== "Unassigned") set.add(task.assignedTo);
     }
     return ["All Assignees", ...Array.from(set).sort()];
-  }, [tasks]);
+  }, [tasks, backendUsers]);
+
+  const availableStatuses = useMemo(() => {
+    const set = new Set<TaskStatus>(backendStatuses);
+    for (const task of tasks) {
+      if (task.status) set.add(task.status);
+    }
+    return Array.from(set);
+  }, [tasks, backendStatuses]);
+
+  const availablePriorities = useMemo(() => {
+    const set = new Set<Priority>(backendPriorities);
+    for (const task of tasks) {
+      if (task.priority) set.add(task.priority);
+    }
+    return Array.from(set);
+  }, [tasks, backendPriorities]);
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -345,9 +380,10 @@ export default function Tasks() {
     const snoCol = {
       key: "sno",
       header: "S.No",
-      className: "w-12 text-center text-xs text-slate-500",
+      className: "w-12 text-center text-xs font-bold text-slate-900 whitespace-nowrap",
+      headerClassName: "w-12 text-center whitespace-nowrap",
       cell: (_task: Task, index?: number) => (
-        <span className="text-slate-500 font-medium">
+        <span className="text-slate-900 font-bold">
           {startIndex + (index ?? 0) + 1}
         </span>
       ),
@@ -837,7 +873,7 @@ export default function Tasks() {
                   Select Status
                 </p>
                 <div className="space-y-1 mt-1">
-                  {TASK_STATUSES.map(status => {
+                  {availableStatuses.map(status => {
                     const checked = statusFilter.includes(status);
                     return (
                       <button
@@ -886,7 +922,7 @@ export default function Tasks() {
                   Select Priority
                 </p>
                 <div className="space-y-1 mt-1">
-                  {TASK_PRIORITIES.map(priority => {
+                  {availablePriorities.map(priority => {
                     const checked = priorityFilter.includes(priority);
                     return (
                       <button
@@ -1089,7 +1125,7 @@ export default function Tasks() {
                 <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                   Update status
                 </p>
-                {TASK_STATUSES.map(status => (
+                {availableStatuses.map(status => (
                   <button
                     key={status}
                     type="button"

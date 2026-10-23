@@ -23,11 +23,16 @@ function today() {
  */
 export default function DealMoveDialog({
   move,
+  lostReasons,
   onCancel,
   onConfirm,
 }: DealMoveDialogProps) {
   const { deal, toStage } = move;
   const isWon = toStage.kind === "WON";
+
+  const reasonsList = (lostReasons && lostReasons.length > 0)
+    ? lostReasons.map(r => (typeof r === "string" ? r : r.name))
+    : DEAL_LOST_REASONS;
 
   // Pre-fill revenue from the estimate — a sensible default the user can change.
   const [wonRevenue, setWonRevenue] = useState(
@@ -35,9 +40,9 @@ export default function DealMoveDialog({
   );
   const [closedAt, setClosedAt] = useState(deal.closedAt || today());
   const [lostReason, setLostReason] = useState(
-    deal.lostReason || DEAL_LOST_REASONS[0] || "",
+    deal.lostReason || reasonsList[0] || "",
   );
-  const [lostNote, setLostNote] = useState(deal.lostNote);
+  const [lostNote, setLostNote] = useState(deal.lostNote || "");
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -93,10 +98,10 @@ export default function DealMoveDialog({
         </div>
 
         <div className="space-y-4 px-5 py-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600 font-medium">
             {isWon
-              ? "Marking this deal Won records its revenue. Confirming is final in this demo — you can still edit it later."
-              : "Marking this deal Lost records why. Confirming is final in this demo — you can still edit it later."}
+              ? "Marking this deal Won records its closed revenue."
+              : "Marking this deal Lost records the reason and outcome notes."}
           </p>
 
           {isWon ? (
@@ -126,7 +131,7 @@ export default function DealMoveDialog({
                   label="Lost Reason"
                   value={lostReason}
                   onChange={setLostReason}
-                  options={DEAL_LOST_REASONS}
+                  options={reasonsList}
                 />
               </div>
               <div className={cellClass}>

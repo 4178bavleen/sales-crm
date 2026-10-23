@@ -68,32 +68,32 @@ function getStatusBadge(status: MeetingStatus) {
     case "PLANNED":
       return {
         label: "Scheduled",
-        bg: "bg-blue-50 text-blue-700 border-blue-200/80",
-        dot: "bg-blue-500",
+        bg: "bg-blue-100 text-blue-950 border-blue-300 font-bold",
+        dot: "bg-blue-600",
       };
     case "COMPLETED":
       return {
         label: "Completed",
-        bg: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
-        dot: "bg-emerald-500",
+        bg: "bg-emerald-100 text-emerald-950 border-emerald-300 font-bold",
+        dot: "bg-emerald-600",
       };
     case "RESCHEDULED":
       return {
         label: "Rescheduled",
-        bg: "bg-amber-50 text-amber-700 border-amber-200/80",
-        dot: "bg-amber-500",
+        bg: "bg-amber-100 text-amber-950 border-amber-300 font-bold",
+        dot: "bg-amber-600",
       };
     case "CANCELLED":
       return {
         label: "Cancelled",
-        bg: "bg-rose-50 text-rose-700 border-rose-200/80",
-        dot: "bg-rose-500",
+        bg: "bg-rose-100 text-rose-950 border-rose-300 font-bold",
+        dot: "bg-rose-600",
       };
     default:
       return {
         label: status,
-        bg: "bg-slate-50 text-slate-700 border-slate-200",
-        dot: "bg-slate-400",
+        bg: "bg-slate-100 text-slate-900 border-slate-300 font-bold",
+        dot: "bg-slate-600",
       };
   }
 }
@@ -495,7 +495,7 @@ export default function MeetingsPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Meetings & Calendar
+              Meetings
             </h1>
             <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200/60">
               {meetings.length} Scheduled
@@ -927,9 +927,9 @@ export default function MeetingsPage() {
         ) : (
           /* Table View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-slate-800">
+            <table className="w-full text-left border-collapse text-slate-900">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-800 uppercase tracking-wider">
                   <th className="py-3 px-4 min-w-[160px]">Date & Time</th>
                   <th className="py-3 px-4 min-w-[220px]">Meeting Title</th>
                   <th className="py-3 px-4 min-w-[160px]">Connected To</th>
@@ -938,7 +938,7 @@ export default function MeetingsPage() {
                   <th className="py-3 px-4 text-right min-w-[120px]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-800">
+              <tbody className="divide-y divide-slate-200 text-xs text-slate-900">
                 {filteredMeetings.map((m) => {
                   const dt = formatDateTime(m.startsAt);
                   const badge = getStatusBadge(m.status);
@@ -947,15 +947,15 @@ export default function MeetingsPage() {
                     <tr
                       key={m.id}
                       onClick={() => handleOpenDetail(m)}
-                      className="hover:bg-slate-50/60 transition cursor-pointer group"
+                      className="hover:bg-slate-50 transition cursor-pointer group"
                     >
                       <td className="py-3 px-4">
-                        <div className="font-bold text-slate-900">{dt.full}</div>
-                        <div className="text-[11px] font-medium text-slate-600">{dt.time} ({m.durationMinutes} min)</div>
+                        <div className="font-bold text-slate-950">{dt.full}</div>
+                        <div className="text-[11px] font-semibold text-slate-700">{dt.time} ({m.durationMinutes} min)</div>
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="font-bold text-slate-800 group-hover:text-blue-600 transition">
+                        <div className="font-bold text-[#154fc1] group-hover:underline transition">
                           {m.title}
                         </div>
                         {m.meetingLink ? (
@@ -964,14 +964,14 @@ export default function MeetingsPage() {
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-0.5"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline mt-0.5"
                           >
                             <Video size={11} />
                             <span>Video link</span>
                             <ExternalLink size={9} />
                           </a>
                         ) : m.location ? (
-                          <div className="text-[11px] font-medium text-slate-600 mt-0.5 truncate max-w-[200px]">
+                          <div className="text-[11px] font-semibold text-slate-700 mt-0.5 truncate max-w-[200px]">
                             {m.location}
                           </div>
                         ) : null}
@@ -979,23 +979,23 @@ export default function MeetingsPage() {
 
                       <td className="py-3 px-4">
                         {m.lead ? (
-                          <div className="flex items-center gap-1 text-slate-900 font-medium">
-                            <Users size={12} className="text-slate-500" />
+                          <div className="flex items-center gap-1 text-slate-950 font-bold">
+                            <Users size={12} className="text-slate-600" />
                             <span>{m.lead.contactName}</span>
                           </div>
                         ) : m.deal ? (
-                          <div className="flex items-center gap-1 text-purple-700 font-medium">
-                            <FolderGit2 size={12} className="text-purple-500" />
+                          <div className="flex items-center gap-1 text-purple-900 font-bold">
+                            <FolderGit2 size={12} className="text-purple-600" />
                             <span>{m.deal.name}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 font-light">—</span>
+                          <span className="text-slate-500 font-medium">—</span>
                         )}
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="text-slate-900 font-semibold">{m.organizer.name}</div>
-                        <div className="text-[11px] font-medium text-slate-600">{m.organizer.email}</div>
+                        <div className="text-slate-950 font-bold">{m.organizer.name}</div>
+                        <div className="text-[11px] font-semibold text-slate-700">{m.organizer.email}</div>
                       </td>
 
                       <td className="py-3 px-4 text-center">
@@ -1011,25 +1011,25 @@ export default function MeetingsPage() {
                             type="button"
                             title="View Details"
                             onClick={() => handleOpenDetail(m)}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
                           >
-                            <Eye size={13} />
+                            <Eye size={14} />
                           </button>
                           <button
                             type="button"
                             title="Edit Meeting"
                             onClick={(e) => handleOpenEdit(m, e)}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
                           >
-                            <Pencil size={13} />
+                            <Pencil size={14} />
                           </button>
                           <button
                             type="button"
                             title="Delete Meeting"
                             onClick={(e) => handleOpenDelete(m, e)}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                            className="rounded-lg p-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>

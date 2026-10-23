@@ -75,6 +75,7 @@ export type DealStageMove = {
  */
 export type DealMoveDialogProps = {
   move: DealStageMove;
+  lostReasons?: { id: number; name: string }[] | string[];
   onCancel: () => void;
   onConfirm: (details: {
     wonRevenue: string;

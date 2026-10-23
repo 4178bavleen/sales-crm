@@ -60,19 +60,19 @@ export default function DealDetailDialog({
               <CircleDollarSign size={22} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-slate-800">{deal.name}</p>
-              <p className="mt-1 truncate text-xs text-slate-500">
+              <p className="truncate font-bold text-slate-950">{deal.name}</p>
+              <p className="mt-1 truncate text-xs font-semibold text-slate-600">
                 {deal.customer || "No customer"} · {deal.stage || "No stage"}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <span
-                  className={`rounded px-2 py-0.5 text-[10px] font-medium ${
+                  className={`rounded px-2.5 py-0.5 text-[10px] font-bold ${
                     statusStyles[deal.status] ?? statusStyles.OPEN
                   }`}
                 >
                   {statusLabels[deal.status] ?? deal.status}
                 </span>
-                <span className="text-xs font-medium text-slate-700">
+                <span className="text-xs font-bold text-slate-950">
                   {formatCurrency(deal.estimatedValue)}
                 </span>
               </div>

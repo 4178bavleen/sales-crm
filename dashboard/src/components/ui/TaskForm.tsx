@@ -708,7 +708,7 @@ export default function TaskForm({
             {/* Assignee Selector */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                Task Assignee
+                Task Assigned To:
               </label>
               <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
                 {users.map(u => {

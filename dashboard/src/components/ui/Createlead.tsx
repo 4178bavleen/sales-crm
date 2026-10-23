@@ -863,25 +863,6 @@ export default function CreateLeadModal({
                 {emailInvalid && <span className="text-[10px] text-rose-600 font-semibold">Invalid</span>}
               </div>
             </div>
-
-            {/* Primary Action Button */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => handleSubmit()}
-                disabled={isSubmitting || isLoadingOptions}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#1d61e7] py-2.5 px-4 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <span>Saving...</span>
-                ) : (
-                  <>
-                    <Save size={14} />
-                    <span>{isEdit ? "Save Changes" : "Save Lead Now"}</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       </form>
