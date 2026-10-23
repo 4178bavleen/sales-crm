@@ -10,7 +10,6 @@ import {
   Target,
   BarChart3,
   FileText,
-  ChevronDown,
   UserCog,
   ShieldCheck,
 } from "lucide-react";
@@ -195,7 +194,7 @@ export default function Sidebar() {
 
       {/* Bottom Profile card */}
       <div className="shrink-0 border-t border-slate-800/80 p-3">
-        <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-white/5 cursor-pointer">
+        <div className="flex items-center gap-3 rounded-xl p-2 cursor-default select-none">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1d61e7] text-xs font-bold text-white shadow-sm shadow-blue-500/20">
             {initials}
           </div>
@@ -208,8 +207,6 @@ export default function Sidebar() {
               {userRole}
             </p>
           </div>
-
-          <ChevronDown size={16} className="shrink-0 text-slate-400" />
         </div>
       </div>
     </aside>

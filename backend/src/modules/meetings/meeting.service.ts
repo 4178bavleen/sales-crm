@@ -29,6 +29,17 @@ const meetingInclude = {
   company: {
     select: { id: true, name: true },
   },
+  customer: {
+    select: {
+      id: true,
+      primaryContact: {
+        select: { id: true, fullName: true, email: true, phone: true },
+      },
+      company: {
+        select: { id: true, name: true },
+      },
+    },
+  },
   participants: {
     include: {
       user: {

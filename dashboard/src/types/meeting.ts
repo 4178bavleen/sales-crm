@@ -50,6 +50,11 @@ export interface MeetingItem {
   lead?: MeetingLead | null;
   deal?: MeetingDeal | null;
   company?: { id: number; name: string } | null;
+  customer?: {
+    id: number;
+    primaryContact?: { id: number; fullName: string; email?: string | null; phone?: string | null } | null;
+    company?: { id: number; name: string } | null;
+  } | null;
   participants: MeetingParticipant[];
 }
 
