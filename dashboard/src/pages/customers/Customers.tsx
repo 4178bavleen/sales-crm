@@ -31,6 +31,7 @@ import FilterSidebar, {
 } from "../../components/ui/FilterSidebar";
 import TableSettings from "../../components/ui/TableSettings";
 import CustomerDetailDialog from "../../components/ui/CustomerDetailDialog";
+import { useSession } from "../../lib/useSession";
 
 // Filter state as one object: one setter, one reset, one dependency.
 const emptyFilters: CustomersFilter = { industry: [], owner: [] };
@@ -44,6 +45,11 @@ const searchInputClass =
   "rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-400 focus:bg-white";
 
 export default function Customers() {
+  const session = useSession();
+  const currentUser = session?.user;
+  const isAdmin = currentUser?.role?.toUpperCase() === "ADMIN";
+  const currentUserName = currentUser?.name?.trim() || "";
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<CustomersFilter>(emptyFilters);
@@ -224,13 +230,16 @@ export default function Customers() {
   );
 
   const ownerOptions = useMemo(() => {
+    if (!isAdmin) {
+      return currentUserName ? [currentUserName] : [];
+    }
     const present = new Set(customers.map(customer => customer.owner).filter(Boolean));
     // Keep the canonical order from the owners list, then any extras.
     return [
       ...CUSTOMER_OWNERS.filter(owner => present.has(owner)),
       ...[...present].filter(owner => !CUSTOMER_OWNERS.includes(owner)),
     ];
-  }, [customers]);
+  }, [isAdmin, currentUserName, customers]);
 
   const filterSections: FilterCheckboxSection[] = [
     {

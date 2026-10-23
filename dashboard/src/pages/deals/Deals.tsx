@@ -41,6 +41,7 @@ import PipelineBoard from "../../components/ui/PipelineBoard";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
+import { useSession } from "../../lib/useSession";
 
 type ApiDeal = {
   id: number;
@@ -147,6 +148,12 @@ function toFormValues(deal: Deal): DealFormValues {
 }
 
 export default function Deals() {
+  const session = useSession();
+  const currentUser = session?.user;
+  const isAdmin = currentUser?.role?.toUpperCase() === "ADMIN";
+  const currentUserName = currentUser?.name?.trim() || "";
+  const currentUserId = currentUser?.id;
+
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [options, setOptions] = useState<DealOptionsData | null>(null);
@@ -160,6 +167,13 @@ export default function Deals() {
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [productFilter, setProductFilter] = useState<string>("");
   const [sortNewest, setSortNewest] = useState(true);
+
+  // Clear any invalid owner selection if a non-admin user is logged in
+  useEffect(() => {
+    if (!isAdmin && ownerFilter && ownerFilter !== currentUserName) {
+      setOwnerFilter("");
+    }
+  }, [isAdmin, ownerFilter, currentUserName]);
 
   // View state: PIPELINE VIEW (board) IS THE DEFAULT
   const [view, setView] = useState<"board" | "list" | "grid">("board");
@@ -911,7 +925,9 @@ export default function Deals() {
                   {!ownerFilter && <Check size={13} />}
                 </button>
                 <div className="my-1 border-t border-slate-100" />
-                {(options?.users || []).map(u => (
+                {(options?.users || [])
+                  .filter(u => isAdmin || u.name === currentUserName || u.id === currentUserId)
+                  .map(u => (
                   <button
                     key={u.id}
                     type="button"

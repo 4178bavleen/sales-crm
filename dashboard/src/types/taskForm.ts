@@ -6,5 +6,5 @@ export type TaskFormProps = {
   /** Existing values when editing. */
   values?: TaskFormValues;
   onClose: () => void;
-  onSubmit: (values: TaskFormValues) => void;
+  onSubmit: (values: TaskFormValues) => void | Promise<void>;
 };
