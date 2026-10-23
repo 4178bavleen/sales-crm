@@ -82,7 +82,7 @@ export default function ContactDeleteDialog({
           {/* Contact summary card */}
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
             <div className="flex items-center gap-3">
-              <Avatar name={contact.fullName} size="sm" />
+              <Avatar name={contact.fullName} seed={contact.id} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-slate-900">
                   {contact.fullName}
