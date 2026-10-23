@@ -63,7 +63,7 @@ export function toLead(backendLead: BackendLead): Lead {
     createdAt: backendLead.createdAt ? backendLead.createdAt.slice(0, 10) : "",
     notes: backendLead.notes || undefined,
     nextFollowUpAt: backendLead.nextFollowUpAt || undefined,
-    noFollowUp: !backendLead.nextFollowUpAt && !!backendLead.noFollowUpReasonId,
+    noFollowUp: !backendLead.nextFollowUpAt || Boolean(backendLead.noFollowUpReasonId),
     noFollowUpReasonId: backendLead.noFollowUpReasonId ?? null,
   };
 }
@@ -202,8 +202,10 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
 
   if (lead.nextFollowUpAt) {
     payload.nextFollowUpAt = new Date(lead.nextFollowUpAt).toISOString();
+    payload.noFollowUpReasonId = null;
   } else if (lead.noFollowUp || lead.noFollowUpReasonId) {
-    payload.noFollowUpReasonId = lead.noFollowUpReasonId ?? 7;
+    payload.nextFollowUpAt = null;
+    payload.noFollowUpReasonId = lead.noFollowUpReasonId || 1;
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.list, {
@@ -238,7 +240,7 @@ export async function updateLead(id: number, updates: Partial<CreateLeadInput>):
     payload.noFollowUpReasonId = null;
   } else if (updates.noFollowUp || updates.noFollowUpReasonId) {
     payload.nextFollowUpAt = null;
-    payload.noFollowUpReasonId = updates.noFollowUpReasonId ?? 7;
+    payload.noFollowUpReasonId = updates.noFollowUpReasonId || 1;
   }
 
   if (Object.keys(payload).length > 0) {

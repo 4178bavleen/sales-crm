@@ -5,8 +5,9 @@ export type ContactFormProps = {
   mode: "create" | "edit";
   /** Existing values when editing. */
   contact?: ContactFormValues;
+  availableCompanies?: { id: number; name: string }[];
   onClose: () => void;
-  onSubmit: (values: ContactFormValues) => void;
+  onSubmit: (values: ContactFormValues) => Promise<void> | void;
 };
 
 export type {

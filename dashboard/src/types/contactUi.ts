@@ -34,4 +34,6 @@ export type ContactColumn = DataTableColumn<Contact>;
 export type ContactDetailDialogProps = {
   contact: Contact;
   onClose: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };

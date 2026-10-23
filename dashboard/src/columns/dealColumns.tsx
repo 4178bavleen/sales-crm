@@ -37,9 +37,9 @@ export function formatCurrency(value: number) {
 
 /** Status pill colours (DealStatus: OPEN | WON | LOST). */
 export const statusStyles: Record<DealStatus, string> = {
-  OPEN: "bg-blue-50 text-blue-700",
-  WON: "bg-emerald-50 text-emerald-700",
-  LOST: "bg-rose-50 text-rose-700",
+  OPEN: "bg-blue-100 text-blue-950 border border-blue-300 font-bold",
+  WON: "bg-emerald-100 text-emerald-950 border border-emerald-300 font-bold",
+  LOST: "bg-rose-100 text-rose-950 border border-rose-300 font-bold",
 };
 
 export const statusLabels: Record<DealStatus, string> = {
@@ -134,14 +134,14 @@ export const dealColumns: DealColumn[] = [
     className: "min-w-[200px]",
     cell: deal => (
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
-          <CircleDollarSign size={15} />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[#154fc1]">
+          <CircleDollarSign size={16} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-blue-600 group-hover:text-blue-800">
+          <p className="truncate text-xs font-bold text-[#154fc1] group-hover:underline">
             {deal.name}
           </p>
-          <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-700">
             {deal.customer || "No customer"}
           </p>
         </div>
@@ -151,10 +151,10 @@ export const dealColumns: DealColumn[] = [
   {
     key: "stage",
     header: "Stage",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-bold text-slate-900",
     cell: deal => (
       <span className="inline-flex items-center gap-2">
-        <Layers size={13} className="shrink-0 text-slate-500" />
+        <Layers size={13} className="shrink-0 text-slate-600" />
         {deal.stage || "—"}
       </span>
     ),
@@ -165,7 +165,7 @@ export const dealColumns: DealColumn[] = [
     className: "whitespace-nowrap",
     cell: deal => (
       <span
-        className={`rounded px-2 py-1 text-[10px] font-medium ${
+        className={`rounded px-2.5 py-1 text-[10px] font-bold ${
           statusStyles[deal.status] ?? statusStyles.OPEN
         }`}
       >
@@ -176,10 +176,10 @@ export const dealColumns: DealColumn[] = [
   {
     key: "owner",
     header: "Owner",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-bold text-slate-950",
     cell: deal => (
       <span className="inline-flex items-center gap-2">
-        <Handshake size={13} className="shrink-0 text-slate-500" />
+        <Handshake size={13} className="shrink-0 text-slate-600" />
         {deal.owner || "—"}
       </span>
     ),
@@ -187,33 +187,33 @@ export const dealColumns: DealColumn[] = [
   {
     key: "product",
     header: "Product",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-semibold text-slate-900",
     cell: deal =>
       deal.product ? (
         <span className="inline-flex items-center gap-2">
-          <Package size={13} className="shrink-0 text-slate-500" />
+          <Package size={13} className="shrink-0 text-slate-600" />
           {deal.product}
         </span>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-slate-500 font-medium">—</span>
       ),
   },
   {
     key: "estimatedValue",
     header: "Value",
-    className: "whitespace-nowrap text-xs font-bold text-slate-900",
+    className: "whitespace-nowrap text-xs font-bold text-slate-950",
     cell: deal => formatCurrency(deal.estimatedValue),
   },
   {
     key: "expectedCloseDate",
     header: "Expected Close",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-semibold text-slate-800",
     cell: deal => formatDealDate(deal.expectedCloseDate),
   },
   {
     key: "nextAction",
     header: "Next Action",
-    className: "text-xs text-slate-800",
+    className: "text-xs font-medium text-slate-900",
     cell: deal => (
       <span className="block max-w-[220px] truncate" title={deal.nextAction}>
         {deal.nextAction || "—"}
@@ -223,7 +223,7 @@ export const dealColumns: DealColumn[] = [
   {
     key: "createdAt",
     header: "Created Time",
-    className: "whitespace-nowrap text-xs font-medium text-slate-700",
+    className: "whitespace-nowrap text-xs font-bold text-slate-800",
     cell: deal => formatDealDate(deal.createdAt),
   },
 ];

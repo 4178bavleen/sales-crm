@@ -14,13 +14,10 @@ import {
   DollarSign,
 } from "lucide-react";
 import type { DealFormValues, DealStatus } from "../../types/deal";
-import {
-  DEAL_LOST_REASONS,
-  DEAL_OWNERS,
-  DEAL_PRODUCTS,
-  PIPELINE_STAGE_ROWS,
-} from "../../types/deal";
-import type { DealFormProps } from "../../types/dealForm";
+import type { DealFormProps, DealOptionsData } from "../../types/dealForm";
+import { request } from "../../lib/api";
+import { ENDPOINTS } from "../../lib/endpoints";
+import { getSession } from "../../lib/auth";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -35,36 +32,30 @@ export default function DealForm({
 }: DealFormProps) {
   const isEdit = mode === "edit";
 
-  // Stages from options (or fallback)
-  const stageList = options?.stages && options.stages.length > 0
-    ? options.stages
-    : PIPELINE_STAGE_ROWS.map(([name, kind], index) => ({
-        id: index + 1,
-        name,
-        position: index,
-        kind,
-      }));
+  const [localOptions, setLocalOptions] = useState<DealOptionsData | null>(options ?? null);
 
-  // Users from options (or fallback)
-  const userList = options?.users && options.users.length > 0
-    ? options.users
-    : DEAL_OWNERS.map((name, index) => ({ id: index + 1, name, email: "" }));
+  useEffect(() => {
+    if (options) {
+      setLocalOptions(options);
+      return;
+    }
+    const token = getSession()?.token;
+    if (token) {
+      request<DealOptionsData>(ENDPOINTS.deals.options, { token })
+        .then(res => {
+          if (res) setLocalOptions(res);
+        })
+        .catch(() => {});
+    }
+  }, [options]);
 
-  // Products from options (or fallback)
-  const productList = options?.products && options.products.length > 0
-    ? options.products
-    : DEAL_PRODUCTS.map((name, index) => ({ id: index + 1, name }));
-
-  // Leads from options
-  const leadList = options?.leads || [];
-
-  // Customers from options
-  const customerList = options?.customers || [];
-
-  // Lost reasons
-  const reasonList = options?.lostReasons && options.lostReasons.length > 0
-    ? options.lostReasons
-    : DEAL_LOST_REASONS.map((name, index) => ({ id: index + 1, name }));
+  const activeOptions = localOptions ?? options;
+  const stageList = activeOptions?.stages || [];
+  const userList = activeOptions?.users || [];
+  const productList = activeOptions?.products || [];
+  const leadList = activeOptions?.leads || [];
+  const customerList = activeOptions?.customers || [];
+  const reasonList = activeOptions?.lostReasons || [];
 
   const defaultStage = stageList.find(s => s.kind === "OPEN") || stageList[0];
   const defaultUser = userList[0];
@@ -75,13 +66,13 @@ export default function DealForm({
     values?.stageId ||
       stageList.find(s => s.name === values?.stage)?.id ||
       defaultStage?.id ||
-      1,
+      0,
   );
   const [ownerId, setOwnerId] = useState<number>(
     values?.ownerId ||
       userList.find(u => u.name === values?.owner)?.id ||
       defaultUser?.id ||
-      1,
+      0,
   );
   const [customerId, setCustomerId] = useState<number | null>(
     values?.customerId ?? null,
@@ -105,6 +96,20 @@ export default function DealForm({
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  // Sync initial selections once options load
+  useEffect(() => {
+    if (!stageId && stageList.length > 0) {
+      const def = stageList.find(s => s.kind === "OPEN") || stageList[0];
+      if (def) setStageId(def.id);
+    }
+    if (!ownerId && userList.length > 0) {
+      setOwnerId(userList[0].id);
+    }
+    if (!lostReasonId && reasonList.length > 0) {
+      setLostReasonId(reasonList[0].id);
+    }
+  }, [stageList, userList, reasonList, stageId, ownerId, lostReasonId]);
 
   // Esc closes the dialog
   useEffect(() => {

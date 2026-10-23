@@ -20,22 +20,22 @@ import { formatCurrency, formatDealDate } from "../../columns/dealColumns";
 /** Column accent color per StageKind */
 const stageBadgeColor: Record<StageKind, { dot: string; bg: string; text: string; border: string }> = {
   OPEN: {
-    dot: "bg-blue-500",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    border: "border-blue-100",
+    dot: "bg-blue-600",
+    bg: "bg-blue-100",
+    text: "text-blue-950 font-bold",
+    border: "border-blue-300",
   },
   WON: {
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-100",
+    dot: "bg-emerald-600",
+    bg: "bg-emerald-100",
+    text: "text-emerald-950 font-bold",
+    border: "border-emerald-300",
   },
   LOST: {
-    dot: "bg-rose-500",
-    bg: "bg-rose-50",
-    text: "text-rose-700",
-    border: "border-rose-100",
+    dot: "bg-rose-600",
+    bg: "bg-rose-100",
+    text: "text-rose-950 font-bold",
+    border: "border-rose-300",
   },
 };
 
@@ -148,8 +148,8 @@ export default function PipelineBoard({
                 )}
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500 font-medium">Value</span>
-                <span className="font-semibold text-slate-800">
+                <span className="text-slate-600 font-semibold">Value</span>
+                <span className="font-bold text-slate-950">
                   {formatCurrency(stageValue)}
                 </span>
               </div>
@@ -179,7 +179,7 @@ export default function PipelineBoard({
                       onCardClick(deal);
                     }
                   }}
-                  className={`group relative cursor-grab rounded-xl border border-slate-200/90 bg-white p-3.5 text-left shadow-xs transition hover:border-[#1d61e7]/60 hover:shadow-md active:cursor-grabbing ${
+                  className={`group relative cursor-grab rounded-xl border border-slate-300 bg-white p-3.5 text-left shadow-xs transition hover:border-[#154fc1] hover:shadow-md active:cursor-grabbing ${
                     draggingId === deal.id ? "opacity-40 scale-[0.98]" : ""
                   }`}
                 >
@@ -188,20 +188,20 @@ export default function PipelineBoard({
                     <div className="flex items-start gap-1.5 min-w-0 flex-1">
                       <GripVertical
                         size={14}
-                        className="mt-0.5 shrink-0 text-slate-300 group-hover:text-slate-400 transition"
+                        className="mt-0.5 shrink-0 text-slate-400 group-hover:text-slate-600 transition"
                       />
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-slate-900 group-hover:text-[#1d61e7] transition">
+                        <p className="truncate text-xs font-bold text-slate-950 group-hover:text-[#154fc1] transition">
                           {deal.name}
                         </p>
                         {deal.customer ? (
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
-                            <Building2 size={11} className="shrink-0 text-slate-400" />
+                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-semibold text-slate-700">
+                            <Building2 size={11} className="shrink-0 text-slate-500" />
                             <span className="truncate">{deal.customer}</span>
                           </p>
                         ) : deal.lead ? (
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
-                            <Users size={11} className="shrink-0 text-slate-400" />
+                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-semibold text-slate-700">
+                            <Users size={11} className="shrink-0 text-slate-500" />
                             <span className="truncate">{deal.lead}</span>
                           </p>
                         ) : null}
@@ -219,7 +219,7 @@ export default function PipelineBoard({
                           y: rect.bottom + 4,
                         });
                       }}
-                      className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                      className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
                       title="Deal options"
                     >
                       <MoreVertical size={14} />
@@ -228,12 +228,12 @@ export default function PipelineBoard({
 
                   {/* Value & Product tag */}
                   <div className="mt-2.5 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 text-xs font-bold text-slate-900">
-                      <CircleDollarSign size={13} className="text-emerald-600" />
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-950">
+                      <CircleDollarSign size={13} className="text-emerald-700" />
                       <span>{formatCurrency(deal.estimatedValue)}</span>
                     </div>
                     {deal.product && (
-                      <span className="max-w-[120px] truncate rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                      <span className="max-w-[120px] truncate rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-800">
                         {deal.product}
                       </span>
                     )}
@@ -241,8 +241,8 @@ export default function PipelineBoard({
 
                   {/* Next Action */}
                   {deal.nextAction && (
-                    <div className="mt-2.5 flex items-start gap-1.5 rounded-lg bg-slate-50 p-2 text-[10px] text-slate-600 border border-slate-100">
-                      <ListChecks size={12} className="mt-0.5 shrink-0 text-[#1d61e7]" />
+                    <div className="mt-2.5 flex items-start gap-1.5 rounded-lg bg-slate-50 p-2 text-[10px] font-medium text-slate-800 border border-slate-200">
+                      <ListChecks size={12} className="mt-0.5 shrink-0 text-blue-700" />
                       <span className="line-clamp-2 leading-tight">
                         {deal.nextAction}
                       </span>
@@ -250,7 +250,7 @@ export default function PipelineBoard({
                   )}
 
                   {/* Footer: Owner & Close Date */}
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px] text-slate-500">
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2 text-[10px] font-semibold text-slate-700">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700">
                         {getInitials(deal.owner)}

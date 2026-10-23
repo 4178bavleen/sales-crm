@@ -28,6 +28,7 @@ import {
   updateLead as updateLeadApi,
   updateLeadStatus as updateLeadStatusApi,
   deleteLead as deleteLeadApi,
+  assignLead as assignLeadApi,
 } from "../../lib/leads";
 import {
   leadColumns,
@@ -364,7 +365,7 @@ export default function Leads() {
 
   async function handleUpdateLead(id: number, lead: Lead) {
     try {
-      const updated = await updateLeadApi(id, {
+      let updated = await updateLeadApi(id, {
         firstName: lead.firstName,
         lastName: lead.lastName,
         company: lead.company,
@@ -372,8 +373,6 @@ export default function Leads() {
         phone: lead.phone,
         source: lead.source,
         sourceId: lead.sourceId,
-        owner: lead.owner,
-        ownerId: lead.ownerId,
         status: lead.status,
         priority: lead.priority,
         notes: lead.notes,
@@ -381,6 +380,16 @@ export default function Leads() {
         noFollowUp: lead.noFollowUp,
         noFollowUpReasonId: lead.noFollowUpReasonId,
       });
+
+      const existing = leads.find(l => l.id === id);
+      if (lead.ownerId !== undefined && lead.ownerId !== existing?.ownerId) {
+        try {
+          updated = await assignLeadApi(id, lead.ownerId || null);
+        } catch (assignErr) {
+          console.warn("Could not update lead owner:", assignErr);
+        }
+      }
+
       setLeads(previous =>
         previous.map(l => (l.id === id ? updated : l)),
       );
@@ -1201,9 +1210,7 @@ export default function Leads() {
       {detailLead && (
         <LeadDetailDialog
           lead={detailLead}
-          availableStatuses={availableStatuses}
           onClose={() => setDetailLead(null)}
-          onStatusChange={status => updateLeadStatus(detailLead.id, status)}
           onEdit={() => {
             setEditingLead(detailLead);
             setDetailLead(null);

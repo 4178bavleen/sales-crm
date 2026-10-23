@@ -57,13 +57,13 @@ export const contactColumns: ContactColumn[] = [
     header: "Contact",
     className: "min-w-[190px]",
     cell: contact => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <Avatar name={contact.fullName} seed={contact.id} />
         <div>
-          <p className="text-xs font-semibold text-blue-600 group-hover:text-blue-800">
+          <p className="text-xs font-bold text-[#154fc1] hover:underline cursor-pointer">
             {contact.fullName}
           </p>
-          <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-600">
             Contact #{contact.id}
           </p>
         </div>
@@ -73,38 +73,38 @@ export const contactColumns: ContactColumn[] = [
   {
     key: "jobTitle",
     header: "Job Title",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-semibold text-slate-900",
     cell: contact =>
       contact.jobTitle ? (
         <span className="inline-flex items-center gap-2">
-          <BriefcaseBusiness size={13} className="shrink-0 text-slate-500" />
+          <BriefcaseBusiness size={13} className="shrink-0 text-slate-600" />
           {contact.jobTitle}
         </span>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-slate-400 font-medium">—</span>
       ),
   },
   {
     key: "company",
     header: "Company",
-    className: "text-xs font-medium text-slate-800",
+    className: "text-xs font-bold text-slate-950",
     cell: contact =>
       contact.company ? (
         <span className="inline-flex items-center gap-2">
-          <Building2 size={13} className="shrink-0 text-slate-500" />
+          <Building2 size={13} className="shrink-0 text-slate-600" />
           {contact.company}
         </span>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-slate-400 font-medium">—</span>
       ),
   },
   {
     key: "email",
     header: "Email",
-    className: "text-xs font-medium text-slate-800",
+    className: "text-xs font-bold text-slate-950",
     cell: contact => (
       <div className="flex max-w-[210px] items-center gap-2">
-        <Mail size={13} className="shrink-0 text-slate-500" />
+        <Mail size={13} className="shrink-0 text-slate-600" />
         <span className="truncate">{contact.email || "—"}</span>
       </div>
     ),
@@ -112,10 +112,10 @@ export const contactColumns: ContactColumn[] = [
   {
     key: "phone",
     header: "Phone",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-semibold text-slate-900",
     cell: contact => (
       <div className="flex items-center gap-2">
-        <Phone size={13} className="text-slate-500" />
+        <Phone size={13} className="text-slate-600" />
         {contact.phone || "—"}
       </div>
     ),
@@ -123,7 +123,7 @@ export const contactColumns: ContactColumn[] = [
   {
     key: "notes",
     header: "Notes",
-    className: "text-xs text-slate-800",
+    className: "text-xs text-slate-800 font-medium",
     cell: contact => (
       <span className="block max-w-[240px] truncate" title={contact.notes}>
         {contact.notes || "—"}
@@ -133,7 +133,7 @@ export const contactColumns: ContactColumn[] = [
   {
     key: "createdAt",
     header: "Created Time",
-    className: "whitespace-nowrap text-xs font-medium text-slate-700",
+    className: "whitespace-nowrap text-xs font-bold text-slate-800",
     cell: contact => formatContactDate(contact.createdAt),
   },
 ];

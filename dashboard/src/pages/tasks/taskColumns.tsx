@@ -54,10 +54,10 @@ export function formatTaskDateTime(date: string) {
 
 /** Priority pill colours (Prisma enum Priority). */
 export const priorityStyles: Record<Priority, string> = {
-  URGENT: "bg-rose-50 text-rose-700",
-  HIGH: "bg-amber-50 text-amber-700",
-  MEDIUM: "bg-blue-50 text-blue-700",
-  LOW: "bg-slate-100 text-slate-600",
+  URGENT: "bg-rose-100 text-rose-950 border border-rose-300 font-bold",
+  HIGH: "bg-orange-100 text-orange-950 border border-orange-300 font-bold",
+  MEDIUM: "bg-blue-100 text-blue-950 border border-blue-300 font-bold",
+  LOW: "bg-slate-100 text-slate-900 border border-slate-300 font-bold",
 };
 
 export const priorityLabels: Record<Priority, string> = {
@@ -69,10 +69,10 @@ export const priorityLabels: Record<Priority, string> = {
 
 /** Task status pill colours (Prisma enum TaskStatus). */
 export const taskStatusStyles: Record<TaskStatus, string> = {
-  OPEN: "bg-blue-50 text-blue-700",
-  IN_PROGRESS: "bg-amber-50 text-amber-700",
-  COMPLETED: "bg-emerald-50 text-emerald-700",
-  CANCELLED: "bg-slate-100 text-slate-500",
+  OPEN: "bg-blue-100 text-blue-950 border border-blue-300 font-bold",
+  IN_PROGRESS: "bg-amber-100 text-amber-950 border border-amber-300 font-bold",
+  COMPLETED: "bg-emerald-100 text-emerald-950 border border-emerald-300 font-bold",
+  CANCELLED: "bg-slate-100 text-slate-800 border border-slate-300 font-semibold",
 };
 
 export const taskStatusLabels: Record<TaskStatus, string> = {
@@ -133,9 +133,9 @@ export function dueBucket(
 /** Red / amber / slate due-date styling, so overdue tasks stand out. */
 export function dueStyles(task: { dueAt: string; status: TaskStatus }) {
   const bucket = dueBucket(task);
-  if (bucket === "overdue") return "text-rose-600";
-  if (bucket === "today") return "text-amber-600";
-  return "text-slate-500";
+  if (bucket === "overdue") return "text-rose-700 font-bold";
+  if (bucket === "today") return "text-amber-700 font-bold";
+  return "text-slate-800 font-semibold";
 }
 
 /** Short "Overdue by 3 days" / "Due today" style label. */
@@ -248,15 +248,15 @@ export const taskColumns: TaskColumn[] = [
     cell: task => (
       <div className="min-w-0">
         <p
-          className={`truncate text-xs font-semibold ${
+          className={`truncate text-xs font-bold ${
             task.status === "COMPLETED"
-              ? "text-slate-400 line-through"
-              : "text-[#1d61e7] hover:underline cursor-pointer"
+              ? "text-slate-500 line-through"
+              : "text-[#154fc1] hover:underline cursor-pointer"
           }`}
         >
           {task.title}
         </p>
-        <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
+        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-600">
           {task.description || `Task #${task.id}`}
         </p>
       </div>
@@ -268,7 +268,7 @@ export const taskColumns: TaskColumn[] = [
     className: "whitespace-nowrap",
     cell: task => (
       <span
-        className={`rounded px-2 py-1 text-[10px] font-medium ${
+        className={`rounded px-2 py-1 text-[10px] font-bold ${
           taskStatusStyles[task.status] ?? taskStatusStyles.OPEN
         }`}
       >
@@ -282,7 +282,7 @@ export const taskColumns: TaskColumn[] = [
     className: "whitespace-nowrap",
     cell: task => (
       <span
-        className={`rounded px-2 py-1 text-[10px] font-medium ${
+        className={`rounded px-2 py-1 text-[10px] font-bold ${
           priorityStyles[task.priority] ?? priorityStyles.MEDIUM
         }`}
       >
@@ -301,10 +301,10 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "assignedTo",
     header: "Assignee",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-bold text-slate-950",
     cell: task => (
       <span className="inline-flex items-center gap-2">
-        <UserRound size={13} className="shrink-0 text-slate-500" />
+        <UserRound size={13} className="shrink-0 text-slate-600" />
         {task.assignedTo || "—"}
       </span>
     ),
@@ -312,16 +312,16 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "relatedTo",
     header: "Related To",
-    className: "whitespace-nowrap text-xs font-medium text-slate-800",
+    className: "whitespace-nowrap text-xs font-semibold text-slate-900",
     cell: task => {
       const link = taskLink(task);
-      if (!link) return <span className="text-slate-400">—</span>;
+      if (!link) return <span className="text-slate-500 font-medium">—</span>;
       const Icon = link.kind === "lead" ? Users : Building2;
       return (
         <span className="inline-flex items-center gap-2">
-          <Icon size={13} className="shrink-0 text-slate-500" />
+          <Icon size={13} className="shrink-0 text-slate-600" />
           <span className="truncate">
-            <span className="text-[10px] font-medium text-slate-500">
+            <span className="text-[10px] font-bold text-slate-600">
               {TASK_LINK_LABELS[link.kind]}
             </span>{" "}
             {link.value}
@@ -333,7 +333,7 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "createdAt",
     header: "Created Time",
-    className: "whitespace-nowrap text-xs font-medium text-slate-700",
+    className: "whitespace-nowrap text-xs font-bold text-slate-800",
     cell: task => formatTaskDateTime(task.createdAt),
   },
 ];

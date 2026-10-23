@@ -21,7 +21,6 @@ import {
   Calendar,
 } from "lucide-react";
 import type { Deal, DealFormValues, DealStatus, PipelineStage } from "../../types/deal";
-import { PIPELINE_STAGE_ROWS } from "../../types/deal";
 import type { DealOptionsData } from "../../types/dealForm";
 import type { DealStageMove } from "../../types/dealUi";
 import {
@@ -147,18 +146,9 @@ function toFormValues(deal: Deal): DealFormValues {
   };
 }
 
-const defaultStages: PipelineStage[] = PIPELINE_STAGE_ROWS.map(
-  ([name, kind], index) => ({
-    id: index + 1,
-    name,
-    position: index,
-    kind,
-  }),
-);
-
 export default function Deals() {
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [stages, setStages] = useState<PipelineStage[]>(defaultStages);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
   const [options, setOptions] = useState<DealOptionsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -312,10 +302,21 @@ export default function Deals() {
   const startIndex = (currentPage - 1) * pageSize;
   const pageDeals = filteredDeals.slice(startIndex, startIndex + pageSize);
 
-  const visibleDealColumns = useMemo(
-    () => dealColumns.filter(column => !hiddenColumns.includes(column.key)),
-    [hiddenColumns],
-  );
+  const visibleDealColumns = useMemo(() => {
+    const base = dealColumns.filter(column => !hiddenColumns.includes(column.key));
+    const snoCol = {
+      key: "sno",
+      header: "S.No",
+      className: "w-14 text-center text-xs font-bold text-slate-900 whitespace-nowrap",
+      headerClassName: "w-14 text-center whitespace-nowrap",
+      cell: (_deal: Deal, index?: number) => (
+        <span className="text-slate-900 font-bold">
+          {startIndex + (index ?? 0) + 1}
+        </span>
+      ),
+    };
+    return [snoCol, ...base];
+  }, [hiddenColumns, startIndex]);
 
   // Pipeline metrics
   const pipelineTotal = useMemo(
@@ -1256,6 +1257,7 @@ export default function Deals() {
       {pendingMove && (
         <DealMoveDialog
           move={pendingMove}
+          lostReasons={options?.lostReasons}
           onCancel={() => setPendingMove(null)}
           onConfirm={details => {
             applyStageMove(pendingMove.deal.id, pendingMove.toStage, details);

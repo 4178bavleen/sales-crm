@@ -32,8 +32,8 @@ export type SeedRow = [
 export type LeadDetailDialogProps = {
   lead: Lead;
   onClose: () => void;
-  onStatusChange: (status: LeadStatus) => void;
   onEdit?: () => void;
+  onStatusChange?: (status: LeadStatus) => void;
   availableStatuses?: LeadStatus[];
 };
 
