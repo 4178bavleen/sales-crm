@@ -1,5 +1,4 @@
 import { Pencil, X } from "lucide-react";
-import type { LeadStatus } from "../../types/lead";
 import type { LeadDetailDialogProps } from "../../types/leadUi";
 import { formatDate, leadDetailFields } from "../../pages/leads/leadColumns";
 import { PriorityText, StatusBadge } from "./LeadBadges";
@@ -10,9 +9,7 @@ import { PriorityText, StatusBadge } from "./LeadBadges";
  */
 export default function LeadDetailDialog({
   lead,
-  availableStatuses = [],
   onClose,
-  onStatusChange,
   onEdit,
 }: LeadDetailDialogProps) {
   return (
@@ -67,7 +64,10 @@ export default function LeadDetailDialog({
                 {lead.firstName} {lead.lastName}
               </p>
               <p className="mt-1 text-xs text-slate-500">{lead.company}</p>
-              <StatusBadge status={lead.status} className="mt-2 inline-flex" />
+              <div className="mt-2 flex items-center gap-2">
+                <StatusBadge status={lead.status} />
+                <PriorityText priority={lead.priority} />
+              </div>
             </div>
           </div>
 
@@ -89,24 +89,7 @@ export default function LeadDetailDialog({
             </div>
           ))}
 
-          <div className="mt-5 flex items-center justify-between text-xs font-medium text-slate-600">
-            Update lead status
-            <PriorityText priority={lead.priority} />
-          </div>
-          <select
-            value={lead.status}
-            onChange={event => onStatusChange(event.target.value as LeadStatus)}
-            aria-label="Update lead status"
-            className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-          >
-            {Array.from(new Set([...availableStatuses, lead.status])).map(status => (
-              <option key={status} value={status}>
-                {status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-              </option>
-            ))}
-          </select>
-
-          <p className="mt-3 text-[11px] text-slate-400">
+          <p className="mt-5 text-[11px] text-slate-400">
             Created {formatDate(lead.createdAt)}
           </p>
         </div>

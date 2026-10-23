@@ -960,7 +960,7 @@ export default function Tasks() {
               }`}
             >
               <User size={13} className="text-slate-400" />
-              Assignee {selectedAssignee ? `(${selectedAssignee.split(" ")[0]})` : ""}
+              Assigned To {selectedAssignee ? `(${selectedAssignee.split(" ")[0]})` : ""}
               <ChevronDown size={13} className="text-slate-400 ml-0.5" />
             </button>
 

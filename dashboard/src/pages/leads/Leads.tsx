@@ -1201,9 +1201,7 @@ export default function Leads() {
       {detailLead && (
         <LeadDetailDialog
           lead={detailLead}
-          availableStatuses={availableStatuses}
           onClose={() => setDetailLead(null)}
-          onStatusChange={status => updateLeadStatus(detailLead.id, status)}
           onEdit={() => {
             setEditingLead(detailLead);
             setDetailLead(null);
