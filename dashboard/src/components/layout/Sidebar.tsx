@@ -6,6 +6,7 @@ import {
   UserRound,
   CheckSquare,
   CalendarDays,
+  Calendar,
   GitFork,
   Target,
   BarChart3,
@@ -18,6 +19,7 @@ import { useSession } from "../../lib/useSession";
 
 const primaryNav = [
   { name: "Dashboard", path: "/", icon: Home },
+  { name: "Calendar", path: "/calendar", icon: Calendar },
   { name: "Leads", path: "/leads", icon: Users },
   { name: "Contacts", path: "/contacts", icon: Contact },
   { name: "Companies", path: "/companies", icon: Building2 },
