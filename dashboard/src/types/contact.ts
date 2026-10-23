@@ -15,6 +15,7 @@ export type Contact = {
   fullName: string;
   /** Resolved from Contact.companyId; sent as a name at the API boundary. */
   company: string;
+  companyId?: number | null;
   jobTitle: string;
   email: string;
   phone: string;
@@ -28,6 +29,7 @@ export type Contact = {
 export type ContactFormValues = {
   fullName: string;
   company: string;
+  companyId?: number | null;
   jobTitle: string;
   email: string;
   phone: string;
