@@ -86,8 +86,12 @@ export default function CreateLeadModal({
     }
   };
 
-  const [followUpMode, setFollowUpMode] = useState<"SCHEDULE" | "NO_FOLLOWUP">(
-    initialLead?.noFollowUp || !!initialLead?.noFollowUpReasonId ? "NO_FOLLOWUP" : "SCHEDULE",
+  const [noFollowUp, setNoFollowUp] = useState<boolean>(
+    Boolean(
+      initialLead?.noFollowUp ||
+      initialLead?.noFollowUpReasonId ||
+      (initialLead && !initialLead.nextFollowUpAt)
+    ),
   );
   const [followUpDate, setFollowUpDate] = useState<string>(
     formatInitialDate(initialLead?.nextFollowUpAt) || "",
@@ -198,10 +202,7 @@ export default function CreateLeadModal({
   const contactName = `${trimmedFirst} ${trimmedLast}`.trim();
   const nameInvalid = contactName.length < 2;
   const emailInvalid = !!email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const followUpInvalid =
-    followUpMode === "SCHEDULE"
-      ? !followUpDate
-      : noFollowUpReasonId == null && noFollowUpReasons.length > 0;
+  const followUpInvalid = !noFollowUp && !followUpDate;
 
   // Quick preset helper (calculated dynamically from current datetime)
   const setTomorrowMorning = () => {
@@ -209,7 +210,7 @@ export default function CreateLeadModal({
     d.setDate(d.getDate() + 1);
     d.setHours(10, 0, 0, 0);
     const pad = (n: number) => String(n).padStart(2, "0");
-    setFollowUpMode("SCHEDULE");
+    setNoFollowUp(false);
     setFollowUpDate(
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
     );
@@ -223,7 +224,6 @@ export default function CreateLeadModal({
 
   const selectedOwner = owners.find(o => o.id === ownerId);
   const selectedSource = sources.find(s => s.id === sourceId);
-  const selectedReason = noFollowUpReasons.find(r => r.id === noFollowUpReasonId);
 
   // Submit
   async function handleSubmit(e?: React.FormEvent) {
@@ -237,7 +237,10 @@ export default function CreateLeadModal({
 
     setIsSubmitting(true);
     try {
-      const isNoFollowUp = followUpMode === "NO_FOLLOWUP";
+      const resolvedReasonId =
+        noFollowUpReasonId ??
+        initialLead?.noFollowUpReasonId ??
+        (noFollowUpReasons.length > 0 ? noFollowUpReasons[0].id : 1);
 
       const leadPayload: Lead = {
         id: initialLead?.id ?? Date.now(),
@@ -254,9 +257,9 @@ export default function CreateLeadModal({
         priority: priority as Priority,
         createdAt: initialLead?.createdAt ?? new Date().toISOString().slice(0, 10),
         notes: notes.trim() || undefined,
-        nextFollowUpAt: isNoFollowUp ? undefined : followUpDate || undefined,
-        noFollowUp: isNoFollowUp,
-        noFollowUpReasonId: isNoFollowUp ? noFollowUpReasonId : undefined,
+        nextFollowUpAt: noFollowUp ? undefined : followUpDate || undefined,
+        noFollowUp: noFollowUp,
+        noFollowUpReasonId: noFollowUp ? resolvedReasonId : undefined,
       };
 
       if (isEdit && initialLead && onUpdate) {
@@ -365,11 +368,7 @@ export default function CreateLeadModal({
               {!status && <li>Lead Status is required.</li>}
               {!priority && <li>Priority is required.</li>}
               {followUpInvalid && (
-                <li>
-                  {followUpMode === "SCHEDULE"
-                    ? "Please select a scheduled date and time for next follow-up."
-                    : "Please choose a reason why no follow-up is needed."}
-                </li>
+                <li>Please select a scheduled date and time for next follow-up, or check &quot;No follow-up needed&quot;.</li>
               )}
             </ul>
           </div>
@@ -599,47 +598,15 @@ export default function CreateLeadModal({
               </div>
               <div>
                 <h2 className="text-sm font-bold text-slate-900">3. Scheduled Next Follow-up</h2>
-                <p className="text-xs text-slate-500">Every active lead requires a scheduled date or a recorded reason.</p>
+                <p className="text-xs text-slate-500">Schedule a follow-up or mark as not needed.</p>
               </div>
             </div>
 
-            {/* Mode Toggle */}
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200 max-w-md">
-              <button
-                type="button"
-                onClick={() => setFollowUpMode("SCHEDULE")}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  followUpMode === "SCHEDULE"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Calendar size={14} className="text-[#1d61e7]" />
-                <span>Schedule Follow-up</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowUpMode("NO_FOLLOWUP");
-                  setFollowUpDate("");
-                }}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  followUpMode === "NO_FOLLOWUP"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <X size={14} className="text-slate-500" />
-                <span>No Follow-up Needed</span>
-              </button>
-            </div>
-
-            {/* Sub-view based on mode */}
-            {followUpMode === "SCHEDULE" ? (
+            {/* Sub-view: Date picker when follow-up is needed */}
+            {!noFollowUp && (
               <div className="space-y-4 pt-1">
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5 max-w-md">
                     <label className="block text-xs font-semibold text-slate-800">
                       Follow-up Date & Time <span className="text-rose-500">*</span>
                     </label>
@@ -672,31 +639,28 @@ export default function CreateLeadModal({
                   </p>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-3 pt-1 rounded-xl bg-slate-50/70 border border-slate-200 p-4">
-                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                  Select Reason Why No Follow-up is Needed <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={noFollowUpReasonId ?? ""}
-                  onChange={e => setNoFollowUpReasonId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full max-w-md rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
-                >
-                  {isLoadingOptions && <option value="">Loading reasons from backend...</option>}
-                  {!isLoadingOptions && noFollowUpReasons.length === 0 && (
-                    <option value="">No reason records found in backend</option>
-                  )}
-                  {noFollowUpReasons.map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Recorded in compliance with database requirements.
-                </p>
-              </div>
             )}
+            {/* Checkbox: No Follow-up Needed */}
+            <div className="pt-1">
+              <label className="inline-flex items-center gap-3 cursor-pointer select-none rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 hover:bg-slate-100/70 transition w-full max-w-md">
+                <input
+                  type="checkbox"
+                  checked={noFollowUp}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setNoFollowUp(checked);
+                    if (checked) {
+                      setFollowUpDate("");
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-[#1d61e7] focus:ring-blue-500 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900">No follow-up needed</span>
+                  <p className="text-[11px] text-slate-500">Check this box if no future follow-up or reminder is required for this lead.</p>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* SECTION 4: Notes */}
@@ -796,21 +760,17 @@ export default function CreateLeadModal({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-slate-500">Next Action:</span>
                   <span className="font-semibold text-slate-900 text-right">
-                    {followUpMode === "SCHEDULE" ? (
-                      followUpDate ? (
-                        new Date(followUpDate).toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })
-                      ) : (
-                        <span className="text-rose-600">Pending Date</span>
-                      )
+                    {noFollowUp ? (
+                      <span className="text-slate-600">No follow-up needed</span>
+                    ) : followUpDate ? (
+                      new Date(followUpDate).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
                     ) : (
-                      <span className="text-slate-600">
-                        {selectedReason?.name ? `No follow-up (${selectedReason.name})` : "No follow-up needed"}
-                      </span>
+                      <span className="text-rose-600">Pending Date</span>
                     )}
                   </span>
                 </div>
