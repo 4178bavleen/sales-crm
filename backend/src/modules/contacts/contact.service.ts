@@ -59,14 +59,32 @@ const contactSelect = {
 } satisfies Prisma.ContactSelect
 
 export async function createContact(input: CreateContactInput) {
-  await validateCompany(input.companyId)
+  await validateCompany(input.companyId);
 
-  const email = normalizeEmail(input.email)
-  const phone = input.phone?.trim() || null
+  const fullName = input.fullName.trim();
+
+  const existingContact = await prisma.contact.findFirst({
+    where: {
+      fullName: {
+        equals: fullName,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingContact) {
+    throw new Error("A contact with this name already exists.");
+  }
+
+  const email = normalizeEmail(input.email);
+  const phone = input.phone?.trim() || null;
 
   return prisma.contact.create({
     data: {
-      fullName: input.fullName,
+      fullName,
       companyId: input.companyId ?? null,
       jobTitle: input.jobTitle || null,
       email,
@@ -76,7 +94,7 @@ export async function createContact(input: CreateContactInput) {
       notes: input.notes || null,
     },
     select: contactSelect,
-  })
+  });
 }
 
 export async function getContacts(input: ListContactsInput) {

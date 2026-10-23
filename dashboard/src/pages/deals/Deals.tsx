@@ -411,8 +411,8 @@ export default function Deals() {
         // Create Deal
         const payload = {
           name: values.name,
-          ownerId: values.ownerId || 1,
-          stageId: values.stageId || 1,
+          ownerId: values.ownerId,
+          stageId: values.stageId !== undefined ? values.stageId : 1,
           estimatedValue: Number(values.estimatedValue) || 0,
           leadId: values.leadId || undefined,
           customerId: values.customerId || undefined,
@@ -594,7 +594,7 @@ export default function Deals() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `deals-export-${new Date().toISOString().slice(0, 10)}.csv`;
+   link.download = `deals-export-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
@@ -1056,7 +1056,7 @@ export default function Deals() {
 
       {/* Main Workspace */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* 1. PIPELINE BOARD VIEW (DEFAULT) */}
+        {/*stageId: values.stageId !== undefined ? values.stageId : 1. PIPELINE BOARD VIEW (DEFAULT) */}
         {view === "board" && (
           <PipelineBoard
             stages={stages}
@@ -1298,3 +1298,6 @@ export default function Deals() {
     </div>
   );
 }
+
+
+
