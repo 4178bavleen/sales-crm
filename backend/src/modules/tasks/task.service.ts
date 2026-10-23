@@ -266,7 +266,7 @@ export async function deleteTask(id: number) {
 }
 
 export async function getTaskOptions() {
-    const [users, leads, deals] = await Promise.all([
+    const [users, leads, deals, cancelReasons] = await Promise.all([
         prisma.user.findMany({
             where: { isActive: true, deletedAt: null },
             select: { id: true, name: true, email: true },
@@ -283,6 +283,11 @@ export async function getTaskOptions() {
             orderBy: { name: 'asc' },
             take: 100,
         }),
+        prisma.reason.findMany({
+            where: { isActive: true, type: 'TASK_CANCELLED' },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+        }),
     ])
 
     const priorities: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -292,6 +297,7 @@ export async function getTaskOptions() {
         users,
         leads,
         deals,
+        cancelReasons,
         priorities,
         statuses,
     }

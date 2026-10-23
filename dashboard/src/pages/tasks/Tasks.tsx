@@ -44,6 +44,7 @@ import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
+import { useSession } from "../../lib/useSession";
 
 type ApiTask = {
   id: number;
@@ -129,6 +130,11 @@ function toFormValues(task: Task): TaskFormValues {
 }
 
 export default function Tasks() {
+  const session = useSession();
+  const currentUser = session?.user;
+  const isAdmin = currentUser?.role?.toUpperCase() === "ADMIN";
+  const currentUserName = currentUser?.name?.trim() || "";
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -292,14 +298,24 @@ export default function Tasks() {
     };
   }, [tasks]);
 
-  // Available assignees list
+  // Clear any invalid assignee selection if a non-admin user is logged in
+  useEffect(() => {
+    if (!isAdmin && selectedAssignee && selectedAssignee !== currentUserName) {
+      setSelectedAssignee("");
+    }
+  }, [isAdmin, selectedAssignee, currentUserName]);
+
+  // Available assignees list - never show other users to non-admin users
   const availableAssignees = useMemo(() => {
+    if (!isAdmin) {
+      return currentUserName ? ["All Assignees", currentUserName] : ["All Assignees"];
+    }
     const set = new Set<string>(backendUsers.map(u => u.name));
     for (const task of tasks) {
       if (task.assignedTo && task.assignedTo !== "Unassigned") set.add(task.assignedTo);
     }
     return ["All Assignees", ...Array.from(set).sort()];
-  }, [tasks, backendUsers]);
+  }, [isAdmin, currentUserName, tasks, backendUsers]);
 
   const availableStatuses = useMemo(() => {
     const set = new Set<TaskStatus>(backendStatuses);

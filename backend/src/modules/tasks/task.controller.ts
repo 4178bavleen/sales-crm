@@ -101,10 +101,9 @@ export async function listTasksController(
         | 'URGENT'
         | undefined,
 
-      // Admin sees all tasks; employees see their assigned tasks.
-      // Ignore the frontend's assignedToId filter for this access rule.
+      // Admin sees all tasks (or filters by assignedToId if specified); employees only see their assigned tasks.
       assignedToId: isAdmin
-        ? undefined
+        ? (query.assignedToId ? parseId(query.assignedToId, 'assignedToId') : undefined)
         : userId,
 
       dueFrom: query.dueFrom

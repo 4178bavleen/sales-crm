@@ -39,6 +39,7 @@ import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import { useSession } from "../../lib/useSession";
 
 // Filter state
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
@@ -53,6 +54,11 @@ function formatLabel(str: string): string {
 }
 
 export default function Leads() {
+  const session = useSession();
+  const currentUser = session?.user;
+  const isAdmin = currentUser?.role?.toUpperCase() === "ADMIN";
+  const currentUserName = currentUser?.name?.trim() || "";
+
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -272,13 +278,23 @@ export default function Leads() {
     selectedOwner !== "" ||
     dateRange !== "All Time";
 
+  // Clear any invalid owner selection if a non-admin user is logged in
+  useEffect(() => {
+    if (!isAdmin && selectedOwner && selectedOwner !== currentUserName) {
+      setSelectedOwner("");
+    }
+  }, [isAdmin, selectedOwner, currentUserName]);
+
   const availableOwners = useMemo(() => {
+    if (!isAdmin) {
+      return currentUserName ? ["All Owners", currentUserName] : ["All Owners"];
+    }
     const set = new Set<string>(backendOwners);
     for (const lead of leads) {
       if (lead.owner && lead.owner !== "Unassigned") set.add(lead.owner);
     }
     return ["All Owners", ...Array.from(set).sort()];
-  }, [leads, backendOwners]);
+  }, [isAdmin, currentUserName, leads, backendOwners]);
 
   const availableSources = useMemo(() => {
     const set = new Set<string>(backendSources);
