@@ -1,6 +1,5 @@
 import { Pencil, X } from "lucide-react";
 import type { LeadStatus } from "../../types/lead";
-import { LEAD_STATUSES } from "../../types/lead";
 import type { LeadDetailDialogProps } from "../../types/leadUi";
 import { formatDate, leadDetailFields } from "../../pages/leads/leadColumns";
 import { PriorityText, StatusBadge } from "./LeadBadges";
@@ -11,6 +10,7 @@ import { PriorityText, StatusBadge } from "./LeadBadges";
  */
 export default function LeadDetailDialog({
   lead,
+  availableStatuses = [],
   onClose,
   onStatusChange,
   onEdit,
@@ -99,9 +99,9 @@ export default function LeadDetailDialog({
             aria-label="Update lead status"
             className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
           >
-            {LEAD_STATUSES.map(status => (
+            {Array.from(new Set([...availableStatuses, lead.status])).map(status => (
               <option key={status} value={status}>
-                {status}
+                {status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
               </option>
             ))}
           </select>

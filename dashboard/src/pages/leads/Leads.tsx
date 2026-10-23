@@ -20,8 +20,7 @@ import {
   Calendar,
   Check,
 } from "lucide-react";
-import type { Lead, LeadStatus } from "../../types/lead";
-import { LEAD_PRIORITIES, LEAD_SOURCES, LEAD_STATUSES } from "../../types/lead";
+import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import {
   fetchLeads,
   fetchLeadOptions,
@@ -44,6 +43,14 @@ import DynamicSparkline from "../../components/ui/DynamicSparkline";
 const emptyFilters: LeadsFilter = { status: [], priority: [], source: [] };
 const initialLeads: Lead[] = [];
 
+function formatLabel(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [loading, setLoading] = useState(true);
@@ -63,6 +70,8 @@ export default function Leads() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [backendSources, setBackendSources] = useState<string[]>([]);
   const [backendOwners, setBackendOwners] = useState<string[]>([]);
+  const [backendStatuses, setBackendStatuses] = useState<LeadStatus[]>([]);
+  const [backendPriorities, setBackendPriorities] = useState<Priority[]>([]);
 
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -87,6 +96,8 @@ export default function Leads() {
       .then(data => {
         if (data.sources) setBackendSources(data.sources.map(s => s.name));
         if (data.owners) setBackendOwners(data.owners.map(o => o.name));
+        if (data.statuses) setBackendStatuses(data.statuses);
+        if (data.priorities) setBackendPriorities(data.priorities);
       })
       .catch(() => {});
   }, [refreshLeads]);
@@ -269,12 +280,28 @@ export default function Leads() {
   }, [leads, backendOwners]);
 
   const availableSources = useMemo(() => {
-    const set = new Set<string>(backendSources.length > 0 ? backendSources : LEAD_SOURCES);
+    const set = new Set<string>(backendSources);
     for (const lead of leads) {
-      if (lead.source) set.add(lead.source);
+      if (lead.source && lead.source !== "Unknown") set.add(lead.source);
     }
     return Array.from(set).sort();
   }, [leads, backendSources]);
+
+  const availableStatuses = useMemo(() => {
+    const set = new Set<LeadStatus>(backendStatuses);
+    for (const lead of leads) {
+      if (lead.status) set.add(lead.status);
+    }
+    return Array.from(set);
+  }, [leads, backendStatuses]);
+
+  const availablePriorities = useMemo(() => {
+    const set = new Set<Priority>(backendPriorities);
+    for (const lead of leads) {
+      if (lead.priority) set.add(lead.priority);
+    }
+    return Array.from(set);
+  }, [leads, backendPriorities]);
 
   function toggleMultiFilter(key: keyof LeadsFilter, value: string) {
     setFilters(prev => {
@@ -858,16 +885,16 @@ export default function Leads() {
                   Select Status
                 </p>
                 <div className="space-y-1 mt-1">
-                  {LEAD_STATUSES.map(status => {
+                  {availableStatuses.map(status => {
                     const checked = filters.status.includes(status);
                     return (
                       <button
                         key={status}
                         type="button"
                         onClick={() => toggleMultiFilter("status", status)}
-                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left cursor-pointer"
                       >
-                        <span>{status}</span>
+                        <span>{formatLabel(status)}</span>
                         {checked && <Check size={14} className="text-blue-600" />}
                       </button>
                     );
@@ -900,16 +927,16 @@ export default function Leads() {
                   Select Priority
                 </p>
                 <div className="space-y-1 mt-1">
-                  {LEAD_PRIORITIES.map(priority => {
+                  {availablePriorities.map(priority => {
                     const checked = filters.priority.includes(priority);
                     return (
                       <button
                         key={priority}
                         type="button"
                         onClick={() => toggleMultiFilter("priority", priority)}
-                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left"
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs hover:bg-slate-50 text-slate-700 text-left cursor-pointer"
                       >
-                        <span>{priority}</span>
+                        <span>{formatLabel(priority)}</span>
                         {checked && <Check size={14} className="text-blue-600" />}
                       </button>
                     );
@@ -1054,14 +1081,6 @@ export default function Leads() {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => setActiveDropdown(activeDropdown ? null : "status")}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition shadow-2xs cursor-pointer ml-auto sm:ml-0"
-          >
-            <Filter size={13} />
-            Filter
-          </button>
         </div>
       </div>
 
@@ -1093,15 +1112,15 @@ export default function Leads() {
               <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                 Update status
               </p>
-              {LEAD_STATUSES.filter(status => status !== "DISQUALIFIED").map(
+              {availableStatuses.filter(status => status !== "DISQUALIFIED").map(
                 status => (
                   <button
                     key={status}
                     type="button"
                     onClick={() => updateLeadStatus(lead.id, status)}
-                    className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                    className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    {status}
+                    {formatLabel(status)}
                   </button>
                 ),
               )}
@@ -1182,6 +1201,7 @@ export default function Leads() {
       {detailLead && (
         <LeadDetailDialog
           lead={detailLead}
+          availableStatuses={availableStatuses}
           onClose={() => setDetailLead(null)}
           onStatusChange={status => updateLeadStatus(detailLead.id, status)}
           onEdit={() => {

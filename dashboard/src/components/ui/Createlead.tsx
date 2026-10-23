@@ -4,8 +4,6 @@ import {
   Building2,
   Calendar,
   CalendarClock,
-  Check,
-  CheckCircle2,
   Clock,
   Mail,
   Phone,
@@ -16,6 +14,7 @@ import {
   X,
   AlertCircle,
   FileText,
+  CheckCircle2,
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import type { CreateLeadFormProps } from "../../types/createLeadForm";
@@ -38,58 +37,10 @@ interface ReasonItem {
   name: string;
 }
 
-const DEFAULT_STATUSES: LeadStatus[] = ["NEW", "CONTACTED", "QUALIFIED", "CONVERTED"];
-const DEFAULT_PRIORITIES: Priority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
-
-const STATUS_LABELS: Record<LeadStatus, string> = {
-  NEW: "New Lead",
-  CONTACTED: "Contacted",
-  QUALIFIED: "Qualified",
-  DISQUALIFIED: "Disqualified",
-  CONVERTED: "Converted",
-};
-
-const STATUS_STYLES: Record<LeadStatus, { active: string; dot: string }> = {
-  NEW: {
-    active: "border-blue-600 bg-blue-50 text-blue-800 ring-2 ring-blue-500/20",
-    dot: "bg-blue-600",
-  },
-  CONTACTED: {
-    active: "border-purple-600 bg-purple-50 text-purple-800 ring-2 ring-purple-500/20",
-    dot: "bg-purple-600",
-  },
-  QUALIFIED: {
-    active: "border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20",
-    dot: "bg-emerald-600",
-  },
-  DISQUALIFIED: {
-    active: "border-rose-600 bg-rose-50 text-rose-800 ring-2 ring-rose-500/20",
-    dot: "bg-rose-600",
-  },
-  CONVERTED: {
-    active: "border-teal-600 bg-teal-50 text-teal-800 ring-2 ring-teal-500/20",
-    dot: "bg-teal-600",
-  },
-};
-
-const PRIORITY_STYLES: Record<Priority, { active: string; dot: string }> = {
-  LOW: {
-    active: "border-slate-400 bg-slate-100 text-slate-900 ring-2 ring-slate-400/20",
-    dot: "bg-slate-500",
-  },
-  MEDIUM: {
-    active: "border-blue-600 bg-blue-50 text-blue-900 ring-2 ring-blue-500/20",
-    dot: "bg-blue-600",
-  },
-  HIGH: {
-    active: "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20",
-    dot: "bg-amber-500",
-  },
-  URGENT: {
-    active: "border-rose-600 bg-rose-50 text-rose-900 ring-2 ring-rose-500/20",
-    dot: "bg-rose-600",
-  },
-};
+function formatLabel(value: string): string {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase().replace(/_/g, " ");
+}
 
 export default function CreateLeadModal({
   initialLead,
@@ -102,11 +53,11 @@ export default function CreateLeadModal({
   const currentUserId = session?.user?.id;
   const currentUserName = session?.user?.name;
 
-  // Dynamic lists from backend
+  // Fully dynamic options loaded from backend API
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [owners, setOwners] = useState<OwnerItem[]>([]);
-  const [statuses, setStatuses] = useState<LeadStatus[]>(DEFAULT_STATUSES);
-  const [priorities, setPriorities] = useState<Priority[]>(DEFAULT_PRIORITIES);
+  const [statuses, setStatuses] = useState<LeadStatus[]>([]);
+  const [priorities, setPriorities] = useState<Priority[]>([]);
   const [noFollowUpReasons, setNoFollowUpReasons] = useState<ReasonItem[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
 
@@ -118,8 +69,8 @@ export default function CreateLeadModal({
   const [phone, setPhone] = useState(initialLead?.phone || "");
   const [sourceId, setSourceId] = useState<number | null>(initialLead?.sourceId ?? null);
   const [ownerId, setOwnerId] = useState<number | null>(initialLead?.ownerId ?? null);
-  const [status, setStatus] = useState<LeadStatus>(initialLead?.status || "NEW");
-  const [priority, setPriority] = useState<Priority>(initialLead?.priority || "MEDIUM");
+  const [status, setStatus] = useState<LeadStatus | "">(initialLead?.status || "");
+  const [priority, setPriority] = useState<Priority | "">(initialLead?.priority || "");
   const [notes, setNotes] = useState(initialLead?.notes || "");
 
   // Follow-up scheduling
@@ -200,6 +151,10 @@ export default function CreateLeadModal({
 
         if (data.priorities && data.priorities.length > 0) {
           setPriorities(data.priorities);
+          if (!initialLead?.priority) {
+            const defaultMed = data.priorities.find(p => p === "MEDIUM") || data.priorities[0];
+            setPriority(defaultMed);
+          }
         }
 
         if (data.noFollowUpReasons && data.noFollowUpReasons.length > 0) {
@@ -214,7 +169,7 @@ export default function CreateLeadModal({
       .catch(err => {
         if (!cancelled) {
           console.error("Failed to fetch lead options:", err);
-          setBackendError("Could not load form options from backend. Please refresh.");
+          setBackendError("Could not load form options from backend. Please refresh the page.");
         }
       })
       .finally(() => {
@@ -248,7 +203,7 @@ export default function CreateLeadModal({
       ? !followUpDate
       : noFollowUpReasonId == null && noFollowUpReasons.length > 0;
 
-  // Quick preset helper
+  // Quick preset helper (calculated dynamically from current datetime)
   const setTomorrowMorning = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -276,7 +231,7 @@ export default function CreateLeadModal({
     setShowErrors(true);
     setBackendError(null);
 
-    if (nameInvalid || emailInvalid || followUpInvalid) {
+    if (nameInvalid || emailInvalid || followUpInvalid || !status || !priority) {
       return;
     }
 
@@ -295,8 +250,8 @@ export default function CreateLeadModal({
         sourceId: sourceId,
         owner: selectedOwner?.name || "",
         ownerId: ownerId,
-        status,
-        priority,
+        status: status as LeadStatus,
+        priority: priority as Priority,
         createdAt: initialLead?.createdAt ?? new Date().toISOString().slice(0, 10),
         notes: notes.trim() || undefined,
         nextFollowUpAt: isNoFollowUp ? undefined : followUpDate || undefined,
@@ -313,7 +268,7 @@ export default function CreateLeadModal({
       setBackendError(
         err instanceof Error
           ? err.message
-          : `Failed to ${isEdit ? "update" : "create"} lead. Please check the entered data.`,
+          : `Failed to ${isEdit ? "update" : "create"} lead. Please verify the entered information.`,
       );
     } finally {
       setIsSubmitting(false);
@@ -348,8 +303,8 @@ export default function CreateLeadModal({
             </h1>
             <p className="mt-0.5 text-xs sm:text-sm text-slate-600">
               {isEdit
-                ? "Update prospect details, assignment, and next follow-up action."
-                : "Add a prospect to the CRM and configure sales ownership and follow-up."}
+                ? "Update prospect details, status, and follow-up schedule."
+                : "Add a new prospect to your CRM and configure ownership and follow-up."}
             </p>
           </div>
         </div>
@@ -369,13 +324,13 @@ export default function CreateLeadModal({
           <button
             type="button"
             onClick={() => handleSubmit()}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoadingOptions}
             className="inline-flex items-center gap-2 rounded-xl bg-[#1d61e7] px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>{isEdit ? "Saving Changes..." : "Creating Lead..."}</span>
+                <span>{isEdit ? "Saving..." : "Creating Lead..."}</span>
               </>
             ) : (
               <>
@@ -399,14 +354,16 @@ export default function CreateLeadModal({
       )}
 
       {/* Form Validation Banner */}
-      {showErrors && (nameInvalid || emailInvalid || followUpInvalid) && (
+      {showErrors && (nameInvalid || emailInvalid || followUpInvalid || !status || !priority) && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium text-amber-900 shadow-2xs flex items-start gap-3">
           <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-amber-950 mb-1">Please resolve the following fields:</p>
+            <p className="font-semibold text-amber-950 mb-1">Please correct the following fields:</p>
             <ul className="list-disc list-inside space-y-0.5 text-amber-900 font-normal">
               {nameInvalid && <li>Contact Name must be at least 2 characters long.</li>}
               {emailInvalid && <li>Email address format is invalid.</li>}
+              {!status && <li>Lead Status is required.</li>}
+              {!priority && <li>Priority is required.</li>}
               {followUpInvalid && (
                 <li>
                   {followUpMode === "SCHEDULE"
@@ -527,20 +484,20 @@ export default function CreateLeadModal({
             </div>
           </div>
 
-          {/* SECTION 2: Dynamic Attribution & Sales Assignment */}
+          {/* SECTION 2: Attribution, Ownership & Lead Status */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-5">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
                 <Sparkles size={20} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-slate-900">2. Attribution & Assignment</h2>
-                <p className="text-xs text-slate-500">Dynamically loaded from your database</p>
+                <h2 className="text-sm font-bold text-slate-900">2. Attribution & Lead Status</h2>
+                <p className="text-xs text-slate-500">Dynamically loaded from backend database</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Lead Source (Dynamic from DB) */}
+              {/* Lead Source */}
               <div>
                 <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                   Lead Source
@@ -550,8 +507,10 @@ export default function CreateLeadModal({
                   onChange={e => setSourceId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                 >
-                  {isLoadingOptions && <option value="">Loading sources...</option>}
-                  {!isLoadingOptions && sources.length === 0 && <option value="">No sources found in database</option>}
+                  {isLoadingOptions && <option value="">Loading sources from backend...</option>}
+                  {!isLoadingOptions && sources.length === 0 && (
+                    <option value="">No sources found</option>
+                  )}
                   {sources.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -561,7 +520,7 @@ export default function CreateLeadModal({
                 <p className="mt-1 text-[11px] text-slate-500">Tracks originating acquisition channel.</p>
               </div>
 
-              {/* Lead Owner (Dynamic from DB) */}
+              {/* Lead Owner */}
               <div>
                 <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                   Sales Owner
@@ -571,82 +530,68 @@ export default function CreateLeadModal({
                   onChange={e => setOwnerId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                 >
-                  {isLoadingOptions && <option value="">Loading owners...</option>}
-                  {!isLoadingOptions && owners.length === 0 && <option value="">No active users found</option>}
+                  {isLoadingOptions && <option value="">Loading owners from backend...</option>}
+                  {!isLoadingOptions && owners.length === 0 && (
+                    <option value="">No active users found</option>
+                  )}
                   {owners.map(u => (
                     <option key={u.id} value={u.id}>
                       {u.name} {u.email ? `(${u.email})` : ""}
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-[11px] text-slate-500">Assigns team member responsible for closing.</p>
+                <p className="mt-1 text-[11px] text-slate-500">Assigns team member responsible for lead.</p>
               </div>
-            </div>
 
-            {/* Pipeline Stage (Status) */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 mb-2">
-                Pipeline Stage (Status)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {statuses.map(s => {
-                  const isSelected = status === s;
-                  const style = STATUS_STYLES[s] || STATUS_STYLES.NEW;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setStatus(s)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer select-none ${
-                        isSelected
-                          ? style.active
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className={`h-2 w-2 rounded-full ${style.dot}`} />
-                        <span>{STATUS_LABELS[s] || s}</span>
-                      </div>
-                      {isSelected && <Check size={13} className="text-[#1d61e7]" />}
-                    </button>
-                  );
-                })}
+              {/* Lead Status (Dynamic from backend) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Lead Status <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value as LeadStatus)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  {isLoadingOptions && <option value="">Loading statuses from backend...</option>}
+                  {!isLoadingOptions && statuses.length === 0 && (
+                    <option value="">No status available</option>
+                  )}
+                  {statuses.map(s => (
+                    <option key={s} value={s}>
+                      {formatLabel(s)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Current qualification state of this prospect.</p>
               </div>
-            </div>
 
-            {/* Priority Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 mb-2">
-                Priority
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {priorities.map(p => {
-                  const isSelected = priority === p;
-                  const style = PRIORITY_STYLES[p] || PRIORITY_STYLES.MEDIUM;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPriority(p)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer select-none ${
-                        isSelected
-                          ? style.active
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className={`h-2 w-2 rounded-full ${style.dot}`} />
-                        <span>{p}</span>
-                      </div>
-                      {isSelected && <Check size={13} />}
-                    </button>
-                  );
-                })}
+              {/* Priority (Dynamic from backend) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Priority <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={priority}
+                  onChange={e => setPriority(e.target.value as Priority)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                >
+                  {isLoadingOptions && <option value="">Loading priorities from backend...</option>}
+                  {!isLoadingOptions && priorities.length === 0 && (
+                    <option value="">No priority available</option>
+                  )}
+                  {priorities.map(p => (
+                    <option key={p} value={p}>
+                      {formatLabel(p)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Urgency level for sales engagement.</p>
               </div>
             </div>
           </div>
 
-          {/* SECTION 3: Next Follow-up Action (Dynamic) */}
+          {/* SECTION 3: Next Follow-up Action */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-5">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
@@ -737,9 +682,9 @@ export default function CreateLeadModal({
                   onChange={e => setNoFollowUpReasonId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full max-w-md rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                 >
-                  {isLoadingOptions && <option value="">Loading reasons from database...</option>}
+                  {isLoadingOptions && <option value="">Loading reasons from backend...</option>}
                   {!isLoadingOptions && noFollowUpReasons.length === 0 && (
-                    <option value="">No reason records found in database</option>
+                    <option value="">No reason records found in backend</option>
                   )}
                   {noFollowUpReasons.map(r => (
                     <option key={r.id} value={r.id}>
@@ -820,13 +765,17 @@ export default function CreateLeadModal({
 
               {/* Status & Priority */}
               <div className="border-t border-slate-200/60 pt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-[#1d61e7]">
-                  {STATUS_LABELS[status] || status}
-                </span>
+                {status && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-[#1d61e7]">
+                    {formatLabel(status)}
+                  </span>
+                )}
 
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-200 text-slate-800">
-                  {priority} Priority
-                </span>
+                {priority && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-200 text-slate-800">
+                    {formatLabel(priority)} Priority
+                  </span>
+                )}
 
                 {selectedSource && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
@@ -920,7 +869,7 @@ export default function CreateLeadModal({
               <button
                 type="button"
                 onClick={() => handleSubmit()}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingOptions}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#1d61e7] py-2.5 px-4 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
