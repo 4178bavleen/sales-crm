@@ -86,14 +86,14 @@ export const customerColumns: CustomerColumn[] = [
     className: "min-w-[200px]",
     cell: customer => (
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
           <Building2 size={15} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-blue-600 group-hover:text-blue-800">
+          <p className="truncate text-xs font-semibold text-blue-600 group-hover:text-blue-800">
             {customer.company}
           </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+          <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
             Customer #{customer.id}
           </p>
         </div>
@@ -103,38 +103,38 @@ export const customerColumns: CustomerColumn[] = [
   {
     key: "industry",
     header: "Industry",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: customer =>
       customer.industry ? (
         <span className="inline-flex items-center gap-2">
-          <Factory size={13} className="shrink-0 text-slate-400" />
+          <Factory size={13} className="shrink-0 text-slate-500" />
           {customer.industry}
         </span>
       ) : (
-        <span className="text-slate-300">—</span>
+        <span className="text-slate-400">—</span>
       ),
   },
   {
     key: "primaryContact",
     header: "Primary Contact",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: customer =>
       customer.primaryContact ? (
         <span className="inline-flex items-center gap-2">
-          <UserRound size={13} className="shrink-0 text-slate-400" />
+          <UserRound size={13} className="shrink-0 text-slate-500" />
           {customer.primaryContact}
         </span>
       ) : (
-        <span className="text-slate-300">—</span>
+        <span className="text-slate-400">—</span>
       ),
   },
   {
     key: "owner",
     header: "Owner",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: customer => (
       <span className="inline-flex items-center gap-2">
-        <Handshake size={13} className="shrink-0 text-slate-400" />
+        <Handshake size={13} className="shrink-0 text-slate-500" />
         {customer.owner || "—"}
       </span>
     ),
@@ -142,10 +142,10 @@ export const customerColumns: CustomerColumn[] = [
   {
     key: "dealCount",
     header: "Deals",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: customer => (
       <span className="inline-flex items-center gap-2">
-        <Layers size={13} className="shrink-0 text-slate-400" />
+        <Layers size={13} className="shrink-0 text-slate-500" />
         {customer.dealCount}
       </span>
     ),
@@ -153,13 +153,13 @@ export const customerColumns: CustomerColumn[] = [
   {
     key: "pipelineValue",
     header: "Pipeline",
-    className: "whitespace-nowrap text-xs font-medium text-slate-700",
+    className: "whitespace-nowrap text-xs font-bold text-slate-900",
     cell: customer => formatCurrency(customer.pipelineValue),
   },
   {
     key: "notes",
     header: "Notes",
-    className: "text-xs text-slate-500",
+    className: "text-xs text-slate-800",
     cell: customer => (
       <span className="block max-w-[240px] truncate" title={customer.notes}>
         {customer.notes || "—"}
@@ -169,7 +169,7 @@ export const customerColumns: CustomerColumn[] = [
   {
     key: "convertedAt",
     header: "Converted",
-    className: "whitespace-nowrap text-xs text-slate-500",
+    className: "whitespace-nowrap text-xs font-medium text-slate-700",
     cell: customer => formatCustomerDate(customer.convertedAt),
   },
 ];

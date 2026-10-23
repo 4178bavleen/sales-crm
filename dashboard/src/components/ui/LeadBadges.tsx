@@ -21,9 +21,9 @@ export const sourceBadgeStyles: Record<string, string> = {
 };
 
 export const priorityDotStyles: Record<Priority, { dot: string; label: string; text: string }> = {
-  LOW: { dot: "bg-slate-400", label: "Low", text: "text-slate-600" },
-  MEDIUM: { dot: "bg-amber-500", label: "Medium", text: "text-slate-600" },
-  HIGH: { dot: "bg-rose-600", label: "High", text: "text-slate-600" },
+  LOW: { dot: "bg-slate-500", label: "Low", text: "text-slate-800 font-medium" },
+  MEDIUM: { dot: "bg-amber-500", label: "Medium", text: "text-slate-800 font-medium" },
+  HIGH: { dot: "bg-rose-600", label: "High", text: "text-slate-800 font-medium" },
   URGENT: { dot: "bg-red-600", label: "Urgent", text: "text-rose-700 font-semibold" },
 };
 

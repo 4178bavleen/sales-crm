@@ -12,7 +12,7 @@ import { PriorityText, SourceBadge, StatusBadge } from "../../components/ui/Lead
 
 export { statusBadgeStyles as statusStyles } from "../../components/ui/LeadBadges";
 export const priorityStyles: Record<string, string> = {
-  LOW: "text-slate-500",
+  LOW: "text-slate-700",
   MEDIUM: "text-blue-600",
   HIGH: "text-orange-600",
   URGENT: "text-rose-600",
@@ -35,7 +35,7 @@ export function formatDate(date: string) {
 
 /** Render clean company icon */
 export function CompanyLogo({ name: _name }: { name?: string }) {
-  return <Building2 size={14} className="shrink-0 text-slate-400" />;
+  return <Building2 size={14} className="shrink-0 text-slate-500" />;
 }
 
 /** Read-only fields shown in the lead detail dialog and CSV export. */
@@ -69,10 +69,10 @@ export const leadColumns: LeadColumn[] = [
   {
     key: "sno",
     header: "S.No",
-    className: "w-14 text-center text-xs font-medium text-slate-500 whitespace-nowrap",
+    className: "w-14 text-center text-xs font-semibold text-slate-700 whitespace-nowrap",
     headerClassName: "w-14 text-center whitespace-nowrap",
     cell: (_lead, index) => (
-      <span className="text-slate-500 font-medium">
+      <span className="text-slate-700 font-semibold">
         {typeof index === "number" ? index + 1 : "—"}
       </span>
     ),
@@ -95,7 +95,7 @@ export const leadColumns: LeadColumn[] = [
             <p className="text-xs font-semibold text-[#1d61e7] hover:underline cursor-pointer">
               {lead.firstName} {lead.lastName}
             </p>
-            <p className="mt-0.5 text-[10px] text-slate-400">Lead #{lead.id}</p>
+            <p className="mt-0.5 text-[10px] font-medium text-slate-500">Lead #{lead.id}</p>
           </div>
         </div>
       );
@@ -104,26 +104,26 @@ export const leadColumns: LeadColumn[] = [
   {
     key: "company",
     header: "Company",
-    className: "text-xs text-slate-700 min-w-[180px]",
+    className: "text-xs text-slate-900 min-w-[180px]",
     cell: lead => (
       <div className="flex items-center gap-2">
         <CompanyLogo name={lead.company} />
-        <span className="font-medium text-slate-700">{lead.company || "—"}</span>
+        <span className="font-semibold text-slate-900">{lead.company || "—"}</span>
       </div>
     ),
   },
   {
     key: "contact",
     header: "Contact Info",
-    className: "text-xs text-slate-600 min-w-[200px]",
+    className: "text-xs text-slate-800 min-w-[200px]",
     cell: lead => (
       <div className="space-y-0.5">
-        <div className="flex items-center gap-1.5 text-slate-600">
-          <Mail size={12} className="shrink-0 text-slate-400" />
+        <div className="flex items-center gap-1.5 text-slate-800 font-medium">
+          <Mail size={12} className="shrink-0 text-slate-500" />
           <span className="truncate">{lead.email || "—"}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-          <Phone size={12} className="shrink-0 text-slate-400" />
+        <div className="flex items-center gap-1.5 text-slate-700 text-[11px] font-medium">
+          <Phone size={12} className="shrink-0 text-slate-500" />
           <span>{lead.phone || "—"}</span>
         </div>
       </div>
@@ -164,7 +164,7 @@ export const leadColumns: LeadColumn[] = [
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700">
             {ownerInitials}
           </div>
-          <span className="text-xs text-slate-700 font-medium">{lead.owner || "Unassigned"}</span>
+          <span className="text-xs text-slate-900 font-semibold">{lead.owner || "Unassigned"}</span>
         </div>
       );
     },
@@ -172,14 +172,14 @@ export const leadColumns: LeadColumn[] = [
   {
     key: "nextFollowUpAt",
     header: "Next Follow-up",
-    className: "whitespace-nowrap text-xs text-slate-600 min-w-[130px]",
+    className: "whitespace-nowrap text-xs text-slate-800 min-w-[130px]",
     cell: lead => {
       if (!lead.nextFollowUpAt) {
-        return <span className="text-slate-400 italic">{lead.noFollowUp ? "No follow-up" : "—"}</span>;
+        return <span className="text-slate-500 italic">{lead.noFollowUp ? "No follow-up" : "—"}</span>;
       }
       return (
-        <div className="flex items-center gap-1.5 text-slate-700">
-          <CalendarDays size={13} className="text-slate-400" />
+        <div className="flex items-center gap-1.5 text-slate-900 font-medium">
+          <CalendarDays size={13} className="text-slate-500" />
           <span>{formatDate(lead.nextFollowUpAt)}</span>
         </div>
       );
@@ -188,7 +188,7 @@ export const leadColumns: LeadColumn[] = [
   {
     key: "createdAt",
     header: "Created Date",
-    className: "whitespace-nowrap text-xs text-slate-500 min-w-[110px]",
+    className: "whitespace-nowrap text-xs font-medium text-slate-700 min-w-[110px]",
     cell: lead => formatDate(lead.createdAt),
   },
 ];

@@ -927,9 +927,9 @@ export default function MeetingsPage() {
         ) : (
           /* Table View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-slate-800">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
                   <th className="py-3 px-4 min-w-[160px]">Date & Time</th>
                   <th className="py-3 px-4 min-w-[220px]">Meeting Title</th>
                   <th className="py-3 px-4 min-w-[160px]">Connected To</th>
@@ -938,7 +938,7 @@ export default function MeetingsPage() {
                   <th className="py-3 px-4 text-right min-w-[120px]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-800">
                 {filteredMeetings.map((m) => {
                   const dt = formatDateTime(m.startsAt);
                   const badge = getStatusBadge(m.status);
@@ -951,7 +951,7 @@ export default function MeetingsPage() {
                     >
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{dt.full}</div>
-                        <div className="text-[11px] text-slate-400">{dt.time} ({m.durationMinutes} min)</div>
+                        <div className="text-[11px] font-medium text-slate-600">{dt.time} ({m.durationMinutes} min)</div>
                       </td>
 
                       <td className="py-3 px-4">
@@ -971,7 +971,7 @@ export default function MeetingsPage() {
                             <ExternalLink size={9} />
                           </a>
                         ) : m.location ? (
-                          <div className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[200px]">
+                          <div className="text-[11px] font-medium text-slate-600 mt-0.5 truncate max-w-[200px]">
                             {m.location}
                           </div>
                         ) : null}
@@ -979,8 +979,8 @@ export default function MeetingsPage() {
 
                       <td className="py-3 px-4">
                         {m.lead ? (
-                          <div className="flex items-center gap-1 text-slate-700 font-medium">
-                            <Users size={12} className="text-slate-400" />
+                          <div className="flex items-center gap-1 text-slate-900 font-medium">
+                            <Users size={12} className="text-slate-500" />
                             <span>{m.lead.contactName}</span>
                           </div>
                         ) : m.deal ? (
@@ -989,13 +989,13 @@ export default function MeetingsPage() {
                             <span>{m.deal.name}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-light">—</span>
+                          <span className="text-slate-400 font-light">—</span>
                         )}
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="text-slate-800 font-medium">{m.organizer.name}</div>
-                        <div className="text-[11px] text-slate-400">{m.organizer.email}</div>
+                        <div className="text-slate-900 font-semibold">{m.organizer.name}</div>
+                        <div className="text-[11px] font-medium text-slate-600">{m.organizer.email}</div>
                       </td>
 
                       <td className="py-3 px-4 text-center">

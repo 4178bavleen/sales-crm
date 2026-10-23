@@ -583,7 +583,6 @@ export default function Leads() {
           >
             <Plus size={15} />
             Create Lead
-            <ChevronDown size={14} className="ml-1 opacity-80" />
           </button>
 
           <div className="relative" ref={moreMenuRef}>

@@ -256,7 +256,7 @@ export const taskColumns: TaskColumn[] = [
         >
           {task.title}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-slate-400">
+        <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
           {task.description || `Task #${task.id}`}
         </p>
       </div>
@@ -301,10 +301,10 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "assignedTo",
     header: "Assignee",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: task => (
       <span className="inline-flex items-center gap-2">
-        <UserRound size={13} className="shrink-0 text-slate-400" />
+        <UserRound size={13} className="shrink-0 text-slate-500" />
         {task.assignedTo || "—"}
       </span>
     ),
@@ -312,16 +312,16 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "relatedTo",
     header: "Related To",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: task => {
       const link = taskLink(task);
-      if (!link) return <span className="text-slate-300">—</span>;
+      if (!link) return <span className="text-slate-400">—</span>;
       const Icon = link.kind === "lead" ? Users : Building2;
       return (
         <span className="inline-flex items-center gap-2">
-          <Icon size={13} className="shrink-0 text-slate-400" />
+          <Icon size={13} className="shrink-0 text-slate-500" />
           <span className="truncate">
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] font-medium text-slate-500">
               {TASK_LINK_LABELS[link.kind]}
             </span>{" "}
             {link.value}
@@ -333,7 +333,7 @@ export const taskColumns: TaskColumn[] = [
   {
     key: "createdAt",
     header: "Created Time",
-    className: "whitespace-nowrap text-xs text-slate-500",
+    className: "whitespace-nowrap text-xs font-medium text-slate-700",
     cell: task => formatTaskDateTime(task.createdAt),
   },
 ];

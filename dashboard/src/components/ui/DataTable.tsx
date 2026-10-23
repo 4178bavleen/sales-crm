@@ -60,9 +60,9 @@ export function TablePagination({
 
   return (
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-3.5">
-      <div className="text-xs text-slate-500">
-        Showing <span className="font-medium text-slate-700">{startIndex}–{endIndex}</span> of{" "}
-        <span className="font-medium text-slate-700">{total}</span> leads
+      <div className="text-xs text-slate-600">
+        Showing <span className="font-semibold text-slate-800">{startIndex}–{endIndex}</span> of{" "}
+        <span className="font-semibold text-slate-800">{total}</span> leads
       </div>
 
       <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export default function DataTable<T>({
 
   const table = (
     <div className="w-full overflow-x-auto">
-      <table className={`w-full ${minWidth} border-collapse text-left`}>
+      <table className={`w-full ${minWidth} border-collapse text-left text-slate-800`}>
         <thead>
           <tr className="border-b border-slate-200 bg-white">
             {selectable && (
@@ -211,7 +211,7 @@ export default function DataTable<T>({
             {columns.map(column => (
               <th
                 key={column.key}
-                className={`whitespace-nowrap px-4 py-3.5 text-xs font-semibold text-slate-600 ${
+                className={`whitespace-nowrap px-4 py-3.5 text-xs font-semibold text-slate-700 ${
                   column.headerClassName ?? ""
                 }`}
               >
@@ -219,13 +219,13 @@ export default function DataTable<T>({
               </th>
             ))}
             {renderRowMenu && (
-              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold text-slate-600">
+              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold text-slate-700">
                 Actions
               </th>
             )}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-slate-100 bg-white text-slate-800">
           {rows.map((row, index) => {
             const id = getRowId(row);
             const isSelected = selectedIds.includes(id);
@@ -249,7 +249,7 @@ export default function DataTable<T>({
                   </td>
                 )}
                 {columns.map(column => (
-                  <td key={column.key} className={`px-4 py-3 text-xs ${column.className ?? ""}`}>
+                  <td key={column.key} className={`px-4 py-3 text-xs text-slate-800 ${column.className ?? ""}`}>
                     {column.cell(row, index)}
                   </td>
                 ))}

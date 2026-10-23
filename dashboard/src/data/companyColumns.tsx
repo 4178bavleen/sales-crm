@@ -86,14 +86,14 @@ export const companyColumns: CompanyColumn[] = [
     className: "min-w-[190px]",
     cell: company => (
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
           <Building2 size={15} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-blue-600 group-hover:text-blue-800">
+          <p className="truncate text-xs font-semibold text-blue-600 group-hover:text-blue-800">
             {company.name}
           </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+          <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
             {company.city ? `${company.city}, ${company.country}` : "No location"}
           </p>
         </div>
@@ -114,16 +114,16 @@ export const companyColumns: CompanyColumn[] = [
           {company.industry}
         </span>
       ) : (
-        <span className="text-xs text-slate-300">—</span>
+        <span className="text-xs text-slate-400">—</span>
       ),
   },
   {
     key: "contactCount",
     header: "Contacts",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: company => (
       <span className="inline-flex items-center gap-2">
-        <Users size={13} className="shrink-0 text-slate-400" />
+        <Users size={13} className="shrink-0 text-slate-500" />
         {company.contactCount}
       </span>
     ),
@@ -131,10 +131,10 @@ export const companyColumns: CompanyColumn[] = [
   {
     key: "website",
     header: "Website",
-    className: "text-xs text-slate-500",
+    className: "text-xs font-medium text-slate-800",
     cell: company => (
       <div className="flex max-w-[200px] items-center gap-2">
-        <Globe size={13} className="shrink-0 text-slate-400" />
+        <Globe size={13} className="shrink-0 text-slate-500" />
         <span className="truncate">{company.website || "—"}</span>
       </div>
     ),
@@ -142,10 +142,10 @@ export const companyColumns: CompanyColumn[] = [
   {
     key: "phone",
     header: "Phone",
-    className: "whitespace-nowrap text-xs text-slate-600",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: company => (
       <div className="flex items-center gap-2">
-        <Phone size={13} className="text-slate-400" />
+        <Phone size={13} className="text-slate-500" />
         {company.phone || "—"}
       </div>
     ),
@@ -153,10 +153,10 @@ export const companyColumns: CompanyColumn[] = [
   {
     key: "location",
     header: "Location",
-    className: "whitespace-nowrap text-xs text-slate-500",
+    className: "whitespace-nowrap text-xs font-medium text-slate-800",
     cell: company => (
       <div className="flex items-center gap-2">
-        <MapPin size={13} className="shrink-0 text-slate-400" />
+        <MapPin size={13} className="shrink-0 text-slate-500" />
         {[company.city, company.country].filter(Boolean).join(", ") || "—"}
       </div>
     ),
@@ -164,7 +164,7 @@ export const companyColumns: CompanyColumn[] = [
   {
     key: "notes",
     header: "Notes",
-    className: "text-xs text-slate-500",
+    className: "text-xs text-slate-800",
     cell: company => (
       <span className="block max-w-[240px] truncate" title={company.notes}>
         {company.notes || "—"}
@@ -174,7 +174,7 @@ export const companyColumns: CompanyColumn[] = [
   {
     key: "createdAt",
     header: "Created Time",
-    className: "whitespace-nowrap text-xs text-slate-500",
+    className: "whitespace-nowrap text-xs font-medium text-slate-700",
     cell: company => formatCompanyDate(company.createdAt),
   },
 ];

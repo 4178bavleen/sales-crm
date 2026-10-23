@@ -809,9 +809,9 @@ export default function UsersPage() {
         ) : view === "table" ? (
           /* Table View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-slate-800">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                   <th className="w-14 px-4 py-3 text-center">#</th>
                   <th className="px-4 py-3">Team Member</th>
                   <th className="px-4 py-3">System Role</th>
@@ -832,7 +832,7 @@ export default function UsersPage() {
                       className="group transition hover:bg-slate-50/80"
                     >
                       {/* Serial Number */}
-                      <td className="px-4 py-3 text-center text-xs font-semibold text-slate-400 font-mono">
+                      <td className="px-4 py-3 text-center text-xs font-semibold text-slate-700 font-mono">
                         {index + 1}
                       </td>
 
@@ -849,7 +849,7 @@ export default function UsersPage() {
                               </span>
                             )}
                           </div>
-                          <span className="truncate text-[11px] text-slate-400 block mt-0.5">
+                          <span className="truncate text-[11px] font-medium text-slate-600 block mt-0.5">
                             {user.email}
                           </span>
                         </div>
@@ -857,20 +857,20 @@ export default function UsersPage() {
 
                       {/* Role (shown directly as text, no pill badge) */}
                       <td className="px-4 py-3">
-                        <span className="text-xs font-medium text-slate-700">
+                        <span className="text-xs font-semibold text-slate-800">
                           {roleLabel(user.role?.name || "SALES_EMPLOYEE")}
                         </span>
                       </td>
 
                       {/* Phone */}
-                      <td className="px-4 py-3 text-xs text-slate-600">
+                      <td className="px-4 py-3 text-xs font-medium text-slate-800">
                         {user.phone ? (
-                          <span className="inline-flex items-center gap-1 text-slate-600">
-                            <Phone size={12} className="text-slate-400" />
+                          <span className="inline-flex items-center gap-1 text-slate-800">
+                            <Phone size={12} className="text-slate-500" />
                             {user.phone}
                           </span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-400">—</span>
                         )}
                       </td>
 
@@ -905,7 +905,7 @@ export default function UsersPage() {
                       </td>
 
                       {/* Joined Date */}
-                      <td className="px-4 py-3 text-xs text-slate-500">
+                      <td className="px-4 py-3 text-xs font-medium text-slate-700">
                         {new Date(user.createdAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",

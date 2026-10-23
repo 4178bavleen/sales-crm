@@ -339,7 +339,7 @@ export default function CreateLeadModal({
                 : "Creating Lead..."
               : isEdit
                 ? "Save Changes"
-                : "Create Lead"}
+                : "Save Lead"}
           </button>
         </div>
       </div>

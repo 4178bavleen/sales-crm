@@ -771,8 +771,8 @@ export default function Targets() {
         /* TABLE VIEW */
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <table className="w-full text-left text-sm text-slate-800">
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-700">
                 <tr>
                   <th className="px-5 py-3.5">Sales Rep / Team</th>
                   <th className="px-5 py-3.5">Period</th>
@@ -816,7 +816,7 @@ export default function Targets() {
                                 </span>
                               )}
                             </div>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs font-medium text-slate-600">
                               {target.employee?.email || `${target.team?.membersCount || 0} Reps`}
                             </span>
                           </div>
@@ -824,10 +824,10 @@ export default function Targets() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="font-medium text-slate-800">
+                        <div className="font-semibold text-slate-800">
                           {formatPeriodDisplay(target)}
                         </div>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs font-medium text-slate-600">
                           {target.periodType === "MONTHLY" ? "Monthly" : "Quarterly"}
                         </span>
                       </td>
@@ -840,14 +840,14 @@ export default function Targets() {
                         <div className="font-bold text-emerald-600">
                           {formatCurrency(target.achievedRevenue)}
                         </div>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs font-medium text-slate-600">
                           {target.wonDealsCount} won deal(s)
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
                         <div className="w-36">
-                          <div className="flex items-center justify-between text-xs font-semibold">
+                          <div className="flex items-center justify-between text-xs font-semibold text-slate-900">
                             <span>{target.progressPercentage}%</span>
                           </div>
                           <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
@@ -859,7 +859,7 @@ export default function Targets() {
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-right font-medium text-slate-700">
+                      <td className="px-5 py-4 text-right font-bold text-slate-900">
                         {formatCurrency(target.pipelineRevenue)}
                       </td>
 
