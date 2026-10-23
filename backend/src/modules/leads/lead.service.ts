@@ -291,6 +291,7 @@ export async function getLeadOptions() {
       select: { id: true, name: true },
       orderBy: { id: 'asc' },
     }),
+    
   ])
 
   const statuses: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']
