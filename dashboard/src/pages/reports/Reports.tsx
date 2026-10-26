@@ -403,7 +403,7 @@ export default function Reports() {
           }`}
         >
           <Award size={16} />
-          Rep Performance
+          Team Performance
         </button>
       </div>
 
@@ -768,13 +768,13 @@ export default function Reports() {
             </div>
           )}
 
-          {/* TAB 4: REP PERFORMANCE */}
+          {/* TAB 4: TEAM PERFORMANCE */}
           {activeTab === "performance" && performanceData && (
             <div className="space-y-6">
               {/* Leaderboard Table */}
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
                 <div className="border-b border-slate-100 p-5">
-                  <h2 className="text-sm font-bold text-slate-900">Representative Quotas & Attainment</h2>
+                  <h2 className="text-sm font-bold text-slate-900">Team Performance & Quota Attainment</h2>
                   <p className="text-xs text-slate-400">
                     Individual sales achievement, deal velocity, and activity output
                   </p>
@@ -785,7 +785,7 @@ export default function Reports() {
                     <thead className="bg-slate-50 text-slate-500">
                       <tr>
                         <th className="px-4 py-3.5 font-semibold">Representative</th>
-                        <th className="px-4 py-3.5 font-semibold">Team / Role</th>
+                        <th className="px-4 py-3.5 font-semibold">Role</th>
                         <th className="px-4 py-3.5 font-semibold text-right">Won Revenue</th>
                         <th className="px-4 py-3.5 font-semibold text-right">Quota Target</th>
                         <th className="px-4 py-3.5 font-semibold">Attainment</th>
@@ -819,10 +819,9 @@ export default function Reports() {
                               </div>
                             </td>
 
-                            {/* Team & Role */}
+                            {/* Role */}
                             <td className="px-4 py-3">
-                              <p className="font-medium text-slate-800">{rep.teamName || "Direct"}</p>
-                              <span className="text-[11px] text-slate-400">{rep.role}</span>
+                              <span className="font-medium text-slate-800">{rep.role}</span>
                             </td>
 
                             {/* Won Revenue */}
