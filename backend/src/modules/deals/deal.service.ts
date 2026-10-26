@@ -140,68 +140,85 @@ export async function validateDealReferences(
     }
 }
 
+
+
 export async function createDeal(
-    data: DealInput,
-    createdById: number,
+  data: DealInput,
+  createdById: number,
 ) {
-    if (
-        data.name === undefined ||
-        data.ownerId === undefined ||
-        data.stageId === undefined ||
-        data.estimatedValue === undefined
-    ) {
-        throw new DealValidationError(
-            "Name, owner, stage and estimated value are required",
-        );
-    }
+  const {
+    name,
+    ownerId,
+    stageId,
+    estimatedValue,
+  } = data
 
-    return prisma.$transaction(async (tx) => {
-        await validateDealReferences(data, tx);
+  if (
+    name === undefined ||
+    ownerId === undefined ||
+    stageId === undefined ||
+    estimatedValue === undefined
+  ) {
+    throw new DealValidationError(
+      'Name, owner, stage and estimated value are required',
+    )
+  }
 
-        const deal = await tx.deal.create({
-            data: {
-                name: data.name!,
-                ownerId: data.ownerId!,
-                createdById,
-                stageId: data.stageId!,
-                estimatedValue: new Prisma.Decimal(data.estimatedValue!),
-                leadId: data.leadId ?? null,
-                customerId: data.customerId ?? null,
-                productServiceId: data.productServiceId ?? null,
-                expectedCloseDate: data.expectedCloseDate ?? null,
-                nextAction: data.nextAction ?? null,
-                nextActionDueAt: data.nextActionDueAt ?? null,
-            },
-            include: dealInclude,
-        });
+  return prisma.$transaction(
+    async (tx) => {
+      await validateDealReferences(data, tx)
 
-        await tx.dealStageHistory.create({
-            data: {
-                dealId: deal.id,
-                fromStageId: null,
-                toStageId: deal.stageId,
-                changedById: createdById,
-                note: "Deal created",
-            },
-        });
+      const deal = await tx.deal.create({
+        data: {
+          name,
+          ownerId,
+          createdById,
+          stageId,
+          estimatedValue: new Prisma.Decimal(estimatedValue),
+          leadId: data.leadId ?? null,
+          customerId: data.customerId ?? null,
+          productServiceId: data.productServiceId ?? null,
+          expectedCloseDate: data.expectedCloseDate ?? null,
+          nextAction: data.nextAction ?? null,
+          nextActionDueAt: data.nextActionDueAt ?? null,
+        },
+        include: dealInclude,
+      })
 
-        await tx.auditLog.create({
-            data: {
-                actorId: createdById,
-                action: "CREATE",
-                entityType: "DEAL",
-                entityId: deal.id,
-                after: {
-                    name: deal.name,
-                    stageId: deal.stageId,
-                    estimatedValue: deal.estimatedValue.toString(),
-                },
-            },
-        });
+      await tx.dealStageHistory.create({
+        data: {
+          dealId: deal.id,
+          fromStageId: null,
+          toStageId: deal.stageId,
+          changedById: createdById,
+          note: 'Deal created',
+        },
+      })
 
-        return deal;
-    });
+      await tx.auditLog.create({
+        data: {
+          actorId: createdById,
+          action: 'CREATE',
+          entityType: 'DEAL',
+          entityId: deal.id,
+          after: {
+            name: deal.name,
+            stageId: deal.stageId,
+            estimatedValue: deal.estimatedValue.toString(),
+          },
+        },
+      })
+
+      return deal
+    },
+    {
+      maxWait: 10000,
+      timeout: 15000,
+    },
+  )
 }
+
+
 
 export interface ListDealsFilters {
     search?: string;

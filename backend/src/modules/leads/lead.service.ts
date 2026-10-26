@@ -1,12 +1,13 @@
 
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
-import type { LeadStatus } from '../../generated/prisma/client.js'
+import { LeadStatus } from '../../generated/prisma/client.js'
 import type {
   CreateLeadInput,
   ListLeadsInput,
   UpdateLeadInput,
 } from './lead.validation.js'
+
 
 import type { UpdateLeadStatusInput } from './lead.validation.js'
 export class LeadServiceError extends Error {
@@ -291,13 +292,12 @@ export async function getLeadOptions() {
       select: { id: true, name: true },
       orderBy: { id: 'asc' },
     }),
-    
-  ])
+  ]);
 
-  const statuses: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']
-  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+  const statuses = Object.values(LeadStatus);
+  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
-  return { sources, owners, statuses, priorities, noFollowUpReasons }
+  return { sources, owners, statuses, priorities, noFollowUpReasons };
 }
 
 export async function getLeadById(id: number) {
