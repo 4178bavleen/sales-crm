@@ -19,6 +19,7 @@ import {
   User,
   Calendar,
   Check,
+  CheckCircle2,
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import {
@@ -29,6 +30,10 @@ import {
   updateLeadStatus as updateLeadStatusApi,
   deleteLead as deleteLeadApi,
   assignLead as assignLeadApi,
+  previewLeadImportFile,
+  confirmLeadImportRows,
+  type ImportPreviewResponse,
+  type ImportConfirmResponse,
 } from "../../lib/leads";
 import {
   leadColumns,
@@ -38,6 +43,7 @@ import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
+import ImportPreviewModal from "../../components/ui/ImportPreviewModal";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import { useSession } from "../../lib/useSession";
 
@@ -72,6 +78,11 @@ export default function Leads() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    file: File;
+    data: ImportPreviewResponse;
+  } | null>(null);
+  const [importResult, setImportResult] = useState<ImportConfirmResponse | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,17 +94,24 @@ export default function Leads() {
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refreshLeads = useCallback(async () => {
+    setRefreshing(true);
     setLoading(true);
     setApiError(null);
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 600));
     try {
-      const { leads: data } = await fetchLeads({ limit: 100 });
+      const [{ leads: data }] = await Promise.all([
+        fetchLeads({ limit: 100 }),
+        minDelay,
+      ]);
       setLeads(data);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : "Failed to load leads");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -483,48 +501,6 @@ export default function Leads() {
     XLSX.writeFile(workbook, "sales-crm-leads.xlsx");
   }
 
-  function parseCsv(text: string): Record<string, string>[] {
-    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
-    if (lines.length < 2) return [];
-
-    const parseRow = (rowStr: string): string[] => {
-      const result: string[] = [];
-      let current = "";
-      let inQuotes = false;
-      for (let i = 0; i < rowStr.length; i++) {
-        const char = rowStr[i];
-        if (char === '"') {
-          if (inQuotes && rowStr[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (char === ',' && !inQuotes) {
-          result.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    };
-
-    const headers = parseRow(lines[0]).map(h => h.replace(/^"|"$/g, "").trim().toLowerCase());
-    const rows: Record<string, string>[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseRow(lines[i]);
-      const row: Record<string, string> = {};
-      headers.forEach((header, idx) => {
-        row[header] = (values[idx] ?? "").replace(/^"|"$/g, "").trim();
-      });
-      rows.push(row);
-    }
-    return rows;
-  }
-
   function triggerImport(acceptType: ".csv" | ".xlsx, .xls" | ".csv, .xlsx, .xls") {
     if (fileInputRef.current) {
       fileInputRef.current.accept = acceptType;
@@ -538,57 +514,29 @@ export default function Leads() {
     try {
       setLoading(true);
       setApiError(null);
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      let rows: Record<string, any>[] = [];
-
-      if (ext === "xlsx" || ext === "xls") {
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
-      } else {
-        const text = await file.text();
-        rows = parseCsv(text);
-      }
-
-      if (rows.length === 0) {
+      const previewData = await previewLeadImportFile(file);
+      if (!previewData.rows || previewData.rows.length === 0) {
         throw new Error("No data rows found in the selected file.");
       }
-
-      for (const row of rows) {
-        const normalized: Record<string, string> = {};
-        for (const [k, v] of Object.entries(row)) {
-          normalized[k.trim().toLowerCase()] = String(v ?? "").trim();
-        }
-
-        const nameParts = (normalized["contact name"] || normalized["name"] || "").split(" ");
-        const firstName = normalized["first name"] || normalized["firstname"] || nameParts[0] || "Imported";
-        const lastName = normalized["last name"] || normalized["lastname"] || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
-        const statusVal = (normalized["lead status"] || normalized["status"] || "NEW").toUpperCase();
-        const priorityVal = (normalized["priority"] || "MEDIUM").toUpperCase();
-
-        await createLeadApi({
-          firstName,
-          lastName,
-          company: normalized["company"] || normalized["company name"] || undefined,
-          email: normalized["email"] || undefined,
-          phone: normalized["phone"] || normalized["phone number"] || undefined,
-          source: normalized["lead source"] || normalized["source"] || "Website",
-          productService: normalized["product"] || normalized["product / service"] || normalized["service"] || undefined,
-          status: (["NEW", "CONTACTED", "QUALIFIED", "CONVERTED"].includes(statusVal) ? statusVal : "NEW") as LeadStatus,
-          priority: (["LOW", "MEDIUM", "HIGH", "URGENT"].includes(priorityVal) ? priorityVal : "MEDIUM") as any,
-          noFollowUp: true,
-        });
-      }
-      await refreshLeads();
+      setImportPreview({
+        file,
+        data: previewData,
+      });
     } catch (err) {
-      console.error("Import failed:", err);
-      setApiError(err instanceof Error ? err.message : "Failed to import file");
+      console.error("Preview failed:", err);
+      setApiError(err instanceof Error ? err.message : "Failed to parse import file");
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  async function handleConfirmImport() {
+    if (!importPreview) return;
+    const res = await confirmLeadImportRows(importPreview.data.rows);
+    setImportPreview(null);
+    await refreshLeads();
+    setImportResult(res);
   }
 
   // Full-page create / edit form
@@ -627,6 +575,22 @@ export default function Leads() {
             className="hidden"
             onChange={handleFileUpload}
           />
+
+          <button
+            type="button"
+            onClick={refreshLeads}
+            disabled={loading || refreshing}
+            title="Refresh Leads"
+            className="group inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <RotateCw
+              size={14}
+              className={`text-slate-500 transition-transform duration-500 group-hover:rotate-180 ${
+                refreshing || loading ? "animate-spin text-blue-600" : ""
+              }`}
+            />
+            <span>Refresh</span>
+          </button>
 
           <button
             type="button"
@@ -700,19 +664,6 @@ export default function Leads() {
                 >
                   <FileSpreadsheet size={14} className="text-emerald-600" />
                   Import Excel (.xlsx)
-                </button>
-
-                <div className="my-1 border-t border-slate-100" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMoreMenu(false);
-                    refreshLeads();
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <RotateCw size={14} className="text-slate-400" />
-                  Refresh Leads
                 </button>
               </div>
             )}
@@ -1232,6 +1183,75 @@ export default function Leads() {
             setDetailLead(null);
           }}
         />
+      )}
+
+      {/* Import Preview Modal */}
+      {importPreview && (
+        <ImportPreviewModal
+          fileName={importPreview.file.name}
+          previewData={importPreview.data}
+          onClose={() => setImportPreview(null)}
+          onConfirm={handleConfirmImport}
+        />
+      )}
+
+      {/* Import Result Dialog */}
+      {importResult && (
+        <div
+          className="dialog-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          onClick={() => setImportResult(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Import Result"
+            className="dialog-enter flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 mb-3.5">
+                <CheckCircle2 size={26} />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">
+                Import Completed
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Your leads file was processed successfully.
+              </p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
+              <div>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Imported</span>
+                <p className="mt-1 text-base font-bold text-emerald-600">
+                  {importResult.created}
+                </p>
+              </div>
+              <div className="border-x border-slate-200/80">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Skipped</span>
+                <p className="mt-1 text-base font-bold text-amber-600">
+                  {importResult.duplicates}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Failed</span>
+                <p className="mt-1 text-base font-bold text-slate-600">
+                  {importResult.failed}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setImportResult(null)}
+                className="w-full inline-flex items-center justify-center rounded-xl bg-[#1d61e7] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

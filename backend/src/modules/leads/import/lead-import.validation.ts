@@ -17,15 +17,16 @@ const optionalPositiveInt = z.preprocess(
 )
 
 const optionalDate = z.preprocess(
-  (value) =>
-    value === '' || value === undefined || value === null
-      ? undefined
-      : value,
-  z.coerce.date().optional(),
+  (value) => {
+    if (value === '' || value === undefined || value === null) return undefined;
+    const d = new Date(value as string | number | Date);
+    return isNaN(d.getTime()) ? undefined : d;
+  },
+  z.date().optional(),
 )
 
 export const importedLeadRowSchema = z.object({
-  contactName: z.string().trim().min(2).max(150),
+  contactName: z.string().trim().min(1).max(150),
 
   companyName: optionalText(150),
   phone: optionalText(30),
@@ -49,18 +50,22 @@ export const importedLeadRowSchema = z.object({
     z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
   ),
 
+  status: z.preprocess(
+    (value) =>
+      value === '' || value === undefined || value === null
+        ? 'NEW'
+        : String(value).trim().toUpperCase(),
+    z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']).default('NEW'),
+  ),
+
   notes: optionalText(5000),
   nextFollowUpAt: optionalDate,
   noFollowUpReasonId: optionalPositiveInt,
-}).superRefine((row, ctx) => {
+}).transform((row) => {
   if (!row.nextFollowUpAt && row.noFollowUpReasonId === undefined) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['nextFollowUpAt'],
-      message:
-        'Provide a follow-up date or a no-follow-up reason.',
-    })
+    row.noFollowUpReasonId = 1
   }
+  return row
 })
 
 export const confirmImportSchema = z.object({

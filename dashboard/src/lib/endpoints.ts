@@ -50,6 +50,8 @@ export const ENDPOINTS = {
     byId: (id: number) => `/leads/${id}`,
     assign: (id: number) => `/leads/${id}/assign`,
     status: (id: number) => `/leads/${id}/status`,
+    importPreview: "/leads/import/preview",
+    importConfirm: "/leads/import/confirm",
   },
   
   tasks: {

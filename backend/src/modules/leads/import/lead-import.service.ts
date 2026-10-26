@@ -149,7 +149,7 @@ export async function confirmLeadImport(
         });
 
         if (!source) {
-          throw new Error(`Source ID ${data.sourceId} does not exist.`);
+          data.sourceId = undefined;
         }
       }
 
@@ -163,9 +163,7 @@ export async function confirmLeadImport(
         });
 
         if (!productService) {
-          throw new Error(
-            `Product/service ID ${data.productServiceId} does not exist.`,
-          );
+          data.productServiceId = undefined;
         }
       }
 
@@ -179,9 +177,7 @@ export async function confirmLeadImport(
         });
 
         if (!reason) {
-          throw new Error(
-            `Follow-up reason ID ${data.noFollowUpReasonId} does not exist.`,
-          );
+          data.noFollowUpReasonId = undefined;
         }
       }
 
@@ -199,7 +195,7 @@ export async function confirmLeadImport(
           sourceId: data.sourceId ?? null,
           productServiceId: data.productServiceId ?? null,
           priority: data.priority ?? "MEDIUM",
-          status: "NEW",
+          status: data.status ?? "NEW",
           notes: data.notes ?? null,
           nextFollowUpAt: data.nextFollowUpAt
             ? new Date(data.nextFollowUpAt)

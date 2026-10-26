@@ -1,6 +1,6 @@
 import type { Lead, LeadStatus, Priority } from "../types/lead";
 import { ApiError, request } from "./api";
-import { ENDPOINTS } from "./endpoints";
+import { apiUrl, ENDPOINTS } from "./endpoints";
 import { getSession } from "./auth";
 
 /** Shape of a Lead row returned by the backend API. */
@@ -338,4 +338,85 @@ export async function fetchLeadOptions(): Promise<LeadOptionsData> {
   return request<LeadOptionsData>(ENDPOINTS.leads.options, {
     token: session.token,
   });
+}
+
+export type ImportPreviewResponse = {
+  totalRows: number;
+  duplicateCount: number;
+  duplicates: Array<{ rowNumber: number; duplicateOfRow: number; field: string; value: string }>;
+  rows: Array<{ rowNumber: number; data: Record<string, unknown> }>;
+};
+
+export type ImportConfirmResponse = {
+  created: number;
+  duplicates: number;
+  failed: number;
+  results: Array<{ rowNumber: number; status: string; reason?: string; leadId?: number }>;
+};
+
+/**
+ * Upload and parse CSV or Excel file to get an import preview.
+ */
+export async function previewLeadImportFile(file: File): Promise<ImportPreviewResponse> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const previewRes = await fetch(apiUrl(ENDPOINTS.leads.importPreview), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.token}`,
+    },
+    body: formData,
+  });
+
+  const previewJson = await previewRes.json();
+  if (!previewRes.ok || !previewJson.success) {
+    const errorMsg =
+      previewJson.message ||
+      previewJson.error?.message ||
+      previewJson.errors?.[0]?.message ||
+      "Failed to parse import file";
+    throw new Error(errorMsg);
+  }
+
+  return previewJson.data as ImportPreviewResponse;
+}
+
+/**
+ * Confirm and save parsed import rows.
+ */
+export async function confirmLeadImportRows(
+  rows: Array<{ rowNumber: number; data: Record<string, unknown> }>,
+): Promise<ImportConfirmResponse> {
+  const session = getSession();
+  if (!session) throw new ApiError("Not signed in", 401);
+
+  const confirmPayload = {
+    rows: rows.map((r) => ({
+      rowNumber: r.rowNumber,
+      values: r.data,
+    })),
+  };
+
+  const confirmRes = await request<ImportConfirmResponse>(ENDPOINTS.leads.importConfirm, {
+    method: "POST",
+    token: session.token,
+    body: confirmPayload,
+  });
+
+  return confirmRes;
+}
+
+/**
+ * Upload and import CSV or Excel file directly using the backend import pipeline.
+ */
+export async function importLeadsFile(file: File): Promise<ImportConfirmResponse> {
+  const parsed = await previewLeadImportFile(file);
+  if (!parsed.rows || parsed.rows.length === 0) {
+    throw new Error("No data rows found in the selected file.");
+  }
+  return confirmLeadImportRows(parsed.rows);
 }

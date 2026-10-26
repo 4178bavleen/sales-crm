@@ -1,5 +1,6 @@
 
 import * as XLSX from "xlsx";
+import { AppError } from "../../../common/errors/AppErrors.js";
 
 export const MAX_IMPORT_ROWS = 1000;
 
@@ -7,16 +8,55 @@ export const REQUIRED_IMPORT_HEADERS = ["contactName"];
 
 export const ALLOWED_IMPORT_HEADERS = [
   "contactName",
+  "firstName",
+  "lastName",
   "companyName",
+  "company",
   "phone",
   "email",
   "sourceId",
   "productServiceId",
   "priority",
+  "status",
   "notes",
   "nextFollowUpAt",
   "noFollowUpReasonId",
 ];
+
+const HEADER_MAP: Record<string, string> = {
+  contactname: "contactName",
+  contact: "contactName",
+  name: "contactName",
+  fullname: "contactName",
+  firstname: "firstName",
+  first: "firstName",
+  lastname: "lastName",
+  last: "lastName",
+  companyname: "companyName",
+  company: "companyName",
+  phone: "phone",
+  phonenumber: "phone",
+  mobile: "phone",
+  email: "email",
+  emailaddress: "email",
+  sourceid: "sourceId",
+  source: "sourceId",
+  leadsource: "sourceId",
+  productserviceid: "productServiceId",
+  productservice: "productServiceId",
+  product: "productServiceId",
+  service: "productServiceId",
+  priority: "priority",
+  notes: "notes",
+  note: "notes",
+  status: "status",
+  leadstatus: "status",
+  nextfollowupat: "nextFollowUpAt",
+  nextfollowup: "nextFollowUpAt",
+  followupdate: "nextFollowUpAt",
+  nofollowupreasonid: "noFollowUpReasonId",
+  nofollowupreason: "noFollowUpReasonId",
+};
 
 export interface ParsedImportRow {
   rowNumber: number;
@@ -35,24 +75,20 @@ export interface ParsedImportFile {
   duplicates: FileDuplicate[];
 }
 
-export class LeadImportError extends Error {
+export class LeadImportError extends AppError {
   constructor(
     message: string,
-    public readonly statusCode: number = 400,
+    statusCode: number = 400,
   ) {
-    super(message);
+    super(statusCode, message);
     this.name = "LeadImportError";
   }
 }
 
 function normalizeHeader(header: unknown): string {
-  return String(header ?? "")
-    .replace(/^\uFEFF/, "")
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/[_-]+([a-zA-Z])/g, (_, letter: string) =>
-      letter.toUpperCase(),
-    );
+  const raw = String(header ?? "").replace(/^\uFEFF/, "").trim().toLowerCase();
+  const clean = raw.replace(/[^a-z0-9]/g, "");
+  return HEADER_MAP[clean] || clean;
 }
 
 function normalizeEmail(value: unknown): string | undefined {
@@ -115,9 +151,9 @@ export function parseLeadImportFile(
     .split(".")
     .pop();
 
-  if (extension !== "csv" && extension !== "xlsx") {
+  if (extension !== "csv" && extension !== "xlsx" && extension !== "xls") {
     throw new LeadImportError(
-      "Only CSV and XLSX files are supported.",
+      "Only CSV, XLSX, and XLS files are supported.",
     );
   }
 
@@ -156,47 +192,34 @@ export function parseLeadImportFile(
     throw new LeadImportError("The uploaded file is empty.");
   }
 
-  const headers = matrix[0].map(normalizeHeader);
+  const rawHeaders = (matrix[0] as unknown[]).map(normalizeHeader);
 
-  if (headers.every((header) => header === "")) {
+  if (rawHeaders.every((header) => header === "")) {
     throw new LeadImportError(
       "The first row must contain column headers.",
     );
   }
 
-  const duplicateHeaders = headers.filter(
-    (header, index) =>
-      header !== "" && headers.indexOf(header) !== index,
-  );
+  // De-duplicate headers, ignoring duplicate columns
+  const seenHeaderSet = new Set<string>();
+  const headers = rawHeaders.map((header) => {
+    if (!header) return "";
+    if (seenHeaderSet.has(header)) return "";
+    seenHeaderSet.add(header);
+    return header;
+  });
 
-  if (duplicateHeaders.length > 0) {
+  const hasContactIdentifier =
+    headers.includes("contactName") ||
+    headers.includes("firstName") ||
+    headers.includes("companyName") ||
+    headers.includes("company") ||
+    headers.includes("email") ||
+    headers.includes("phone");
+
+  if (!hasContactIdentifier) {
     throw new LeadImportError(
-      `Duplicate column headers found: ${[
-        ...new Set(duplicateHeaders),
-      ].join(", ")}`,
-    );
-  }
-
-  const unknownHeaders = headers.filter(
-    (header) =>
-      header !== "" &&
-      !ALLOWED_IMPORT_HEADERS.includes(header),
-  );
-
-  if (unknownHeaders.length > 0) {
-    throw new LeadImportError(
-      `Unsupported column headers: ${unknownHeaders.join(", ")}. ` +
-        `Allowed headers: ${ALLOWED_IMPORT_HEADERS.join(", ")}.`,
-    );
-  }
-
-  const missingHeaders = REQUIRED_IMPORT_HEADERS.filter(
-    (header) => !headers.includes(header),
-  );
-
-  if (missingHeaders.length > 0) {
-    throw new LeadImportError(
-      `Missing required column headers: ${missingHeaders.join(", ")}`,
+      "Missing required contact identifier. Please include Contact Name, First Name, Company, Email, or Phone.",
     );
   }
 
@@ -208,7 +231,7 @@ export function parseLeadImportFile(
     const record: Record<string, unknown> = {};
 
     headers.forEach((header, columnIndex) => {
-      if (!header) return;
+      if (!header || !ALLOWED_IMPORT_HEADERS.includes(header)) return;
 
       record[header] = normalizeCellValue(
         values[columnIndex],
@@ -218,6 +241,48 @@ export function parseLeadImportFile(
 
     if (isEmptyRow(record)) {
       return;
+    }
+
+    if (!record.contactName) {
+      const parts = [record.firstName, record.lastName].filter(Boolean);
+      if (parts.length > 0) {
+        record.contactName = parts.join(" ");
+      } else if (record.companyName || record.company) {
+        record.contactName = String(record.companyName || record.company);
+      } else if (record.email) {
+        record.contactName = String(record.email).split("@")[0] || "Unknown Lead";
+      } else if (record.phone) {
+        record.contactName = String(record.phone);
+      } else {
+        record.contactName = `Imported Lead #${index + 1}`;
+      }
+    }
+
+    if (!record.companyName && record.company) {
+      record.companyName = record.company;
+    }
+
+    if (typeof record.sourceId === "string") {
+      const s = String(record.sourceId).trim().toLowerCase();
+      if (/^\d+$/.test(s)) {
+        record.sourceId = Number(s);
+      } else if (s.includes("web") && !s.includes("webinar")) {
+        record.sourceId = 1;
+      } else if (s.includes("referral")) {
+        record.sourceId = 2;
+      } else if (s.includes("cold")) {
+        record.sourceId = 3;
+      } else if (s.includes("linkedin")) {
+        record.sourceId = 4;
+      } else if (s.includes("google") || s.includes("ad")) {
+        record.sourceId = 5;
+      } else {
+        record.sourceId = 1;
+      }
+    }
+
+    if (!record.nextFollowUpAt && !record.noFollowUpReasonId) {
+      record.noFollowUpReasonId = 1;
     }
 
     rows.push({

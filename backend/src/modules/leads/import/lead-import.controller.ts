@@ -23,10 +23,10 @@ const upload = multer({
       .split(".")
       .pop();
 
-    if (extension !== "csv" && extension !== "xlsx") {
+    if (extension !== "csv" && extension !== "xlsx" && extension !== "xls") {
       callback(
         new LeadImportError(
-          "Only CSV and XLSX files are supported.",
+          "Only CSV, XLSX, and XLS files are supported.",
         ),
       );
       return;
