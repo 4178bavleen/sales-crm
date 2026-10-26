@@ -17,8 +17,7 @@ import {
   Loader2,
   ExternalLink,
   Clock,
-  Sparkles,
-  CalendarRange,
+  User,
 } from "lucide-react";
 import { fetchMeetings } from "../../lib/meetings";
 import { request } from "../../lib/api";
@@ -55,6 +54,73 @@ export function isTaskOverdue(task: CalendarTask, todayStr: string = getTodayStr
   if (normalizedStatus === "COMPLETED" || normalizedStatus === "CANCELLED") return false;
   const taskDate = task.dueAt.split("T")[0];
   return taskDate < todayStr;
+}
+
+export function getMeetingWith(m: MeetingItem): {
+  name: string;
+  detail?: string;
+  type: "contact" | "lead" | "deal" | "company" | "user" | "none";
+} {
+  // 1. Participant contact (external attendee)
+  const contactPart = m.participants?.find((p) => p.contact?.fullName);
+  if (contactPart?.contact) {
+    return {
+      name: contactPart.contact.fullName,
+      detail: contactPart.contact.email || contactPart.contact.phone || undefined,
+      type: "contact",
+    };
+  }
+
+  // 2. Linked Lead
+  if (m.lead?.contactName) {
+    return {
+      name: m.lead.contactName,
+      detail: m.lead.companyName ? `Lead • ${m.lead.companyName}` : "Lead",
+      type: "lead",
+    };
+  }
+
+  // 3. Customer primary contact
+  if (m.customer?.primaryContact?.fullName) {
+    return {
+      name: m.customer.primaryContact.fullName,
+      detail: m.customer.company?.name || "Customer",
+      type: "contact",
+    };
+  }
+
+  // 4. Linked Company
+  if (m.company?.name) {
+    return {
+      name: m.company.name,
+      detail: "Company Account",
+      type: "company",
+    };
+  }
+
+  // 5. Linked Deal
+  if (m.deal?.name) {
+    return {
+      name: m.deal.name,
+      detail: "Deal Discussion",
+      type: "deal",
+    };
+  }
+
+  // 6. Other team member participant
+  const userPart = m.participants?.find((p) => p.user && p.user.id !== m.organizerId);
+  if (userPart?.user) {
+    return {
+      name: userPart.user.name,
+      detail: "Team Member",
+      type: "user",
+    };
+  }
+
+  return {
+    name: "Not specified",
+    type: "none",
+  };
 }
 
 function formatTime(isoString: string): string {
@@ -389,12 +455,8 @@ export default function Calendar() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              Sales Calendar
+              Calendar
             </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-100/80">
-              <Sparkles size={11} className="text-blue-600" />
-              Live Workspace
-            </span>
           </div>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             Coordinate appointments, client meetings, and track task delivery in a unified visual timeline.
@@ -439,113 +501,6 @@ export default function Calendar() {
             <Plus size={15} />
             <span>Schedule Meeting</span>
           </button>
-        </div>
-      </div>
-
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Events */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Total Activities
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-              <CalendarRange size={16} />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900">{currentMonthStats.total}</span>
-            <span className="text-[11px] font-semibold text-slate-500">this month</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
-            <span>{currentMonthStats.meetings} meetings • {currentMonthStats.tasks} tasks</span>
-          </div>
-        </div>
-
-        {/* Planned / Upcoming */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Planned Meetings
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-sky-100">
-              <Video size={16} />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900">
-              {currentMonthStats.plannedMeetings}
-            </span>
-            <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded-md">
-              Upcoming
-            </span>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-400 truncate">
-            Client demos & consultations
-          </p>
-        </div>
-
-        {/* Completed Meetings */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Completed
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
-              <CheckCircle2 size={16} />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900">
-              {currentMonthStats.completedMeetings}
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">
-              Finished
-            </span>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-400 truncate">
-            Marked as done & documented
-          </p>
-        </div>
-
-        {/* Action Items / Overdue */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Overdue Tasks
-            </span>
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-xl ring-1 ${
-                currentMonthStats.overdue > 0
-                  ? "bg-red-50 text-red-600 ring-red-100 animate-pulse"
-                  : "bg-slate-50 text-slate-400 ring-slate-100"
-              }`}
-            >
-              <AlertTriangle size={16} />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span
-              className={`text-2xl font-extrabold ${
-                currentMonthStats.overdue > 0 ? "text-red-600" : "text-slate-900"
-              }`}
-            >
-              {currentMonthStats.overdue}
-            </span>
-            <span
-              className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${
-                currentMonthStats.overdue > 0
-                  ? "bg-red-50 text-red-700 font-bold"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              {currentMonthStats.overdue > 0 ? "Needs Attention" : "Clear"}
-            </span>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-400 truncate">
-            {currentMonthStats.overdue > 0 ? "Past due deliverables" : "All tasks on track"}
-          </p>
         </div>
       </div>
 
@@ -956,6 +911,8 @@ export default function Calendar() {
                             dotColor = "bg-purple-600";
                           }
 
+                          const withWho = getMeetingWith(m);
+
                           return (
                             <div
                               key={`m-${m.id}`}
@@ -963,11 +920,18 @@ export default function Calendar() {
                                 e.stopPropagation();
                                 setPreviewMeeting(m);
                               }}
-                              title={`${formatTime(m.startsAt)} ${m.title} (${m.status})`}
-                              className={`group flex items-center gap-1.5 truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium transition active:scale-98 cursor-pointer ${chipColor}`}
+                              title={`${formatTime(m.startsAt)} ${m.title}${withWho.type !== "none" ? ` (with ${withWho.name})` : ""} [${m.status}]`}
+                              className={`group flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition active:scale-98 cursor-pointer ${chipColor}`}
                             >
-                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`} />
-                              <span className="truncate">{m.title}</span>
+                              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`} />
+                                <span className="truncate">{m.title}</span>
+                              </div>
+                              {withWho.type !== "none" && (
+                                <span className="shrink-0 text-[9px] font-semibold opacity-80 truncate max-w-[65px]">
+                                  w/ {withWho.name.split(" ")[0]}
+                                </span>
+                              )}
                             </div>
                           );
                         })}
@@ -1215,6 +1179,7 @@ export default function Calendar() {
               {agendaList.map((entry, idx) => {
                 if (entry.type === "meeting") {
                   const m = entry.item as MeetingItem;
+                  const withWho = getMeetingWith(m);
                   return (
                     <div
                       key={`agenda-m-${m.id}-${idx}`}
@@ -1226,7 +1191,16 @@ export default function Calendar() {
                           <Video size={18} />
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-slate-900 sm:text-sm">{m.title}</h4>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 sm:text-sm">{m.title}</h4>
+                            {withWho.type !== "none" && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200/60 px-2 py-0.5 text-[11px] font-bold text-blue-800">
+                                <User size={11} className="text-blue-600 shrink-0" />
+                                <span>With: {withWho.name}</span>
+                                {withWho.detail ? <span className="font-medium text-blue-600">({withWho.detail})</span> : null}
+                              </span>
+                            )}
+                          </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                             <span className="font-bold text-slate-800">{entry.dateString}</span>
                             <span>•</span>
@@ -1352,6 +1326,40 @@ export default function Calendar() {
             </div>
 
             <div className="mt-4 space-y-4">
+              {/* Prominent Meeting With Banner */}
+              {(() => {
+                const withWho = getMeetingWith(previewMeeting);
+                return (
+                  <div className="rounded-xl border border-blue-200/80 bg-blue-50/70 p-3.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      Meeting With
+                    </span>
+                    <div className="mt-1.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-xs shadow-xs">
+                          <User size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-slate-900">
+                            {withWho.type !== "none" ? withWho.name : "No external contact/lead assigned"}
+                          </p>
+                          {withWho.detail && (
+                            <p className="truncate text-[11px] text-slate-600 font-medium">
+                              {withWho.detail}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {withWho.type !== "none" && (
+                        <span className="shrink-0 rounded-md bg-blue-100 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800 uppercase">
+                          {withWho.type}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <span className="text-[10px] font-bold uppercase text-slate-400">Status</span>
@@ -1424,6 +1432,30 @@ export default function Calendar() {
                         Deal: {previewMeeting.deal.name}
                       </span>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {previewMeeting.participants && previewMeeting.participants.length > 0 && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <span className="text-[10px] font-bold uppercase text-slate-400">
+                    Attendees & Participants ({previewMeeting.participants.length})
+                  </span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {previewMeeting.participants.map((p) => {
+                      const label = p.contact?.fullName || p.user?.name || "Participant";
+                      const role = p.contact ? "External Contact" : "Internal Team";
+                      return (
+                        <span
+                          key={p.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span>{label}</span>
+                          <span className="text-[10px] text-slate-400">({role})</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

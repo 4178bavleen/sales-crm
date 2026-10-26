@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   Search,
   Bell,
-  Calendar,
   ChevronDown,
   UserRound,
   LogOut,
@@ -86,22 +85,6 @@ export default function Topbar() {
 
         {/* Right: Actions */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {/* Calendar */}
-          <NavLink
-            to="/calendar"
-            title="Open Calendar"
-            aria-label="Calendar"
-            className={({ isActive }) =>
-              `relative rounded-xl p-2 transition cursor-pointer ${
-                isActive
-                  ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              }`
-            }
-          >
-            <Calendar size={19} />
-          </NavLink>
-
           {/* Notifications */}
           <div className="relative">
             <button
