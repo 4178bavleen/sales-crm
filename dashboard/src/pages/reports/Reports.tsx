@@ -3,7 +3,7 @@ import {
   BarChart3,
   TrendingUp,
   Users,
-  DollarSign,
+  IndianRupee,
   Award,
   Download,
   RotateCw,
@@ -52,15 +52,15 @@ const PERIOD_OPTIONS: { label: string; value: ReportPeriod }[] = [
 ];
 
 function formatCurrency(val: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
   }).format(val);
 }
 
 function formatNumber(val: number): string {
-  return new Intl.NumberFormat("en-US").format(val);
+  return new Intl.NumberFormat("en-IN").format(val);
 }
 
 export default function Reports() {
@@ -228,12 +228,12 @@ export default function Reports() {
         <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <DollarSign size={20} />
+              <IndianRupee size={20} />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Won Revenue</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {summary ? formatCurrency(summary.wonRevenue) : "$0"}
+                {summary ? formatCurrency(summary.wonRevenue) : "₹0"}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
                 <span>↑</span> {summary ? `${summary.wonDeals} deals won` : "0 deals"}
@@ -256,7 +256,7 @@ export default function Reports() {
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Active Pipeline</p>
               <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {summary ? formatCurrency(summary.totalPipelineValue) : "$0"}
+                {summary ? formatCurrency(summary.totalPipelineValue) : "₹0"}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
                 <span>↑</span> {summary ? `${summary.openDeals} open deals` : "0 deals"}

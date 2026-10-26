@@ -26,11 +26,11 @@ export function formatDealDate(date: string) {
   });
 }
 
-/** Compact USD formatting (whole dollars — pipeline values, not cents). */
+/** Compact INR formatting (whole rupees — pipeline values, not paise). */
 export function formatCurrency(value: number) {
-  return value.toLocaleString("en-US", {
+  return value.toLocaleString("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
   });
 }

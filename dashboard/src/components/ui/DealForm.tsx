@@ -11,7 +11,7 @@ import {
   Trophy,
   XCircle,
   AlertCircle,
-  DollarSign,
+  IndianRupee,
 } from "lucide-react";
 import type { DealFormValues, DealStatus } from "../../types/deal";
 import type { DealFormProps, DealOptionsData } from "../../types/dealForm";
@@ -253,10 +253,10 @@ export default function DealForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Estimated Value (USD) <span className="text-rose-500">*</span>
+                Estimated Value (₹) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <DollarSign
+                <IndianRupee
                   size={15}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />

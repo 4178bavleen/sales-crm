@@ -16,7 +16,7 @@ import {
   Target,
   TrendingUp,
   Award,
-  DollarSign,
+  IndianRupee,
   Users,
   Calendar,
   CheckCircle2,
@@ -72,6 +72,14 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
+
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(val);
+};
 
 const STATUS_CONFIG: Record<
   TargetStatus,
@@ -294,14 +302,6 @@ export default function Targets() {
   };
 
   // Formatting helpers
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
   const formatPeriodDisplay = (t: TargetItem) => {
     try {
       const start = new Date(t.periodStart);
@@ -1331,10 +1331,10 @@ function CreateTargetModal({
           {/* Amount Input */}
           <div>
             <label className="block text-xs font-semibold text-slate-700">
-              Revenue Quota Amount ($) *
+              Revenue Quota Amount (₹) *
             </label>
             <div className="relative mt-1">
-              <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="number"
                 min="1000"
@@ -1483,7 +1483,7 @@ function EditTargetModal({
             <div className="mt-1 flex justify-between">
               <span className="text-slate-500">Current Quota:</span>
               <span className="font-bold text-slate-900">
-                ${target.amount.toLocaleString()}
+                {formatCurrency(target.amount)}
               </span>
             </div>
           </div>
@@ -1491,10 +1491,10 @@ function EditTargetModal({
           {/* New Quota Amount */}
           <div>
             <label className="block text-xs font-semibold text-slate-700">
-              New Revenue Quota ($) *
+              New Revenue Quota (₹) *
             </label>
             <div className="relative mt-1">
-              <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="number"
                 min="1000"
@@ -1617,11 +1617,11 @@ function HistoryModal({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-slate-500">
-                            ${change.oldAmount.toLocaleString()}
+                            {formatCurrency(change.oldAmount)}
                           </span>
                           <span className="text-xs text-slate-400">→</span>
                           <span className="text-sm font-bold text-slate-900">
-                            ${change.newAmount.toLocaleString()}
+                            {formatCurrency(change.newAmount)}
                           </span>
                         </div>
                         <span className="text-[11px] text-slate-400">{formattedDate}</span>
@@ -1700,12 +1700,12 @@ function WonDealsModal({
         <div className="grid grid-cols-3 border-b border-slate-100 bg-slate-50/70 px-6 py-3 text-xs">
           <div>
             <span className="text-slate-500">Target Quota:</span>
-            <div className="font-bold text-slate-900">${detail.amount.toLocaleString()}</div>
+            <div className="font-bold text-slate-900">{formatCurrency(detail.amount)}</div>
           </div>
           <div>
             <span className="text-slate-500">Achieved Won:</span>
             <div className="font-bold text-emerald-600">
-              ${detail.achievedRevenue.toLocaleString()}
+              {formatCurrency(detail.achievedRevenue)}
             </div>
           </div>
           <div>
@@ -1754,7 +1754,7 @@ function WonDealsModal({
                     </div>
                     <div className="text-right">
                       <div className="text-base font-bold text-emerald-600">
-                        +${deal.amount.toLocaleString()}
+                        +{formatCurrency(deal.amount)}
                       </div>
                       <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
                         WON

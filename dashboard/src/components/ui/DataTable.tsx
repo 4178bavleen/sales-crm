@@ -266,9 +266,9 @@ export default function DataTable<T>({
                         }
                         const rect = e.currentTarget.getBoundingClientRect();
                         const spaceBelow = window.innerHeight - rect.bottom;
-                        const openUp = spaceBelow < 250;
+                        const openUp = spaceBelow < 340;
                         setMenuPosition({
-                          top: openUp ? Math.max(10, rect.top - 240) : rect.bottom + 4,
+                          top: openUp ? Math.max(10, rect.top - 320) : rect.bottom + 4,
                           right: Math.max(10, window.innerWidth - rect.right),
                         });
                         setOpenMenuId(id);
@@ -307,7 +307,7 @@ export default function DataTable<T>({
             top: `${menuPosition.top}px`,
             right: `${menuPosition.right}px`,
           }}
-          className="z-[9999] w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl text-left"
+          className="z-[9999] w-56 max-h-[min(480px,80vh)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl text-left"
           onClick={e => {
             e.stopPropagation();
             setOpenMenuId(null);

@@ -21,11 +21,11 @@ export function formatCustomerDate(date: string) {
   });
 }
 
-/** Compact USD formatting for pipeline values (whole dollars). */
+/** Compact INR formatting for pipeline values (whole rupees). */
 export function formatCurrency(value: number) {
-  return value.toLocaleString("en-US", {
+  return value.toLocaleString("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
   });
 }

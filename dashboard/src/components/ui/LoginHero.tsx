@@ -189,7 +189,7 @@ export default function LoginHero() {
               <span className="text-[12px] font-bold text-slate-800">Revenue Trend</span>
               <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">↑ 22%</span>
             </div>
-            <div className="text-[26px] font-bold text-slate-900 leading-tight mb-2">$84.2k</div>
+            <div className="text-[26px] font-bold text-slate-900 leading-tight mb-2">₹84.2k</div>
             {/* Area chart SVG */}
             <svg width="186" height="48" viewBox="0 0 186 48" aria-hidden="true">
               <defs>
@@ -210,7 +210,7 @@ export default function LoginHero() {
             </svg>
             <div className="flex items-center justify-between mt-1.5">
               <span className="text-[11px] text-slate-400">vs last month</span>
-              <span className="text-[11px] font-semibold text-emerald-600">+$15.1k</span>
+              <span className="text-[11px] font-semibold text-emerald-600">+₹15.1k</span>
             </div>
           </div>
 

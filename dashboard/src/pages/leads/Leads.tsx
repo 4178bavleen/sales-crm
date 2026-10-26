@@ -20,6 +20,11 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  Eye,
+  Pencil,
+  Trash2,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import {
@@ -34,6 +39,7 @@ import {
   confirmLeadImportRows,
   type ImportPreviewResponse,
   type ImportConfirmResponse,
+  type LeadOptionsData,
 } from "../../lib/leads";
 import {
   leadColumns,
@@ -89,10 +95,16 @@ export default function Leads() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [leadOptions, setLeadOptions] = useState<LeadOptionsData | null>(null);
   const [backendSources, setBackendSources] = useState<string[]>([]);
   const [backendOwners, setBackendOwners] = useState<string[]>([]);
   const [backendStatuses, setBackendStatuses] = useState<LeadStatus[]>([]);
   const [backendPriorities, setBackendPriorities] = useState<Priority[]>([]);
+
+  // Disqualify modal state
+  const [disqualifyingLead, setDisqualifyingLead] = useState<Lead | null>(null);
+  const [selectedReasonId, setSelectedReasonId] = useState<number | null>(null);
+  const [disqualifyNote, setDisqualifyNote] = useState<string>("");
 
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -122,6 +134,7 @@ export default function Leads() {
     refreshLeads();
     fetchLeadOptions()
       .then(data => {
+        setLeadOptions(data);
         if (data.sources) setBackendSources(data.sources.map(s => s.name));
         if (data.owners) setBackendOwners(data.owners.map(o => o.name));
         if (data.statuses) setBackendStatuses(data.statuses);
@@ -328,20 +341,37 @@ export default function Leads() {
   }, [leads, backendSources]);
 
   const availableStatuses = useMemo(() => {
-    const set = new Set<LeadStatus>(backendStatuses);
+    if (leadOptions?.statuses && leadOptions.statuses.length > 0) {
+      return leadOptions.statuses;
+    }
+    const set = new Set<LeadStatus>(backendStatuses.length > 0 ? backendStatuses : [
+      "NEW",
+      "CONTACTED",
+      "QUALIFIED",
+      "DISQUALIFIED",
+      "CONVERTED",
+    ]);
     for (const lead of leads) {
       if (lead.status) set.add(lead.status);
     }
     return Array.from(set);
-  }, [leads, backendStatuses]);
+  }, [leads, backendStatuses, leadOptions]);
 
   const availablePriorities = useMemo(() => {
-    const set = new Set<Priority>(backendPriorities);
+    if (leadOptions?.priorities && leadOptions.priorities.length > 0) {
+      return leadOptions.priorities;
+    }
+    const set = new Set<Priority>(backendPriorities.length > 0 ? backendPriorities : [
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+      "URGENT",
+    ]);
     for (const lead of leads) {
       if (lead.priority) set.add(lead.priority);
     }
     return Array.from(set);
-  }, [leads, backendPriorities]);
+  }, [leads, backendPriorities, leadOptions]);
 
   function toggleMultiFilter(key: keyof LeadsFilter, value: string) {
     setFilters(prev => {
@@ -429,9 +459,14 @@ export default function Leads() {
     }
   }
 
-  async function updateLeadStatus(id: number, status: LeadStatus) {
+  async function updateLeadStatus(
+    id: number,
+    status: LeadStatus,
+    disqualifyReasonId?: number,
+    disqualifyNote?: string,
+  ) {
     try {
-      const updated = await updateLeadStatusApi(id, status);
+      const updated = await updateLeadStatusApi(id, status, disqualifyReasonId, disqualifyNote);
       setLeads(previous =>
         previous.map(lead => (lead.id === id ? updated : lead)),
       );
@@ -440,6 +475,34 @@ export default function Leads() {
       );
     } catch (err) {
       console.error("Failed to update lead status:", err);
+    }
+  }
+
+  async function updateLeadPriority(id: number, priority: Priority) {
+    try {
+      const updated = await updateLeadApi(id, { priority });
+      setLeads(previous =>
+        previous.map(lead => (lead.id === id ? updated : lead)),
+      );
+      setDetailLead(previous =>
+        previous?.id === id ? updated : previous,
+      );
+    } catch (err) {
+      console.error("Failed to update lead priority:", err);
+    }
+  }
+
+  async function assignLeadOwner(id: number, ownerId: number | null) {
+    try {
+      const updated = await assignLeadApi(id, ownerId);
+      setLeads(previous =>
+        previous.map(lead => (lead.id === id ? updated : lead)),
+      );
+      setDetailLead(previous =>
+        previous?.id === id ? updated : previous,
+      );
+    } catch (err) {
+      console.error("Failed to assign lead owner:", err);
     }
   }
 
@@ -1041,46 +1104,127 @@ export default function Leads() {
           onRowClick={lead => setDetailLead(lead)}
           getRowLabel={lead => `${lead.firstName} ${lead.lastName}`}
           renderRowMenu={lead => (
-            <>
+            <div className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => setDetailLead(lead)}
-                className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
-                View details
+                <Eye size={13} className="text-slate-400" />
+                <span>View details</span>
               </button>
               <button
                 type="button"
                 onClick={() => setEditingLead(lead)}
-                className="w-full rounded px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
               >
-                Edit lead
+                <Pencil size={13} className="text-slate-400" />
+                <span>Edit lead</span>
               </button>
+
               <div className="my-1 border-t border-slate-100" />
-              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                Update status
+              <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Update Status
               </p>
-              {availableStatuses.filter(status => status !== "DISQUALIFIED").map(
-                status => (
+              {availableStatuses.map(status => {
+                const isSelected = lead.status === status;
+                return (
                   <button
                     key={status}
                     type="button"
-                    onClick={() => updateLeadStatus(lead.id, status)}
-                    className="w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    onClick={() => {
+                      if (status === "DISQUALIFIED") {
+                        setDisqualifyingLead(lead);
+                        setSelectedReasonId(leadOptions?.noFollowUpReasons?.[0]?.id ?? null);
+                        setDisqualifyNote("");
+                      } else {
+                        updateLeadStatus(lead.id, status);
+                      }
+                    }}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
+                      isSelected
+                        ? "bg-blue-50 font-semibold text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
                   >
-                    {formatLabel(status)}
+                    <span>{formatLabel(status)}</span>
+                    {isSelected && <Check size={13} className="text-blue-600" />}
                   </button>
-                ),
+                );
+              })}
+
+              <div className="my-1 border-t border-slate-100" />
+              <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Update Priority
+              </p>
+              {availablePriorities.map(priority => {
+                const isSelected = lead.priority === priority;
+                return (
+                  <button
+                    key={priority}
+                    type="button"
+                    onClick={() => updateLeadPriority(lead.id, priority)}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
+                      isSelected
+                        ? "bg-blue-50 font-semibold text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>{formatLabel(priority)}</span>
+                    {isSelected && <Check size={13} className="text-blue-600" />}
+                  </button>
+                );
+              })}
+
+              {leadOptions?.owners && leadOptions.owners.length > 0 && (
+                <>
+                  <div className="my-1 border-t border-slate-100" />
+                  <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Assign Owner
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => assignLeadOwner(lead.id, null)}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
+                      !lead.ownerId
+                        ? "bg-blue-50 font-semibold text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>Unassigned</span>
+                    {!lead.ownerId && <Check size={13} className="text-blue-600" />}
+                  </button>
+                  {leadOptions.owners.map(owner => {
+                    const isSelected = lead.ownerId === owner.id;
+                    return (
+                      <button
+                        key={owner.id}
+                        type="button"
+                        onClick={() => assignLeadOwner(lead.id, owner.id)}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
+                          isSelected
+                            ? "bg-blue-50 font-semibold text-blue-700"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="truncate">{owner.name}</span>
+                        {isSelected && <Check size={13} className="text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </>
               )}
+
               <div className="my-1 border-t border-slate-100" />
               <button
                 type="button"
                 onClick={() => deleteLead(lead.id)}
-                className="w-full rounded px-3 py-2 text-left text-xs text-rose-600 hover:bg-rose-50"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
               >
-                Delete lead
+                <Trash2 size={13} className="text-rose-500" />
+                <span>Delete lead</span>
               </button>
-            </>
+            </div>
           )}
           empty={
             loading ? (
@@ -1220,6 +1364,102 @@ export default function Leads() {
                 className="w-full inline-flex items-center justify-center rounded-xl bg-[#1d61e7] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disqualify Lead Confirmation Dialog */}
+      {disqualifyingLead && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-2xs"
+          onClick={() => setDisqualifyingLead(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Disqualify Lead</h3>
+                  <p className="text-xs text-slate-500">
+                    {disqualifyingLead.firstName} {disqualifyingLead.lastName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDisqualifyingLead(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Reason for Disqualification
+                </label>
+                <select
+                  value={selectedReasonId ?? ""}
+                  onChange={e => setSelectedReasonId(Number(e.target.value) || null)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-blue-500 focus:outline-hidden"
+                >
+                  {leadOptions?.noFollowUpReasons && leadOptions.noFollowUpReasons.length > 0 ? (
+                    leadOptions.noFollowUpReasons.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">General Disqualification</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Disqualification Note (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={disqualifyNote}
+                  onChange={e => setDisqualifyNote(e.target.value)}
+                  placeholder="Provide context or reason notes..."
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setDisqualifyingLead(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!disqualifyingLead) return;
+                  await updateLeadStatus(
+                    disqualifyingLead.id,
+                    "DISQUALIFIED",
+                    selectedReasonId ?? undefined,
+                    disqualifyNote.trim() || undefined,
+                  );
+                  setDisqualifyingLead(null);
+                }}
+                className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 cursor-pointer"
+              >
+                Confirm Disqualification
               </button>
             </div>
           </div>
