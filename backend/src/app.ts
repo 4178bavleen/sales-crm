@@ -18,6 +18,7 @@ import contactRoutes from './modules/contacts/contact.routes.js'
 import meetingRoutes from './modules/meetings/meeting.routes.js'
 import targetRoutes from './modules/targets/target.routes.js'
 import reportsRoutes from './modules/reports/reports.routes.js'
+import productServiceRoutes from './modules/products-services/products-services.routes.js'
 
 
 const app = express()
@@ -54,6 +55,7 @@ app.use('/api/v1/contacts', contactRoutes)
 app.use('/api/v1/meetings', meetingRoutes)
 app.use('/api/v1/targets', targetRoutes)
 app.use('/api/v1/reports', reportsRoutes)
+app.use('/api/v1/products-services', productServiceRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
