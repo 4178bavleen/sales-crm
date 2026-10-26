@@ -478,34 +478,6 @@ export default function Leads() {
     }
   }
 
-  async function updateLeadPriority(id: number, priority: Priority) {
-    try {
-      const updated = await updateLeadApi(id, { priority });
-      setLeads(previous =>
-        previous.map(lead => (lead.id === id ? updated : lead)),
-      );
-      setDetailLead(previous =>
-        previous?.id === id ? updated : previous,
-      );
-    } catch (err) {
-      console.error("Failed to update lead priority:", err);
-    }
-  }
-
-  async function assignLeadOwner(id: number, ownerId: number | null) {
-    try {
-      const updated = await assignLeadApi(id, ownerId);
-      setLeads(previous =>
-        previous.map(lead => (lead.id === id ? updated : lead)),
-      );
-      setDetailLead(previous =>
-        previous?.id === id ? updated : previous,
-      );
-    } catch (err) {
-      console.error("Failed to assign lead owner:", err);
-    }
-  }
-
   async function deleteLead(id: number) {
     try {
       await deleteLeadApi(id);
@@ -1152,68 +1124,6 @@ export default function Leads() {
                   </button>
                 );
               })}
-
-              <div className="my-1 border-t border-slate-100" />
-              <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Update Priority
-              </p>
-              {availablePriorities.map(priority => {
-                const isSelected = lead.priority === priority;
-                return (
-                  <button
-                    key={priority}
-                    type="button"
-                    onClick={() => updateLeadPriority(lead.id, priority)}
-                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
-                      isSelected
-                        ? "bg-blue-50 font-semibold text-blue-700"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span>{formatLabel(priority)}</span>
-                    {isSelected && <Check size={13} className="text-blue-600" />}
-                  </button>
-                );
-              })}
-
-              {leadOptions?.owners && leadOptions.owners.length > 0 && (
-                <>
-                  <div className="my-1 border-t border-slate-100" />
-                  <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Assign Owner
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => assignLeadOwner(lead.id, null)}
-                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
-                      !lead.ownerId
-                        ? "bg-blue-50 font-semibold text-blue-700"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span>Unassigned</span>
-                    {!lead.ownerId && <Check size={13} className="text-blue-600" />}
-                  </button>
-                  {leadOptions.owners.map(owner => {
-                    const isSelected = lead.ownerId === owner.id;
-                    return (
-                      <button
-                        key={owner.id}
-                        type="button"
-                        onClick={() => assignLeadOwner(lead.id, owner.id)}
-                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
-                          isSelected
-                            ? "bg-blue-50 font-semibold text-blue-700"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="truncate">{owner.name}</span>
-                        {isSelected && <Check size={13} className="text-blue-600" />}
-                      </button>
-                    );
-                  })}
-                </>
-              )}
 
               <div className="my-1 border-t border-slate-100" />
               <button

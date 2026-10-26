@@ -19,10 +19,36 @@ import type { DealStatus } from "../types/deal";
 
 export function formatDealDate(date: string) {
   if (!date) return "—";
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+  const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+  if (isNaN(d.getTime())) {
+    const fallback = new Date(date);
+    if (isNaN(fallback.getTime())) return "—";
+    return fallback.toLocaleDateString("en-IN", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return d.toLocaleDateString("en-IN", {
     month: "short",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+export function formatDealDateTime(date: string) {
+  if (!date) return "—";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) {
+    return formatDealDate(date);
+  }
+  return d.toLocaleString("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   });
 }
 
@@ -101,7 +127,7 @@ export const dealDetailFields: DealField[] = [
   {
     label: "Created Time",
     Icon: CalendarDays,
-    get: deal => formatDealDate(deal.createdAt),
+    get: deal => formatDealDateTime(deal.createdAt),
   },
 ];
 

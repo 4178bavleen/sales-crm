@@ -13,7 +13,18 @@ import type {
 import Avatar from "../components/ui/Avatar";
 
 export function formatContactDate(date: string) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+  if (!date) return "—";
+  const d = new Date(date.includes("T") ? date : `${date}T12:00:00`);
+  if (isNaN(d.getTime())) {
+    const fallback = new Date(date);
+    if (isNaN(fallback.getTime())) return "—";
+    return fallback.toLocaleDateString("en-IN", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return d.toLocaleDateString("en-IN", {
     month: "short",
     day: "numeric",
     year: "numeric",
