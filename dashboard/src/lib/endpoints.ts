@@ -106,6 +106,15 @@ export const ENDPOINTS = {
     delete: (id: number) => `/targets/${id}`,
   },
 
+  reports: {
+    options: "/reports/options",
+    overview: "/reports/overview",
+    leads: "/reports/leads",
+    deals: "/reports/deals",
+    performance: "/reports/performance",
+    export: "/reports/export",
+  },
+
   health: "/health",
 } as const;
 

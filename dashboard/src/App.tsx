@@ -11,6 +11,7 @@ import Deals from "./pages/deals/Deals";
 import Tasks from "./pages/tasks/Tasks";
 import Meetings from "./pages/meetings/Meetings";
 import Targets from "./pages/targets/Targets";
+import Reports from "./pages/reports/Reports";
 import Calendar from "./pages/calendar/Calendar";
 import Profile from "./pages/profile/Profile";
 import Users from "./pages/users/Users";
@@ -39,6 +40,7 @@ function AppShell() {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/targets" element={<Targets />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/users" element={<Users />} />

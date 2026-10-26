@@ -167,11 +167,11 @@ export default function Sidebar() {
                   `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
                     isActive
                       ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
-                      : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Reports" || name === "Documents" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
+                      : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Documents" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
                   }`
                 }
                 onClick={e => {
-                  if (name === "Reports" || name === "Documents") {
+                  if (name === "Documents") {
                     e.preventDefault();
                   }
                 }}

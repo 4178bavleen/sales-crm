@@ -91,7 +91,18 @@ export async function seedPermissions() {
     const managerPerms = await prisma.permission.findMany({
       where: {
         code: {
-          in: ['targets.view', 'targets.create', 'targets.edit', 'targets.delete', 'meetings.view', 'meetings.create', 'meetings.edit', 'meetings.delete'],
+          in: [
+            'targets.view',
+            'targets.create',
+            'targets.edit',
+            'targets.delete',
+            'meetings.view',
+            'meetings.create',
+            'meetings.edit',
+            'meetings.delete',
+            'reports.view',
+            'reports.export',
+          ],
         },
       },
       select: { id: true },
@@ -119,6 +130,26 @@ export async function seedPermissions() {
     await prisma.rolePermission.createMany({
       data: empPerms.map((p) => ({
         roleId: salesEmployee.id,
+        permissionId: p.id,
+      })),
+      skipDuplicates: true,
+    })
+  }
+
+  const reportViewer = await prisma.role.findUnique({
+    where: { name: 'REPORT_VIEWER' },
+    select: { id: true },
+  })
+  if (reportViewer) {
+    const viewerPerms = await prisma.permission.findMany({
+      where: {
+        code: { in: ['reports.view', 'reports.export', 'dashboard.view'] },
+      },
+      select: { id: true },
+    })
+    await prisma.rolePermission.createMany({
+      data: viewerPerms.map((p) => ({
+        roleId: reportViewer.id,
         permissionId: p.id,
       })),
       skipDuplicates: true,
