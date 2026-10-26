@@ -38,7 +38,9 @@ import {
 import {
   leadColumns,
   leadCsvFields,
+  leadColumnOptions,
 } from "./leadColumns";
+import TableSettings from "../../components/ui/TableSettings";
 import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DataTable from "../../components/ui/DataTable";
@@ -83,6 +85,7 @@ export default function Leads() {
     data: ImportPreviewResponse;
   } | null>(null);
   const [importResult, setImportResult] = useState<ImportConfirmResponse | null>(null);
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -275,20 +278,22 @@ export default function Leads() {
   const pageLeads = filteredLeads.slice(startIndex, startIndex + pageSize);
 
   const paginatedColumns = useMemo(() => {
-    return leadColumns.map(col => {
-      if (col.key === "sno") {
-        return {
-          ...col,
-          cell: (_lead: Lead, index?: number) => (
-            <span className="text-slate-500 font-medium">
-              {startIndex + (index ?? 0) + 1}
-            </span>
-          ),
-        };
-      }
-      return col;
-    });
-  }, [startIndex]);
+    return leadColumns
+      .filter((col) => !hiddenColumns.includes(col.key))
+      .map((col) => {
+        if (col.key === "sno") {
+          return {
+            ...col,
+            cell: (_lead: Lead, index?: number) => (
+              <span className="text-slate-500 font-medium">
+                {startIndex + (index ?? 0) + 1}
+              </span>
+            ),
+          };
+        }
+        return col;
+      });
+  }, [startIndex, hiddenColumns]);
 
   const hasActiveFilters =
     search !== "" ||
@@ -581,11 +586,11 @@ export default function Leads() {
             onClick={refreshLeads}
             disabled={loading || refreshing}
             title="Refresh Leads"
-            className="group inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 active:scale-95 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <RotateCw
               size={14}
-              className={`text-slate-500 transition-transform duration-500 group-hover:rotate-180 ${
+              className={`text-slate-500 ${
                 refreshing || loading ? "animate-spin text-blue-600" : ""
               }`}
             />
@@ -1057,6 +1062,11 @@ export default function Leads() {
             </button>
           )}
 
+          <TableSettings
+            columns={leadColumnOptions}
+            hidden={hiddenColumns}
+            onChange={setHiddenColumns}
+          />
         </div>
       </div>
 

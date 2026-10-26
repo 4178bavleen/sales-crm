@@ -117,6 +117,14 @@ export const ENDPOINTS = {
     export: "/reports/export",
   },
 
+  productsServices: {
+    list: "/products-services",
+    byId: (id: number) => `/products-services/${id}`,
+    create: "/products-services",
+    update: (id: number) => `/products-services/${id}`,
+    delete: (id: number) => `/products-services/${id}`,
+  },
+
   health: "/health",
 } as const;
 

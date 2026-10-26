@@ -47,6 +47,10 @@ const permissionDefinitions = [
   ['users.deactivate', 'Deactivate users'],
   ['permissions.view', 'View roles and permissions'],
   ['permissions.manage', 'Manage role permissions'],
+  ['products_services.view', 'View products and services'],
+  ['products_services.create', 'Create products and services'],
+  ['products_services.edit', 'Edit products and services'],
+  ['products_services.delete', 'Delete products and services'],
 ] as const
 
 export async function seedPermissions() {
@@ -102,6 +106,9 @@ export async function seedPermissions() {
             'meetings.delete',
             'reports.view',
             'reports.export',
+            'products_services.view',
+            'products_services.create',
+            'products_services.edit',
           ],
         },
       },
@@ -123,7 +130,7 @@ export async function seedPermissions() {
   if (salesEmployee) {
     const empPerms = await prisma.permission.findMany({
       where: {
-        code: { in: ['targets.view', 'meetings.view', 'meetings.create', 'meetings.edit'] },
+        code: { in: ['targets.view', 'meetings.view', 'meetings.create', 'meetings.edit', 'products_services.view'] },
       },
       select: { id: true },
     })

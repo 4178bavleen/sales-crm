@@ -13,6 +13,7 @@ import {
   FileText,
   UserCog,
   ShieldCheck,
+  Package,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
@@ -30,6 +31,7 @@ const salesNav = [
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
   { name: "Meetings", path: "/meetings", icon: CalendarDays },
   { name: "Deals & Pipeline", path: "/deals", icon: GitFork },
+  { name: "Products & Services", path: "/products-services", icon: Package },
   { name: "Sales Targets", path: "/targets", icon: Target },
 ];
 

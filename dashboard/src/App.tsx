@@ -8,6 +8,7 @@ import Contacts from "./pages/contacts/Contacts";
 import Companies from "./pages/companies/Companies";
 import Customers from "./pages/customers/Customers";
 import Deals from "./pages/deals/Deals";
+import ProductsServices from "./pages/products-services/ProductsServices";
 import Tasks from "./pages/tasks/Tasks";
 import Meetings from "./pages/meetings/Meetings";
 import Targets from "./pages/targets/Targets";
@@ -37,6 +38,13 @@ function AppShell() {
             <Route path="/companies" element={<Companies />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/deals" element={<Deals />} />
+            <Route path="/products-services" element={<ProductsServices />} />
+            <Route path="/product-services" element={<ProductsServices />} />
+            <Route path="/product-service" element={<ProductsServices />} />
+            <Route path="/productservices" element={<ProductsServices />} />
+            <Route path="/products" element={<ProductsServices />} />
+            <Route path="/product" element={<ProductsServices />} />
+            <Route path="/services" element={<ProductsServices />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/targets" element={<Targets />} />
