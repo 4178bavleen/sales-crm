@@ -1,3 +1,4 @@
+
 import { Prisma } from '../../generated/prisma/client.js'
 import { prisma } from '../../config/database.js'
 import type {
@@ -47,6 +48,8 @@ export async function createProductService(
     return await prisma.productService.create({
       data: {
         name,
+        description: input.description ?? null,
+        type: input.type,
         isActive: input.isActive,
       },
     })
@@ -68,7 +71,7 @@ export async function createProductService(
 export async function getProductServices(
   input: ListProductServicesInput,
 ) {
-  const { page, limit, search, isActive } = input
+  const { page, limit, search, isActive, type } = input
 
   const where: Prisma.ProductServiceWhereInput = {
     ...(search
@@ -82,6 +85,7 @@ export async function getProductServices(
     ...(isActive !== undefined
       ? { isActive: isActive === 'true' }
       : {}),
+    ...(type !== undefined ? { type } : {}),
   }
 
   const [items, total] = await Promise.all([
@@ -138,7 +142,15 @@ export async function updateProductService(
     return await prisma.productService.update({
       where: { id },
       data: {
-        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.name !== undefined
+          ? { name: input.name.trim() }
+          : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.type !== undefined
+          ? { type: input.type }
+          : {}),
         ...(input.isActive !== undefined
           ? { isActive: input.isActive }
           : {}),

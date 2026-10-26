@@ -2,11 +2,15 @@ import { z } from 'zod'
 
 export const createProductServiceSchema = z.object({
   name: z.string().trim().min(2).max(200),
+  description: z.string().trim().max(5000).nullable().optional(),
+  type: z.enum(['PRODUCT', 'SERVICE']).default('PRODUCT'),
   isActive: z.boolean().optional().default(true),
 })
 
 export const updateProductServiceSchema = z.object({
   name: z.string().trim().min(2).max(200).optional(),
+  description: z.string().trim().max(5000).nullable().optional(),
+  type: z.enum(['PRODUCT', 'SERVICE']).optional(),
   isActive: z.boolean().optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,
@@ -18,6 +22,7 @@ export const listProductServicesSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().trim().max(100).optional(),
   isActive: z.enum(['true', 'false']).optional(),
+  type: z.enum(['PRODUCT', 'SERVICE']).optional(),
 })
 
 export const productServiceIdSchema = z.coerce.number().int().positive()
