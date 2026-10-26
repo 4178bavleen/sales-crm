@@ -718,7 +718,7 @@ export default function RolesAndPermissions() {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Roles */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
+        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-xs hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Configured Roles</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -738,7 +738,7 @@ export default function RolesAndPermissions() {
         </div>
 
         {/* Assigned Users */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
+        <div className="rounded-2xl border border-indigo-500 bg-white p-4 shadow-xs hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Assigned Team</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -758,7 +758,7 @@ export default function RolesAndPermissions() {
         </div>
 
         {/* Active Role Capabilities */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
+        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-xs hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
               {selectedRole ? roleLabel(selectedRole.name) : "Active Role"} Coverage
@@ -782,7 +782,7 @@ export default function RolesAndPermissions() {
         </div>
 
         {/* Total Permission Capabilities */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:shadow-md transition">
+        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-xs hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Security Bounds</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">

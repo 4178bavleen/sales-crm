@@ -424,30 +424,6 @@ export default function Tasks() {
     setPage(1);
   }
 
-  function filterByStatusCard(status?: TaskStatus) {
-    if (!status) {
-      resetFilters();
-      return;
-    }
-    if (statusFilter.length === 1 && statusFilter[0] === status) {
-      setStatusFilter([]);
-    } else {
-      setStatusFilter([status]);
-      setDueFilter("All Time");
-    }
-    setPage(1);
-  }
-
-  function filterByOverdueCard() {
-    if (dueFilter === "Overdue") {
-      setDueFilter("All Time");
-    } else {
-      setDueFilter("Overdue");
-      setStatusFilter([]);
-    }
-    setPage(1);
-  }
-
   async function handleSaveTask(values: TaskFormValues) {
     const token = getSession()?.token;
     if (!token) {
@@ -700,14 +676,7 @@ export default function Tasks() {
       {/* KPI Cards Row (5 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Tasks */}
-        <div
-          onClick={() => filterByStatusCard()}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            statusFilter.length === 0 && dueFilter === "All Time"
-              ? "border-[#1d61e7] ring-2 ring-blue-500/10"
-              : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
               <CheckSquare size={20} />
@@ -730,12 +699,7 @@ export default function Tasks() {
         </div>
 
         {/* Open Tasks */}
-        <div
-          onClick={() => filterByStatusCard("OPEN")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-sky-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            statusFilter.includes("OPEN") ? "border-sky-500 ring-2 ring-sky-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-sky-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
               <Circle size={20} />
@@ -758,12 +722,7 @@ export default function Tasks() {
         </div>
 
         {/* In Progress */}
-        <div
-          onClick={() => filterByStatusCard("IN_PROGRESS")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            statusFilter.includes("IN_PROGRESS") ? "border-amber-500 ring-2 ring-amber-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
               <RotateCcw size={20} />
@@ -786,12 +745,7 @@ export default function Tasks() {
         </div>
 
         {/* Completed */}
-        <div
-          onClick={() => filterByStatusCard("COMPLETED")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            statusFilter.includes("COMPLETED") ? "border-emerald-500 ring-2 ring-emerald-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <CheckCircle2 size={20} />
@@ -814,12 +768,7 @@ export default function Tasks() {
         </div>
 
         {/* Overdue */}
-        <div
-          onClick={filterByOverdueCard}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-rose-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            dueFilter === "Overdue" ? "border-rose-500 ring-2 ring-rose-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-rose-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
               <AlertTriangle size={20} />

@@ -256,9 +256,11 @@ export const taskColumns: TaskColumn[] = [
         >
           {task.title}
         </p>
-        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-600">
-          {task.description || `Task #${task.id}`}
-        </p>
+        {task.description && (
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-600">
+            {task.description}
+          </p>
+        )}
       </div>
     ),
   },

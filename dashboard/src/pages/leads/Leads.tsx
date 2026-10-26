@@ -361,19 +361,6 @@ export default function Leads() {
     setPage(1);
   }
 
-  function filterByStatusCard(status?: LeadStatus) {
-    if (!status) {
-      resetFilters();
-      return;
-    }
-    if (filters.status.length === 1 && filters.status[0] === status) {
-      setFilters(prev => ({ ...prev, status: [] }));
-    } else {
-      setFilters({ ...emptyFilters, status: [status] });
-    }
-    setPage(1);
-  }
-
   async function createLead(lead: Lead) {
     try {
       const created = await createLeadApi({
@@ -679,12 +666,7 @@ export default function Leads() {
       {/* KPI Cards Row (5 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Leads */}
-        <div
-          onClick={() => filterByStatusCard()}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            filters.status.length === 0 ? "border-[#1d61e7] ring-2 ring-blue-500/10" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
               <Users size={20} />
@@ -707,12 +689,7 @@ export default function Leads() {
         </div>
 
         {/* New Leads */}
-        <div
-          onClick={() => filterByStatusCard("NEW")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            filters.status.includes("NEW") ? "border-emerald-500 ring-2 ring-emerald-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <TrendingUp size={20} />
@@ -735,12 +712,7 @@ export default function Leads() {
         </div>
 
         {/* Contacted */}
-        <div
-          onClick={() => filterByStatusCard("CONTACTED")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            filters.status.includes("CONTACTED") ? "border-purple-500 ring-2 ring-purple-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
               <Phone size={20} />
@@ -763,12 +735,7 @@ export default function Leads() {
         </div>
 
         {/* Qualified */}
-        <div
-          onClick={() => filterByStatusCard("QUALIFIED")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            filters.status.includes("QUALIFIED") ? "border-amber-500 ring-2 ring-amber-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
               <Award size={20} />
@@ -791,12 +758,7 @@ export default function Leads() {
         </div>
 
         {/* Converted */}
-        <div
-          onClick={() => filterByStatusCard("CONVERTED")}
-          className={`group relative flex items-center justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs cursor-pointer min-w-0 ${
-            filters.status.includes("CONVERTED") ? "border-emerald-500 ring-2 ring-emerald-500/15" : "border-slate-200"
-          }`}
-        >
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <Trophy size={20} />

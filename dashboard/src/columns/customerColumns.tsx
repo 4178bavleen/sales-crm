@@ -93,9 +93,6 @@ export const customerColumns: CustomerColumn[] = [
           <p className="truncate text-xs font-semibold text-blue-600 group-hover:text-blue-800">
             {customer.company}
           </p>
-          <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
-            Customer #{customer.id}
-          </p>
         </div>
       </div>
     ),

@@ -109,10 +109,21 @@ export default function Companies() {
     startIndex + pageSize,
   );
 
-  const visibleCompanyColumns = useMemo(
-    () => companyColumns.filter(column => !hiddenColumns.includes(column.key)),
-    [hiddenColumns],
-  );
+  const visibleCompanyColumns = useMemo(() => {
+    const base = companyColumns.filter(column => !hiddenColumns.includes(column.key));
+    const snoCol = {
+      key: "sno",
+      header: "S.No",
+      className: "w-14 text-center text-xs font-bold text-slate-900 whitespace-nowrap",
+      headerClassName: "w-14 text-center whitespace-nowrap",
+      cell: (_company: Company, index?: number) => (
+        <span className="text-slate-900 font-bold">
+          {startIndex + (index ?? 0) + 1}
+        </span>
+      ),
+    };
+    return [snoCol, ...base];
+  }, [hiddenColumns, startIndex]);
 
   const hasActiveFilters =
     search !== "" || Object.values(filters).some(list => list.length > 0);

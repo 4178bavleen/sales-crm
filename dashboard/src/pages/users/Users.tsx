@@ -41,6 +41,16 @@ import {
 } from "../../lib/users";
 import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
+import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
+
+const userColumnOptions: TableSettingsColumn[] = [
+  { key: "member", label: "Team Member" },
+  { key: "role", label: "System Role" },
+  { key: "phone", label: "Phone" },
+  { key: "status", label: "Status" },
+  { key: "joinedDate", label: "Joined Date" },
+  { key: "actions", label: "Actions" },
+];
 import UserFormDialog from "../../components/ui/UserFormDialog";
 import UserDeleteDialog from "../../components/ui/UserDeleteDialog";
 import UserDetailDialog from "../../components/ui/UserDetailDialog";
@@ -63,6 +73,7 @@ export default function UsersPage() {
     status: "ALL",
   });
   const [view, setView] = useState<"table" | "grid">("table");
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
   // Custom filter dropdowns state
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
@@ -396,7 +407,7 @@ export default function UsersPage() {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Users */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm hover:shadow-md transition">
+        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
               Total Accounts
@@ -420,7 +431,7 @@ export default function UsersPage() {
         </div>
 
         {/* Active Accounts */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm hover:shadow-md transition">
+        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
               Active Accounts
@@ -444,7 +455,7 @@ export default function UsersPage() {
         </div>
 
         {/* Leadership / Admin */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm hover:shadow-md transition">
+        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
               Leadership & Admins
@@ -468,7 +479,7 @@ export default function UsersPage() {
         </div>
 
         {/* Sales Reps */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm hover:shadow-md transition">
+        <div className="rounded-2xl border border-sky-500 bg-white p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
               Frontline Reps
@@ -701,33 +712,43 @@ export default function UsersPage() {
               </div>
 
               {/* View Switcher (Table vs Grid) */}
-              <div className="flex items-center rounded-xl border border-slate-200 p-0.5 bg-slate-50">
-                <button
-                  type="button"
-                  onClick={() => setView("table")}
-                  title="Table view (Three lines)"
-                  aria-label="Table view"
-                  className={`rounded-lg p-1.5 transition cursor-pointer ${
-                    view === "table"
-                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
-                      : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
-                  }`}
-                >
-                  <List size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView("grid")}
-                  title="Cards view"
-                  aria-label="Cards view"
-                  className={`rounded-lg p-1.5 transition cursor-pointer ${
-                    view === "grid"
-                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
-                      : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
-                  }`}
-                >
-                  <LayoutGrid size={16} />
-                </button>
+              <div className="flex items-center gap-2">
+                {view === "table" && (
+                  <TableSettings
+                    columns={userColumnOptions}
+                    hidden={hiddenColumns}
+                    onChange={setHiddenColumns}
+                  />
+                )}
+
+                <div className="flex items-center rounded-xl border border-slate-200 p-0.5 bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => setView("table")}
+                    title="Table view (Three lines)"
+                    aria-label="Table view"
+                    className={`rounded-lg p-1.5 transition cursor-pointer ${
+                      view === "table"
+                        ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
+                        : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
+                    }`}
+                  >
+                    <List size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView("grid")}
+                    title="Cards view"
+                    aria-label="Cards view"
+                    className={`rounded-lg p-1.5 transition cursor-pointer ${
+                      view === "grid"
+                        ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
+                        : "text-slate-400 hover:text-slate-600 hover:bg-white/60"
+                    }`}
+                  >
+                    <LayoutGrid size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* Reset Filters */}
@@ -812,13 +833,25 @@ export default function UsersPage() {
             <table className="w-full text-left border-collapse text-slate-800">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                  <th className="w-14 px-4 py-3 text-center">#</th>
-                  <th className="px-4 py-3">Team Member</th>
-                  <th className="px-4 py-3">System Role</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Joined Date</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="w-14 px-4 py-3 text-center">S.No</th>
+                  {!hiddenColumns.includes("member") && (
+                    <th className="px-4 py-3">Team Member</th>
+                  )}
+                  {!hiddenColumns.includes("role") && (
+                    <th className="px-4 py-3">System Role</th>
+                  )}
+                  {!hiddenColumns.includes("phone") && (
+                    <th className="px-4 py-3">Phone</th>
+                  )}
+                  {!hiddenColumns.includes("status") && (
+                    <th className="px-4 py-3">Status</th>
+                  )}
+                  {!hiddenColumns.includes("joinedDate") && (
+                    <th className="px-4 py-3">Joined Date</th>
+                  )}
+                  {!hiddenColumns.includes("actions") && (
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -837,128 +870,140 @@ export default function UsersPage() {
                       </td>
 
                       {/* User Info */}
-                      <td className="px-4 py-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition">
-                              {user.name}
-                            </span>
-                            {isSelf && (
-                              <span className="rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 uppercase tracking-wide">
-                                You
+                      {!hiddenColumns.includes("member") && (
+                        <td className="px-4 py-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition">
+                                {user.name}
                               </span>
-                            )}
+                              {isSelf && (
+                                <span className="rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 uppercase tracking-wide">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            <span className="truncate text-[11px] font-medium text-slate-600 block mt-0.5">
+                              {user.email}
+                            </span>
                           </div>
-                          <span className="truncate text-[11px] font-medium text-slate-600 block mt-0.5">
-                            {user.email}
-                          </span>
-                        </div>
-                      </td>
+                        </td>
+                      )}
 
                       {/* Role (shown directly as text, no pill badge) */}
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-semibold text-slate-800">
-                          {roleLabel(user.role?.name || "SALES_EMPLOYEE")}
-                        </span>
-                      </td>
+                      {!hiddenColumns.includes("role") && (
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-semibold text-slate-800">
+                            {roleLabel(user.role?.name || "SALES_EMPLOYEE")}
+                          </span>
+                        </td>
+                      )}
 
                       {/* Phone */}
-                      <td className="px-4 py-3 text-xs font-medium text-slate-800">
-                        {user.phone ? (
-                          <span className="inline-flex items-center gap-1 text-slate-800">
-                            <Phone size={12} className="text-slate-500" />
-                            {user.phone}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
+                      {!hiddenColumns.includes("phone") && (
+                        <td className="px-4 py-3 text-xs font-medium text-slate-800">
+                          {user.phone ? (
+                            <span className="inline-flex items-center gap-1 text-slate-800">
+                              <Phone size={12} className="text-slate-500" />
+                              {user.phone}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Status Toggle */}
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleActive(user)}
-                          disabled={isSelf || isToggling}
-                          title={
-                            isSelf
-                              ? "Cannot deactivate own account"
-                              : `Click to ${user.isActive ? "deactivate" : "activate"}`
-                          }
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                            user.isActive
-                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {isToggling ? (
-                            <Loader2 size={11} className="animate-spin text-slate-500" />
-                          ) : (
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                user.isActive ? "bg-emerald-500" : "bg-slate-400"
-                              }`}
-                            />
-                          )}
-                          <span>{user.isActive ? "Active" : "Inactive"}</span>
-                        </button>
-                      </td>
-
-                      {/* Joined Date */}
-                      <td className="px-4 py-3 text-xs font-medium text-slate-700">
-                        {new Date(user.createdAt).toLocaleDateString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      {!hiddenColumns.includes("status") && (
+                        <td className="px-4 py-3">
                           <button
                             type="button"
-                            onClick={() => {
-                              setDetailUser(user);
-                              setDetailOpen(true);
-                            }}
-                            title="View user details & permissions"
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
-                          >
-                            <Eye size={15} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingUser(user);
-                              setFormMode("edit");
-                              setFormOpen(true);
-                            }}
-                            title="Edit user profile & role"
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
-                          >
-                            <Pencil size={15} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUserToDelete(user);
-                              setDeleteOpen(true);
-                            }}
-                            disabled={isSelf}
+                            onClick={() => handleToggleActive(user)}
+                            disabled={isSelf || isToggling}
                             title={
                               isSelf
-                                ? "Cannot delete own account"
-                                : "Deactivate & delete user"
+                                ? "Cannot deactivate own account"
+                                : `Click to ${user.isActive ? "deactivate" : "activate"}`
                             }
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                              user.isActive
+                                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
                           >
-                            <Trash2 size={15} />
+                            {isToggling ? (
+                              <Loader2 size={11} className="animate-spin text-slate-500" />
+                            ) : (
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  user.isActive ? "bg-emerald-500" : "bg-slate-400"
+                                }`}
+                              />
+                            )}
+                            <span>{user.isActive ? "Active" : "Inactive"}</span>
                           </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
+
+                      {/* Joined Date */}
+                      {!hiddenColumns.includes("joinedDate") && (
+                        <td className="px-4 py-3 text-xs font-medium text-slate-700">
+                          {new Date(user.createdAt).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                      )}
+
+                      {/* Actions */}
+                      {!hiddenColumns.includes("actions") && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDetailUser(user);
+                                setDetailOpen(true);
+                              }}
+                              title="View user details & permissions"
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            >
+                              <Eye size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingUser(user);
+                                setFormMode("edit");
+                                setFormOpen(true);
+                              }}
+                              title="Edit user profile & role"
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+                            >
+                              <Pencil size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setDeleteOpen(true);
+                              }}
+                              disabled={isSelf}
+                              title={
+                                isSelf
+                                  ? "Cannot delete own account"
+                                  : "Deactivate & delete user"
+                              }
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

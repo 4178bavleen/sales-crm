@@ -1,5 +1,17 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
+
+const targetColumnOptions: TableSettingsColumn[] = [
+  { key: "targetScope", label: "Sales Rep / Team" },
+  { key: "period", label: "Period" },
+  { key: "quota", label: "Target Quota" },
+  { key: "achieved", label: "Achieved Won" },
+  { key: "attainment", label: "Attainment" },
+  { key: "pipeline", label: "Pipeline" },
+  { key: "status", label: "Status" },
+  { key: "actions", label: "Actions" },
+];
 import {
   Target,
   TrendingUp,
@@ -138,6 +150,7 @@ export default function Targets() {
   const [periodFilter, setPeriodFilter] = useState<"ALL" | TargetPeriod>("ALL");
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
@@ -358,7 +371,7 @@ export default function Targets() {
       {/* KPI Cards Row (4 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Target Quota */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
               <Target size={20} />
@@ -381,7 +394,7 @@ export default function Targets() {
         </div>
 
         {/* Closed Won Revenue */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <TrendingUp size={20} />
@@ -404,7 +417,7 @@ export default function Targets() {
         </div>
 
         {/* Overall Attainment */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
               <Award size={20} />
@@ -427,7 +440,7 @@ export default function Targets() {
         </div>
 
         {/* Top Performer */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
               <Sparkles size={20} />
@@ -523,29 +536,39 @@ export default function Targets() {
           </select>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 text-slate-600">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`rounded-lg p-1.5 transition ${
-                viewMode === "grid"
-                  ? "bg-white text-[#1d61e7] shadow-sm"
-                  : "text-slate-400 hover:text-slate-700"
-              }`}
-              title="Grid Cards View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`rounded-lg p-1.5 transition ${
-                viewMode === "table"
-                  ? "bg-white text-[#1d61e7] shadow-sm"
-                  : "text-slate-400 hover:text-slate-700"
-              }`}
-              title="Detailed Table View"
-            >
-              <List className="h-4 w-4" />
-            </button>
+          <div className="flex items-center gap-2">
+            {viewMode === "table" && (
+              <TableSettings
+                columns={targetColumnOptions}
+                hidden={hiddenColumns}
+                onChange={setHiddenColumns}
+              />
+            )}
+
+            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 text-slate-600">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`rounded-lg p-1.5 transition ${
+                  viewMode === "grid"
+                    ? "bg-white text-[#1d61e7] shadow-sm"
+                    : "text-slate-400 hover:text-slate-700"
+                }`}
+                title="Grid Cards View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`rounded-lg p-1.5 transition ${
+                  viewMode === "table"
+                    ? "bg-white text-[#1d61e7] shadow-sm"
+                    : "text-slate-400 hover:text-slate-700"
+                }`}
+                title="Detailed Table View"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -774,140 +797,177 @@ export default function Targets() {
             <table className="w-full text-left text-sm text-slate-800">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-700">
                 <tr>
-                  <th className="px-5 py-3.5">Sales Rep / Team</th>
-                  <th className="px-5 py-3.5">Period</th>
-                  <th className="px-5 py-3.5 text-right">Target Quota</th>
-                  <th className="px-5 py-3.5 text-right">Achieved Won</th>
-                  <th className="px-5 py-3.5">Attainment</th>
-                  <th className="px-5 py-3.5 text-right">Pipeline</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
+                  <th className="px-5 py-3.5 w-14 text-center">S.No</th>
+                  {!hiddenColumns.includes("targetScope") && (
+                    <th className="px-5 py-3.5">Sales Rep / Team</th>
+                  )}
+                  {!hiddenColumns.includes("period") && (
+                    <th className="px-5 py-3.5">Period</th>
+                  )}
+                  {!hiddenColumns.includes("quota") && (
+                    <th className="px-5 py-3.5 text-right">Target Quota</th>
+                  )}
+                  {!hiddenColumns.includes("achieved") && (
+                    <th className="px-5 py-3.5 text-right">Achieved Won</th>
+                  )}
+                  {!hiddenColumns.includes("attainment") && (
+                    <th className="px-5 py-3.5">Attainment</th>
+                  )}
+                  {!hiddenColumns.includes("pipeline") && (
+                    <th className="px-5 py-3.5 text-right">Pipeline</th>
+                  )}
+                  {!hiddenColumns.includes("status") && (
+                    <th className="px-5 py-3.5">Status</th>
+                  )}
+                  {!hiddenColumns.includes("actions") && (
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {targets.map((target) => {
+                {targets.map((target, index) => {
                   const statusStyle = STATUS_CONFIG[target.status];
                   const isTeam = !!target.teamId;
                   const name = target.employee?.name || target.team?.name || "Unnamed";
 
                   return (
                     <tr key={target.id} className="transition hover:bg-slate-50/60">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold text-white ${
-                              isTeam
-                                ? "bg-gradient-to-tr from-purple-600 to-indigo-500"
-                                : "bg-gradient-to-tr from-[#1d61e7] to-sky-400"
-                            }`}
-                          >
-                            {isTeam ? (
-                              <Building2 className="h-4 w-4" />
-                            ) : (
-                              name.slice(0, 2).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 font-semibold text-slate-900">
-                              <span>{name}</span>
-                              {isTeam && (
-                                <span className="rounded bg-purple-50 px-1 py-0.2 text-[10px] font-bold uppercase text-purple-700">
-                                  Team
-                                </span>
+                      <td className="px-5 py-4 text-center font-bold text-slate-900">
+                        {index + 1}
+                      </td>
+
+                      {!hiddenColumns.includes("targetScope") && (
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold text-white ${
+                                isTeam
+                                  ? "bg-gradient-to-tr from-purple-600 to-indigo-500"
+                                  : "bg-gradient-to-tr from-[#1d61e7] to-sky-400"
+                              }`}
+                            >
+                              {isTeam ? (
+                                <Building2 className="h-4 w-4" />
+                              ) : (
+                                name.slice(0, 2).toUpperCase()
                               )}
                             </div>
-                            <span className="text-xs font-medium text-slate-600">
-                              {target.employee?.email || `${target.team?.membersCount || 0} Reps`}
-                            </span>
+                            <div>
+                              <div className="flex items-center gap-1.5 font-semibold text-slate-900">
+                                <span>{name}</span>
+                                {isTeam && (
+                                  <span className="rounded bg-purple-50 px-1 py-0.2 text-[10px] font-bold uppercase text-purple-700">
+                                    Team
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs font-medium text-slate-600">
+                                {target.employee?.email || `${target.team?.membersCount || 0} Reps`}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      )}
 
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-800">
-                          {formatPeriodDisplay(target)}
-                        </div>
-                        <span className="text-xs font-medium text-slate-600">
-                          {target.periodType === "MONTHLY" ? "Monthly" : "Quarterly"}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-right font-bold text-slate-900">
-                        {formatCurrency(target.amount)}
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
-                        <div className="font-bold text-emerald-600">
-                          {formatCurrency(target.achievedRevenue)}
-                        </div>
-                        <span className="text-xs font-medium text-slate-600">
-                          {target.wonDealsCount} won deal(s)
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="w-36">
-                          <div className="flex items-center justify-between text-xs font-semibold text-slate-900">
-                            <span>{target.progressPercentage}%</span>
+                      {!hiddenColumns.includes("period") && (
+                        <td className="px-5 py-4">
+                          <div className="font-semibold text-slate-800">
+                            {formatPeriodDisplay(target)}
                           </div>
-                          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className={`h-full rounded-full ${statusStyle.progressBg}`}
-                              style={{ width: `${Math.min(100, target.progressPercentage)}%` }}
-                            />
+                          <span className="text-xs font-medium text-slate-600">
+                            {target.periodType === "MONTHLY" ? "Monthly" : "Quarterly"}
+                          </span>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("quota") && (
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                          {formatCurrency(target.amount)}
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("achieved") && (
+                        <td className="px-5 py-4 text-right">
+                          <div className="font-bold text-emerald-600">
+                            {formatCurrency(target.achievedRevenue)}
                           </div>
-                        </div>
-                      </td>
+                          <span className="text-xs font-medium text-slate-600">
+                            {target.wonDealsCount} won deal(s)
+                          </span>
+                        </td>
+                      )}
 
-                      <td className="px-5 py-4 text-right font-bold text-slate-900">
-                        {formatCurrency(target.pipelineRevenue)}
-                      </td>
+                      {!hiddenColumns.includes("attainment") && (
+                        <td className="px-5 py-4">
+                          <div className="w-36">
+                            <div className="flex items-center justify-between text-xs font-semibold text-slate-900">
+                              <span>{target.progressPercentage}%</span>
+                            </div>
+                            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-full rounded-full ${statusStyle.progressBg}`}
+                                style={{ width: `${Math.min(100, target.progressPercentage)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                      )}
 
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
-                          <span>{statusStyle.label}</span>
-                        </span>
-                      </td>
+                      {!hiddenColumns.includes("pipeline") && (
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                          {formatCurrency(target.pipelineRevenue)}
+                        </td>
+                      )}
 
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenDeals(target.id)}
-                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-[#1d61e7]"
-                            title="View Contributing Deals"
+                      {!hiddenColumns.includes("status") && (
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
                           >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenHistory(target.id)}
-                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                            title="Adjustment History"
-                          >
-                            <History className="h-4 w-4" />
-                          </button>
-                          {canManage && (
-                            <>
-                              <button
-                                onClick={() => setEditTargetItem(target)}
-                                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                                title="Edit Quota"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => setDeleteTargetItem(target)}
-                                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                                title="Delete Target"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
+                            <span>{statusStyle.label}</span>
+                          </span>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("actions") && (
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenDeals(target.id)}
+                              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-[#1d61e7]"
+                              title="View Contributing Deals"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenHistory(target.id)}
+                              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                              title="Adjustment History"
+                            >
+                              <History className="h-4 w-4" />
+                            </button>
+                            {canManage && (
+                              <>
+                                <button
+                                  onClick={() => setEditTargetItem(target)}
+                                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                                  title="Edit Quota"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteTargetItem(target)}
+                                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                                  title="Delete Target"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

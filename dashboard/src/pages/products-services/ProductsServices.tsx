@@ -279,7 +279,7 @@ export default function ProductsServices() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Total Offerings</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1d61e7]">
@@ -290,7 +290,7 @@ export default function ProductsServices() {
           <p className="mt-0.5 text-[11px] text-slate-400">Total catalog entries</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-indigo-500 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Products</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -301,7 +301,7 @@ export default function ProductsServices() {
           <p className="mt-0.5 text-[11px] text-slate-400">Physical & digital goods</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Services</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
@@ -312,7 +312,7 @@ export default function ProductsServices() {
           <p className="mt-0.5 text-[11px] text-slate-400">Consulting & operations</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">Active Offerings</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
@@ -469,7 +469,7 @@ export default function ProductsServices() {
                     >
                       {!hiddenColumns.includes("id") && (
                         <td className="px-5 py-3.5 text-center font-mono text-[11px] text-slate-400">
-                          #{item.id}
+                          {item.id}
                         </td>
                       )}
 

@@ -527,7 +527,7 @@ export default function Contacts() {
       {/* KPI Cards Row (4 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Contacts */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center justify-between rounded-xl border border-blue-500 bg-white p-4 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1]">
               <Users size={20} />
@@ -546,7 +546,7 @@ export default function Contacts() {
         </div>
 
         {/* Organizations / Companies */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center justify-between rounded-xl border border-emerald-500 bg-white p-4 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <Building2 size={20} />
@@ -565,7 +565,7 @@ export default function Contacts() {
         </div>
 
         {/* Reachable by Email */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center justify-between rounded-xl border border-purple-500 bg-white p-4 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
               <Mail size={20} />
@@ -584,7 +584,7 @@ export default function Contacts() {
         </div>
 
         {/* Reachable by Phone */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+        <div className="flex items-center justify-between rounded-xl border border-amber-500 bg-white p-4 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
               <Phone size={20} />

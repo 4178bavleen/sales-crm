@@ -63,9 +63,6 @@ export const contactColumns: ContactColumn[] = [
           <p className="text-xs font-bold text-[#154fc1] hover:underline cursor-pointer">
             {contact.fullName}
           </p>
-          <p className="mt-0.5 text-[11px] font-semibold text-slate-600">
-            Contact #{contact.id}
-          </p>
         </div>
       </div>
     ),

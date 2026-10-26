@@ -95,7 +95,6 @@ export const leadColumns: LeadColumn[] = [
             <p className="text-xs font-bold text-[#154fc1] hover:underline cursor-pointer">
               {lead.firstName} {lead.lastName}
             </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-slate-600">Lead #{lead.id}</p>
           </div>
         </div>
       );

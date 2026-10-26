@@ -42,6 +42,16 @@ import type {
 import { getSession } from "../../lib/auth";
 import { ApiError } from "../../lib/api";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
+
+const meetingColumnOptions: TableSettingsColumn[] = [
+  { key: "dateTime", label: "Date & Time" },
+  { key: "title", label: "Meeting Title" },
+  { key: "connectedTo", label: "Connected To" },
+  { key: "organizer", label: "Organizer" },
+  { key: "status", label: "Status" },
+  { key: "actions", label: "Actions" },
+];
 
 function formatDateTime(dateStr: string) {
   try {
@@ -110,6 +120,7 @@ export default function MeetingsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<MeetingStatus | "ALL">("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -543,7 +554,7 @@ export default function MeetingsPage() {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
               <CalendarDays size={20} />
@@ -566,7 +577,7 @@ export default function MeetingsPage() {
         </div>
 
         {/* Planned Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-indigo-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-indigo-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-indigo-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
               <Clock size={20} />
@@ -589,7 +600,7 @@ export default function MeetingsPage() {
         </div>
 
         {/* Completed Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <CheckCircle2 size={20} />
@@ -612,7 +623,7 @@ export default function MeetingsPage() {
         </div>
 
         {/* Cancelled / Rescheduled */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-300 hover:shadow-xs min-w-0">
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
               <Calendar size={20} />
@@ -735,6 +746,14 @@ export default function MeetingsPage() {
 
           {/* Right Toolbar: View Switcher */}
           <div className="flex items-center gap-2">
+            {viewMode === "table" && (
+              <TableSettings
+                columns={meetingColumnOptions}
+                hidden={hiddenColumns}
+                onChange={setHiddenColumns}
+              />
+            )}
+
             <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs">
               <button
                 type="button"
@@ -937,16 +956,29 @@ export default function MeetingsPage() {
             <table className="w-full text-left border-collapse text-slate-900">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-                  <th className="py-3 px-4 min-w-[160px]">Date & Time</th>
-                  <th className="py-3 px-4 min-w-[220px]">Meeting Title</th>
-                  <th className="py-3 px-4 min-w-[160px]">Connected To</th>
-                  <th className="py-3 px-4 min-w-[140px]">Organizer</th>
-                  <th className="py-3 px-4 text-center min-w-[110px]">Status</th>
-                  <th className="py-3 px-4 text-right min-w-[120px]">Actions</th>
+                  <th className="py-3 px-4 w-14 text-center">S.No</th>
+                  {!hiddenColumns.includes("dateTime") && (
+                    <th className="py-3 px-4 min-w-[160px]">Date & Time</th>
+                  )}
+                  {!hiddenColumns.includes("title") && (
+                    <th className="py-3 px-4 min-w-[220px]">Meeting Title</th>
+                  )}
+                  {!hiddenColumns.includes("connectedTo") && (
+                    <th className="py-3 px-4 min-w-[160px]">Connected To</th>
+                  )}
+                  {!hiddenColumns.includes("organizer") && (
+                    <th className="py-3 px-4 min-w-[140px]">Organizer</th>
+                  )}
+                  {!hiddenColumns.includes("status") && (
+                    <th className="py-3 px-4 text-center min-w-[110px]">Status</th>
+                  )}
+                  {!hiddenColumns.includes("actions") && (
+                    <th className="py-3 px-4 text-right min-w-[120px]">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-xs text-slate-900">
-                {filteredMeetings.map((m) => {
+                {filteredMeetings.map((m, index) => {
                   const dt = formatDateTime(m.startsAt);
                   const badge = getStatusBadge(m.status);
 
@@ -956,90 +988,106 @@ export default function MeetingsPage() {
                       onClick={() => handleOpenDetail(m)}
                       className="hover:bg-slate-50 transition cursor-pointer group"
                     >
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-slate-950">{dt.full}</div>
-                        <div className="text-[11px] font-semibold text-slate-700">{dt.time} ({m.durationMinutes} min)</div>
+                      <td className="py-3 px-4 text-center font-bold text-slate-900">
+                        {index + 1}
                       </td>
 
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-[#154fc1] group-hover:underline transition">
-                          {m.title}
-                        </div>
-                        {m.meetingLink ? (
-                          <a
-                            href={m.meetingLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline mt-0.5"
-                          >
-                            <Video size={11} />
-                            <span>Video link</span>
-                            <ExternalLink size={9} />
-                          </a>
-                        ) : m.location ? (
-                          <div className="text-[11px] font-semibold text-slate-700 mt-0.5 truncate max-w-[200px]">
-                            {m.location}
+                      {!hiddenColumns.includes("dateTime") && (
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-950">{dt.full}</div>
+                          <div className="text-[11px] font-semibold text-slate-700">{dt.time} ({m.durationMinutes} min)</div>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("title") && (
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-[#154fc1] group-hover:underline transition">
+                            {m.title}
                           </div>
-                        ) : null}
-                      </td>
+                          {m.meetingLink ? (
+                            <a
+                              href={m.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline mt-0.5"
+                            >
+                              <Video size={11} />
+                              <span>Video link</span>
+                              <ExternalLink size={9} />
+                            </a>
+                          ) : m.location ? (
+                            <div className="text-[11px] font-semibold text-slate-700 mt-0.5 truncate max-w-[200px]">
+                              {m.location}
+                            </div>
+                          ) : null}
+                        </td>
+                      )}
 
-                      <td className="py-3 px-4">
-                        {m.lead ? (
-                          <div className="flex items-center gap-1 text-slate-950 font-bold">
-                            <Users size={12} className="text-slate-600" />
-                            <span>{m.lead.contactName}</span>
+                      {!hiddenColumns.includes("connectedTo") && (
+                        <td className="py-3 px-4">
+                          {m.lead ? (
+                            <div className="flex items-center gap-1 text-slate-950 font-bold">
+                              <Users size={12} className="text-slate-600" />
+                              <span>{m.lead.contactName}</span>
+                            </div>
+                          ) : m.deal ? (
+                            <div className="flex items-center gap-1 text-purple-900 font-bold">
+                              <FolderGit2 size={12} className="text-purple-600" />
+                              <span>{m.deal.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 font-medium">—</span>
+                          )}
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("organizer") && (
+                        <td className="py-3 px-4">
+                          <div className="text-slate-950 font-bold">{m.organizer.name}</div>
+                          <div className="text-[11px] font-semibold text-slate-700">{m.organizer.email}</div>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("status") && (
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${badge.bg}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
+                            {badge.label}
+                          </span>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("actions") && (
+                        <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              title="View Details"
+                              onClick={() => handleOpenDetail(m)}
+                              className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Edit Meeting"
+                              onClick={(e) => handleOpenEdit(m, e)}
+                              className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete Meeting"
+                              onClick={(e) => handleOpenDelete(m, e)}
+                              className="rounded-lg p-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                        ) : m.deal ? (
-                          <div className="flex items-center gap-1 text-purple-900 font-bold">
-                            <FolderGit2 size={12} className="text-purple-600" />
-                            <span>{m.deal.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 font-medium">—</span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4">
-                        <div className="text-slate-950 font-bold">{m.organizer.name}</div>
-                        <div className="text-[11px] font-semibold text-slate-700">{m.organizer.email}</div>
-                      </td>
-
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${badge.bg}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
-                          {badge.label}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            title="View Details"
-                            onClick={() => handleOpenDetail(m)}
-                            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Edit Meeting"
-                            onClick={(e) => handleOpenEdit(m, e)}
-                            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Delete Meeting"
-                            onClick={(e) => handleOpenDelete(m, e)}
-                            className="rounded-lg p-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
