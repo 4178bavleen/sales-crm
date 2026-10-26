@@ -97,6 +97,11 @@ enum ImportRowStatus {
   FAILED
 }
 
+enum ProductServiceType {
+  PRODUCT
+  SERVICE
+}
+
 // ---------------------------------------------------------------------
 // 1. USERS & ACCESS
 // ---------------------------------------------------------------------
@@ -137,8 +142,8 @@ model Team {
   managerId Int?
   createdAt DateTime @default(now())
 
-  manager User?          @relation("TeamManager", fields: [managerId], references: [id])
-  members User[]         @relation("TeamMembers")
+  manager User?           @relation("TeamManager", fields: [managerId], references: [id])
+  members User[]          @relation("TeamMembers")
   targets RevenueTarget[]
 
   @@map("teams")
@@ -163,24 +168,24 @@ model User {
 
   managedTeams Team[] @relation("TeamManager")
 
-  createdLeads        Lead[]             @relation("LeadCreatedBy")
-  ownedLeads          Lead[]             @relation("LeadOwner")
-  assignmentsReceived LeadAssignment[]   @relation("AssignedTo")
-  assignmentsMade     LeadAssignment[]   @relation("AssignedBy")
-  ownedCustomers      Customer[]         @relation("CustomerOwner")
-  ownedDeals          Deal[]             @relation("DealOwner")
-  createdDeals        Deal[]             @relation("DealCreatedBy")
+  createdLeads        Lead[]               @relation("LeadCreatedBy")
+  ownedLeads          Lead[]               @relation("LeadOwner")
+  assignmentsReceived LeadAssignment[]     @relation("AssignedTo")
+  assignmentsMade     LeadAssignment[]     @relation("AssignedBy")
+  ownedCustomers      Customer[]           @relation("CustomerOwner")
+  ownedDeals          Deal[]               @relation("DealOwner")
+  createdDeals        Deal[]               @relation("DealCreatedBy")
   stageChanges        DealStageHistory[]
-  assignedTasks       Task[]             @relation("TaskAssignee")
-  createdTasks        Task[]             @relation("TaskCreator")
-  completedTasks      Task[]             @relation("TaskCompleter")
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  createdTasks        Task[]               @relation("TaskCreator")
+  completedTasks      Task[]               @relation("TaskCompleter")
   activities          Activity[]
-  organizedMeetings   Meeting[]          @relation("MeetingOrganizer")
+  organizedMeetings   Meeting[]            @relation("MeetingOrganizer")
   meetingsAttending   MeetingParticipant[]
   uploadedDocuments   Document[]
   documentVersions    DocumentVersion[]
-  targets             RevenueTarget[]    @relation("TargetEmployee")
-  targetsCreated      RevenueTarget[]    @relation("TargetCreator")
+  targets             RevenueTarget[]      @relation("TargetEmployee")
+  targetsCreated      RevenueTarget[]      @relation("TargetCreator")
   targetChanges       TargetChange[]
   importBatches       ImportBatch[]
   notifications       Notification[]
@@ -196,21 +201,27 @@ model User {
 // ---------------------------------------------------------------------
 
 model LeadSource {
-  id        Int     @id @default(autoincrement())
-  name      String  @unique // Website, Referral, Excel Import, Google Sheet, ...
-  isActive  Boolean @default(true)
-  leads     Lead[]
+  id       Int     @id @default(autoincrement())
+  name     String  @unique // Website, Referral, Excel Import, Google Sheet, ...
+  isActive Boolean @default(true)
+  leads    Lead[]
 
   @@map("lead_sources")
 }
 
 model ProductService {
-  id       Int     @id @default(autoincrement())
-  name     String  @unique
-  isActive Boolean @default(true)
-  leads    Lead[]
-  deals    Deal[]
+  id          Int                @id @default(autoincrement())
+  name        String             @unique @db.VarChar(200)
+  description String?            @db.Text
+  type        ProductServiceType @default(PRODUCT)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
+  leads Lead[]
+  deals Deal[]
+
+  @@index([type, isActive])
   @@map("products_services")
 }
 
@@ -249,7 +260,7 @@ model PipelineStage {
 // ---------------------------------------------------------------------
 
 model Company {
-  id             Int       @id @default(autoincrement())
+  id             Int        @id @default(autoincrement())
   name           String
   normalizedName String // lower-case, trimmed, no suffixes (Pvt/Ltd) -> duplicate check
   website        String?
@@ -260,16 +271,16 @@ model Company {
   state          String?
   country        String?
   notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
-  contacts   Contact[]
-  customers  Customer[]
-  leads      Lead[]
-  tasks      Task[]
-  activities Activity[]
-  meetings   Meeting[]
-  documents  Document[]
+  contacts       Contact[]
+  customers      Customer[]
+  leads          Lead[]
+  tasks          Task[]
+  activities     Activity[]
+  meetings       Meeting[]
+  documents      Document[]
 
   @@index([normalizedName])
   @@map("companies")
@@ -333,13 +344,13 @@ model Customer {
 // ---------------------------------------------------------------------
 
 model Lead {
-  id               Int        @id @default(autoincrement())
-  contactName      String
-  companyName      String?
-  phone            String?
-  email            String?
-  normalizedPhone  String? // digits only
-  normalizedEmail  String? // lower-case
+  id                Int     @id @default(autoincrement())
+  contactName       String
+  companyName       String?
+  phone             String?
+  email             String?
+  normalizedPhone   String? // digits only
+  normalizedEmail   String? // lower-case
   normalizedCompany String?
 
   sourceId         Int?
@@ -348,8 +359,8 @@ model Lead {
   status           LeadStatus @default(NEW)
   notes            String?
 
-  createdById      Int
-  ownerId          Int? // current assignee (full history in lead_assignments)
+  createdById Int
+  ownerId     Int? // current assignee (full history in lead_assignments)
 
   // disqualified leads need a reason (CHECK constraint in DB_DESIGN.md)
   disqualifyReasonId Int?
@@ -371,16 +382,16 @@ model Lead {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  source           LeadSource?     @relation(fields: [sourceId], references: [id])
-  productService   ProductService? @relation(fields: [productServiceId], references: [id])
-  createdBy        User            @relation("LeadCreatedBy", fields: [createdById], references: [id])
-  owner            User?           @relation("LeadOwner", fields: [ownerId], references: [id])
-  disqualifyReason Reason?         @relation("LeadDisqualifyReason", fields: [disqualifyReasonId], references: [id])
-  noFollowUpReason Reason?         @relation("LeadNoFollowUpReason", fields: [noFollowUpReasonId], references: [id])
-  contact          Contact?        @relation(fields: [contactId], references: [id])
-  company          Company?        @relation(fields: [companyId], references: [id])
-  convertedCustomer Customer?      @relation(fields: [convertedCustomerId], references: [id])
-  importRow        ImportRow?      @relation("ImportRowLead", fields: [importRowId], references: [id])
+  source            LeadSource?     @relation(fields: [sourceId], references: [id])
+  productService    ProductService? @relation(fields: [productServiceId], references: [id])
+  createdBy         User            @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  owner             User?           @relation("LeadOwner", fields: [ownerId], references: [id])
+  disqualifyReason  Reason?         @relation("LeadDisqualifyReason", fields: [disqualifyReasonId], references: [id])
+  noFollowUpReason  Reason?         @relation("LeadNoFollowUpReason", fields: [noFollowUpReasonId], references: [id])
+  contact           Contact?        @relation(fields: [contactId], references: [id])
+  company           Company?        @relation(fields: [companyId], references: [id])
+  convertedCustomer Customer?       @relation(fields: [convertedCustomerId], references: [id])
+  importRow         ImportRow?      @relation("ImportRowLead", fields: [importRowId], references: [id])
 
   assignments LeadAssignment[]
   deals       Deal[]
@@ -442,10 +453,10 @@ model Deal {
   lastActivityAt  DateTime?
 
   // closed revenue - only set when the agreed business rule is met
-  closedAt       DateTime?
-  closedRevenue  Decimal?  @db.Decimal(14, 2)
-  lostReasonId   Int?
-  lostNote       String?
+  closedAt      DateTime?
+  closedRevenue Decimal?  @db.Decimal(14, 2)
+  lostReasonId  Int?
+  lostNote      String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -483,7 +494,7 @@ model DealStageHistory {
   changedAt   DateTime @default(now())
   note        String?
 
-  deal      Deal          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  deal      Deal           @relation(fields: [dealId], references: [id], onDelete: Cascade)
   fromStage PipelineStage? @relation("StageFrom", fields: [fromStageId], references: [id])
   toStage   PipelineStage  @relation("StageTo", fields: [toStageId], references: [id])
   changedBy User           @relation(fields: [changedById], references: [id])
@@ -499,20 +510,20 @@ model DealStageHistory {
 // ---------------------------------------------------------------------
 
 model Task {
-  id          Int        @id @default(autoincrement())
-  title       String
-  description String?
+  id           Int        @id @default(autoincrement())
+  title        String
+  description  String?
   assignedToId Int
   createdById  Int
-  dueAt       DateTime
-  priority    Priority   @default(MEDIUM)
-  status      TaskStatus @default(OPEN)
+  dueAt        DateTime
+  priority     Priority   @default(MEDIUM)
+  status       TaskStatus @default(OPEN)
 
-  completedAt    DateTime?
-  completedById  Int?
-  completionNote String?
-  cancelReasonId Int?
-  rescheduleCount Int      @default(0)
+  completedAt     DateTime?
+  completedById   Int?
+  completionNote  String?
+  cancelReasonId  Int?
+  rescheduleCount Int       @default(0)
 
   leadId     Int?
   dealId     Int?
@@ -523,15 +534,15 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignedTo   User     @relation("TaskAssignee", fields: [assignedToId], references: [id])
-  createdBy    User     @relation("TaskCreator", fields: [createdById], references: [id])
-  completedBy  User?    @relation("TaskCompleter", fields: [completedById], references: [id])
-  cancelReason Reason?  @relation("TaskCancelReason", fields: [cancelReasonId], references: [id])
-  lead         Lead?    @relation(fields: [leadId], references: [id])
-  deal         Deal?    @relation(fields: [dealId], references: [id])
+  assignedTo   User      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdBy    User      @relation("TaskCreator", fields: [createdById], references: [id])
+  completedBy  User?     @relation("TaskCompleter", fields: [completedById], references: [id])
+  cancelReason Reason?   @relation("TaskCancelReason", fields: [cancelReasonId], references: [id])
+  lead         Lead?     @relation(fields: [leadId], references: [id])
+  deal         Deal?     @relation(fields: [dealId], references: [id])
   customer     Customer? @relation(fields: [customerId], references: [id])
-  company      Company? @relation(fields: [companyId], references: [id])
-  meeting      Meeting? @relation("MeetingFollowUpTasks", fields: [meetingId], references: [id])
+  company      Company?  @relation(fields: [companyId], references: [id])
+  meeting      Meeting?  @relation("MeetingFollowUpTasks", fields: [meetingId], references: [id])
 
   activities Activity[]
 
@@ -579,18 +590,18 @@ model Activity {
 // ---------------------------------------------------------------------
 
 model Meeting {
-  id              Int           @id @default(autoincrement())
-  title           String
-  startsAt        DateTime
-  durationMinutes Int           @default(30)
-  location        String?
-  meetingLink     String?
-  organizerId     Int
-  status          MeetingStatus @default(PLANNED)
-  notes           String?
-  outcome         String?
-  nextSteps       String?
-  rescheduledFromId Int?        @unique
+  id                Int           @id @default(autoincrement())
+  title             String
+  startsAt          DateTime
+  durationMinutes   Int           @default(30)
+  location          String?
+  meetingLink       String?
+  organizerId       Int
+  status            MeetingStatus @default(PLANNED)
+  notes             String?
+  outcome           String?
+  nextSteps         String?
+  rescheduledFromId Int?          @unique
 
   leadId     Int?
   dealId     Int?
