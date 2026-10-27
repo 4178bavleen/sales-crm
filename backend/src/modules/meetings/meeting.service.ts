@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 import type {
   CreateMeetingInput,
   ListMeetingsQuery,
@@ -13,6 +14,20 @@ export class MeetingServiceError extends Error {
     super(message)
     this.name = 'MeetingServiceError'
     this.statusCode = statusCode
+  }
+}
+
+function formatMeetingTime(date: Date): string {
+  try {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  } catch {
+    return date.toISOString()
   }
 }
 
@@ -191,14 +206,56 @@ export async function createMeeting(data: CreateMeetingInput, actorId: number) {
     return created
   })
 
+  // Dispatch in-app notification to all involved employees (including admin if self-involved)
+  if (participantUserIds?.length) {
+    try {
+      const organizer = await prisma.user.findUnique({
+        where: { id: actorId },
+        select: { name: true },
+      })
+      const organizerName = organizer?.name || 'A team member'
+      const formattedTime = formatMeetingTime(meeting.startsAt)
+
+      for (const uId of participantUserIds) {
+        const isSelf = uId === actorId
+
+        await createInAppNotification({
+          userId: uId,
+          type: 'MEETING_INVITATION',
+          title: `Meeting invitation: ${meeting.title}`,
+          body: isSelf
+            ? `You scheduled and included yourself in the meeting "${meeting.title}" on ${formattedTime}.`
+            : `${organizerName} added you to the meeting "${meeting.title}" scheduled for ${formattedTime}.`,
+          entityType: 'meeting',
+          entityId: meeting.id,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to dispatch meeting creation notification(s):', error)
+    }
+  }
+
   return getMeetingById(meeting.id)
 }
 
-export async function updateMeeting(id: number, data: UpdateMeetingInput) {
-  const existing = await prisma.meeting.findUnique({ where: { id } })
+export async function updateMeeting(
+  id: number,
+  data: UpdateMeetingInput,
+  actorId?: number,
+) {
+  const existing = await prisma.meeting.findUnique({
+    where: { id },
+    include: {
+      participants: true,
+    },
+  })
   if (!existing) {
     throw new MeetingServiceError('Meeting not found', 404)
   }
+
+  const previousUserIds = existing.participants
+    .map((p) => p.userId)
+    .filter((uid): uid is number => typeof uid === 'number')
 
   const { participantUserIds, participantContactIds, ...meetingData } = data
 
@@ -254,7 +311,86 @@ export async function updateMeeting(id: number, data: UpdateMeetingInput) {
     }
   })
 
-  return getMeetingById(id)
+  const updated = await getMeetingById(id)
+
+  const currentUserIds = updated.participants
+    .map((p) => p.userId)
+    .filter((uid): uid is number => typeof uid === 'number')
+
+  // Identify newly involved vs retained employees
+  const newlyAddedUserIds = currentUserIds.filter((uid) => !previousUserIds.includes(uid))
+  const retainedUserIds = currentUserIds.filter((uid) => previousUserIds.includes(uid))
+
+  try {
+    let updaterName = 'A team member'
+    if (actorId) {
+      const actor = await prisma.user.findUnique({
+        where: { id: actorId },
+        select: { name: true },
+      })
+      if (actor?.name) updaterName = actor.name
+    }
+
+    const formattedTime = formatMeetingTime(updated.startsAt)
+
+    // 1. Notify newly added employees (including admin if self-added)
+    for (const uId of newlyAddedUserIds) {
+      const isSelf = Boolean(actorId && uId === actorId)
+
+      await createInAppNotification({
+        userId: uId,
+        type: 'MEETING_INVITATION',
+        title: `Added to meeting: ${updated.title}`,
+        body: isSelf
+          ? `You added yourself to the meeting "${updated.title}" scheduled for ${formattedTime}.`
+          : `${updaterName} added you to the meeting "${updated.title}" scheduled for ${formattedTime}.`,
+        entityType: 'meeting',
+        entityId: updated.id,
+      })
+    }
+
+    // 2. Notify existing participants if status or details changed
+    const statusChanged = data.status !== undefined && data.status !== existing.status
+    const timeChanged =
+      data.startsAt !== undefined &&
+      new Date(data.startsAt).getTime() !== existing.startsAt.getTime()
+    const otherDetailsChanged =
+      data.title !== undefined ||
+      data.location !== undefined ||
+      data.meetingLink !== undefined ||
+      data.notes !== undefined
+
+    if (statusChanged || timeChanged || otherDetailsChanged) {
+      const notifyRecipients = new Set<number>(retainedUserIds)
+      if (updated.organizerId && updated.organizerId !== actorId) {
+        notifyRecipients.add(updated.organizerId)
+      }
+
+      for (const uId of notifyRecipients) {
+        if (actorId && uId === actorId) continue
+
+        let title = `Meeting updated: ${updated.title}`
+        let changeDesc = `scheduled for ${formattedTime}`
+        if (statusChanged) {
+          title = `Meeting ${updated.status.toLowerCase()}: ${updated.title}`
+          changeDesc = `status is now ${updated.status}`
+        }
+
+        await createInAppNotification({
+          userId: uId,
+          type: 'MEETING_UPDATED',
+          title,
+          body: `${updaterName} updated the meeting "${updated.title}" (${changeDesc}).`,
+          entityType: 'meeting',
+          entityId: updated.id,
+        })
+      }
+    }
+  } catch (notifErr) {
+    console.error('Failed to dispatch meeting update notification(s):', notifErr)
+  }
+
+  return updated
 }
 
 export async function deleteMeeting(id: number) {

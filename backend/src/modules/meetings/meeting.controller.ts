@@ -103,7 +103,7 @@ export async function updateMeetingController(
   try {
     const id = meetingIdSchema.parse(req.params.id)
     const input = updateMeetingSchema.parse(req.body)
-    const meeting = await meetingService.updateMeeting(id, input)
+    const meeting = await meetingService.updateMeeting(id, input, actorId(req))
     res.status(200).json({
       success: true,
       message: 'Meeting updated successfully',
