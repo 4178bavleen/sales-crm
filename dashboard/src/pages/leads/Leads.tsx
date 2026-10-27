@@ -27,6 +27,8 @@ import {
   X,
   UserCheck,
   AlertCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import {
@@ -180,11 +182,6 @@ export default function Leads() {
   const [backendOwners, setBackendOwners] = useState<string[]>([]);
   const [backendStatuses, setBackendStatuses] = useState<LeadStatus[]>([]);
   const [backendPriorities, setBackendPriorities] = useState<Priority[]>([]);
-
-  // Disqualify modal state
-  const [disqualifyingLead, setDisqualifyingLead] = useState<Lead | null>(null);
-  const [selectedReasonId, setSelectedReasonId] = useState<number | null>(null);
-  const [disqualifyNote, setDisqualifyNote] = useState<string>("");
 
   // Filter dropdown toggles
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -1216,15 +1213,7 @@ export default function Leads() {
                   <button
                     key={status}
                     type="button"
-                    onClick={() => {
-                      if (status === "DISQUALIFIED") {
-                        setDisqualifyingLead(lead);
-                        setSelectedReasonId(leadOptions?.noFollowUpReasons?.[0]?.id ?? null);
-                        setDisqualifyNote("");
-                      } else {
-                        updateLeadStatus(lead.id, status);
-                      }
-                    }}
+                    onClick={() => updateLeadStatus(lead.id, status)}
                     className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
                       isSelected
                         ? "bg-blue-50 font-semibold text-blue-700"
