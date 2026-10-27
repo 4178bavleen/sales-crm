@@ -267,14 +267,18 @@ export async function updateLead(id: number, updates: Partial<CreateLeadInput>):
 /**
  * Assign lead to an owner via PATCH /api/v1/leads/:id/assign.
  */
-export async function assignLead(id: number, ownerId: number | null): Promise<Lead> {
+export async function assignLead(
+  id: number,
+  ownerId: number | null,
+  note?: string,
+): Promise<Lead> {
   const session = getSession();
   if (!session) throw new ApiError("Not signed in", 401);
 
-  const res = await request<{ lead: BackendLead }>(`${ENDPOINTS.leads.byId(id)}/assign`, {
+  const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.assign(id), {
     method: "PATCH",
     token: session.token,
-    body: { ownerId },
+    body: { ownerId, ...(note?.trim() ? { note: note.trim() } : {}) },
   });
 
   return toLead(res.lead);
@@ -288,14 +292,15 @@ export async function updateLeadStatus(
   status: LeadStatus,
   disqualifyReasonId?: number,
   disqualifyNote?: string,
+  extra?: Record<string, unknown>,
 ): Promise<Lead> {
   const session = getSession();
   if (!session) throw new ApiError("Not signed in", 401);
 
-  const body: Record<string, unknown> = { status };
+  const body: Record<string, unknown> = { status, ...(extra || {}) };
   if (status === "DISQUALIFIED") {
-    body.disqualifyReasonId = disqualifyReasonId ?? 1;
-    body.disqualifyNote = disqualifyNote ?? "Disqualified";
+    if (body.disqualifyReasonId === undefined) body.disqualifyReasonId = disqualifyReasonId ?? 1;
+    if (body.disqualifyNote === undefined) body.disqualifyNote = disqualifyNote ?? "Disqualified";
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.status(id), {

@@ -136,6 +136,14 @@ export const updateLeadStatusSchema = z.object({
   ]),
   disqualifyReasonId: z.number().int().positive().nullable().optional(),
   disqualifyNote: z.string().trim().max(2000).nullable().optional(),
+  // Conversion details (used when converting lead to deal)
+  dealName: z.string().trim().min(1).max(200).optional(),
+  ownerId: z.number().int().positive().optional(),
+  stageId: z.number().int().positive().optional(),
+  estimatedValue: z.coerce.number().min(0).optional(),
+  expectedCloseDate: z.coerce.date().nullable().optional(),
+  productServiceId: z.number().int().positive().nullable().optional(),
+  customerId: z.number().int().positive().nullable().optional(),
 }).superRefine((data, ctx) => {
   if (
     data.status === 'DISQUALIFIED' &&

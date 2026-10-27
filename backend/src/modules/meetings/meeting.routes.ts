@@ -14,6 +14,7 @@ const router = Router()
 
 router.use(authenticateToken)
 
+
 router.get('/', requirePermission('meetings.view'), listMeetingsController)
 router.get('/options', requirePermission('meetings.view'), getMeetingOptionsController)
 router.get('/:id', requirePermission('meetings.view'), getMeetingController)

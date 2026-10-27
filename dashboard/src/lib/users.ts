@@ -53,7 +53,7 @@ export const ROLE_CONFIG: Record<
     ],
   },
   SALES_EMPLOYEE: {
-    label: "Sales Representative",
+    label: "Sales Employee",
     description: "Manages assigned leads, contacts, deals and follow-ups",
     color: "bg-emerald-500",
     dotColor: "bg-emerald-500",

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Search,
@@ -217,15 +218,52 @@ export default function Tasks() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTaskId = searchParams.get("taskId") || searchParams.get("id");
+
+  const closeDetailTask = useCallback(() => {
+    setDetailTask(null);
+    if (searchParams.has("taskId") || searchParams.has("id")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("taskId");
+      next.delete("id");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Esc closes detail dialog
   useEffect(() => {
     if (!detailTask) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setDetailTask(null);
+      if (event.key === "Escape") closeDetailTask();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [detailTask]);
+  }, [detailTask, closeDetailTask]);
+
+  // Deep-link: automatically open task detail when taskId is present in searchParams
+  useEffect(() => {
+    if (!urlTaskId) return;
+    const targetId = Number(urlTaskId);
+    if (!Number.isSafeInteger(targetId) || targetId <= 0) return;
+
+    const found = tasks.find(t => t.id === targetId);
+    if (found) {
+      setDetailTask(found);
+      return;
+    }
+
+    const token = getSession()?.token;
+    if (token) {
+      request<{ task: ApiTask }>(ENDPOINTS.tasks.byId(targetId), { token })
+        .then(res => {
+          if (res?.task) {
+            setDetailTask(mapApiTask(res.task));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [urlTaskId, tasks]);
 
   // Compute KPI metrics
   const metrics = useMemo(() => {
@@ -1249,7 +1287,7 @@ export default function Tasks() {
       {detailTask && (
         <TaskDetailDialog
           task={detailTask}
-          onClose={() => setDetailTask(null)}
+          onClose={closeDetailTask}
         />
       )}
 

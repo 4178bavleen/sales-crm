@@ -1,4 +1,3 @@
-
 import { Prisma, DealStatus, StageKind ,ReasonType } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/database.js";
 import type { DealInput } from "./deal.validation.js";
@@ -405,6 +404,9 @@ export async function updateDeal(
         });
 
         return updated;
+    }, {
+        maxWait: 10000,
+        timeout: 15000,
     });
 }
 

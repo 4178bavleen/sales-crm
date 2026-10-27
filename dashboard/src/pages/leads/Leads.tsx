@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { request } from "../../lib/api";
+import { ENDPOINTS } from "../../lib/endpoints";
+import { getSession } from "../../lib/auth";
 import * as XLSX from "xlsx";
 import {
   Search,
@@ -20,6 +24,9 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  X,
+  UserCheck,
+  AlertCircle,
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import {
@@ -32,6 +39,7 @@ import {
   assignLead as assignLeadApi,
   previewLeadImportFile,
   confirmLeadImportRows,
+  getLeadById,
   type ImportPreviewResponse,
   type ImportConfirmResponse,
 } from "../../lib/leads";
@@ -43,6 +51,7 @@ import {
 import TableSettings from "../../components/ui/TableSettings";
 import type { LeadsFilter } from "../../types/leadsPage";
 import CreateLeadModal from "../../components/ui/Createlead";
+import AssignLeadDialog from "../../components/ui/AssignLeadDialog";
 import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import ImportPreviewModal from "../../components/ui/ImportPreviewModal";
@@ -79,7 +88,83 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlLeadId = searchParams.get("leadId") || searchParams.get("id");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
+  const [rawOwners, setRawOwners] = useState<{ id: number; name: string; email?: string }[]>([]);
+  const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Auto-dismiss toast after 4s
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
+
+  const closeDetailLead = useCallback(() => {
+    setDetailLead(null);
+    if (searchParams.has("leadId") || searchParams.has("id")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("leadId");
+      next.delete("id");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Deep-link: automatically open lead detail when leadId is in URL
+  useEffect(() => {
+    if (!urlLeadId) return;
+    const targetId = Number(urlLeadId);
+    if (!Number.isSafeInteger(targetId) || targetId <= 0) return;
+
+    const found = leads.find(l => l.id === targetId);
+    if (found) {
+      setDetailLead(found);
+      return;
+    }
+
+    getLeadById(targetId)
+      .then(fetched => {
+        if (fetched) {
+          setDetailLead(fetched);
+        }
+      })
+      .catch(() => {});
+  }, [urlLeadId, leads]);
+
+  async function handleAssignLead(leadId: number, ownerId: number | null, note?: string) {
+    try {
+      const updated = await assignLeadApi(leadId, ownerId, note);
+      setLeads(prev => prev.map(l => (l.id === leadId ? updated : l)));
+      if (detailLead?.id === leadId) {
+        setDetailLead(updated);
+      }
+      setAssigningLead(null);
+      const ownerName = updated.owner && updated.owner !== "Unassigned" ? updated.owner : null;
+      setToastMessage({
+        type: "success",
+        message: ownerName ? `Lead successfully assigned to ${ownerName}` : "Lead unassigned successfully"
+      });
+    } catch (err) {
+      setToastMessage({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to assign lead"
+      });
+      throw err;
+    }
+  }
+  const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  const [convertForm, setConvertForm] = useState({
+    dealName: "",
+    ownerId: "",
+    stageId: "",
+    estimatedValue: "",
+    expectedCloseDate: "",
+    productServiceId: "",
+    customerId: "",
+  });
+  const [dealOptionsForConvert, setDealOptionsForConvert] = useState<any>(null);
   const [importPreview, setImportPreview] = useState<{
     file: File;
     data: ImportPreviewResponse;
@@ -123,7 +208,10 @@ export default function Leads() {
     fetchLeadOptions()
       .then(data => {
         if (data.sources) setBackendSources(data.sources.map(s => s.name));
-        if (data.owners) setBackendOwners(data.owners.map(o => o.name));
+        if (data.owners) {
+          setBackendOwners(data.owners.map(o => o.name));
+          setRawOwners(data.owners);
+        }
         if (data.statuses) setBackendStatuses(data.statuses);
         if (data.priorities) setBackendPriorities(data.priorities);
       })
@@ -429,9 +517,35 @@ export default function Leads() {
     }
   }
 
-  async function updateLeadStatus(id: number, status: LeadStatus) {
+  async function updateLeadStatus(id: number, status: LeadStatus, extra?: any) {
+    if (status === "CONVERTED") {
+      const lead = leads.find(l => l.id === id) || detailLead;
+      if (lead) {
+        setConvertLead(lead);
+        setConvertForm({
+          dealName: lead.company ? `${lead.company} - ${lead.firstName} ${lead.lastName}`.trim() : `${lead.firstName} ${lead.lastName}`.trim() || `Lead #${lead.id}`,
+          ownerId: lead.ownerId ? String(lead.ownerId) : "",
+          stageId: "",
+          estimatedValue: "",
+          expectedCloseDate: "",
+          productServiceId: lead.productService ? "" : "",
+          customerId: "",
+        });
+        try {
+          const token = getSession()?.token;
+          if (token) {
+            const res = await request<any>(ENDPOINTS.deals.options, { token });
+            setDealOptionsForConvert(res);
+          }
+        } catch (e) {
+          // ignore
+        }
+        setDetailLead(null);
+        return;
+      }
+    }
     try {
-      const updated = await updateLeadStatusApi(id, status);
+      const updated = await updateLeadStatusApi(id, status as any, undefined, undefined, extra);
       setLeads(previous =>
         previous.map(lead => (lead.id === id ? updated : lead)),
       );
@@ -440,6 +554,7 @@ export default function Leads() {
       );
     } catch (err) {
       console.error("Failed to update lead status:", err);
+      alert((err as any)?.message || "Failed to update lead status");
     }
   }
 
@@ -1051,6 +1166,14 @@ export default function Leads() {
               </button>
               <button
                 type="button"
+                onClick={() => setAssigningLead(lead)}
+                className="w-full rounded px-3 py-2 text-left text-xs font-medium text-blue-600 hover:bg-blue-50 cursor-pointer flex items-center gap-1.5"
+              >
+                <UserCheck size={13} />
+                <span>Assign lead</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setEditingLead(lead)}
                 className="w-full rounded px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
               >
@@ -1149,12 +1272,42 @@ export default function Leads() {
       {detailLead && (
         <LeadDetailDialog
           lead={detailLead}
-          onClose={() => setDetailLead(null)}
+          onClose={closeDetailLead}
           onEdit={() => {
             setEditingLead(detailLead);
             setDetailLead(null);
           }}
+          onAssign={() => setAssigningLead(detailLead)}
         />
+      )}
+
+      {/* Assign Lead Dialog */}
+      {assigningLead && (
+        <AssignLeadDialog
+          lead={assigningLead}
+          owners={rawOwners}
+          onClose={() => setAssigningLead(null)}
+          onAssign={handleAssignLead}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          role="status"
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-3 ${
+            toastMessage.type === "success"
+              ? "border-emerald-200 bg-emerald-50/95 text-emerald-900 shadow-emerald-900/10"
+              : "border-rose-200 bg-rose-50/95 text-rose-900 shadow-rose-900/10"
+          }`}
+        >
+          {toastMessage.type === "success" ? (
+            <CheckCircle2 size={17} className="text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle size={17} className="text-rose-600 shrink-0" />
+          )}
+          <span className="text-xs font-semibold">{toastMessage.message}</span>
+        </div>
       )}
 
       {/* Import Preview Modal */}
@@ -1220,6 +1373,127 @@ export default function Leads() {
                 className="w-full inline-flex items-center justify-center rounded-xl bg-[#1d61e7] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Convert Lead to Deal Dialog */}
+      {convertLead && (
+        <div
+          className="dialog-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          onClick={() => setConvertLead(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Convert Lead to Deal"
+            className="dialog-enter flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Convert Lead to Deal</h3>
+                <p className="text-xs text-slate-500">Do you want to convert this lead into a deal? Please fill required details.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConvertLead(null)}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-slate-700">Deal Name *</label>
+                <input
+                  value={convertForm.dealName}
+                  onChange={(e) => setConvertForm({ ...convertForm, dealName: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-700">Owner</label>
+                  <select
+                    value={convertForm.ownerId}
+                    onChange={(e) => setConvertForm({ ...convertForm, ownerId: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Select owner</option>
+                    {(dealOptionsForConvert?.users || []).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-700">Pipeline Stage</label>
+                  <select
+                    value={convertForm.stageId}
+                    onChange={(e) => setConvertForm({ ...convertForm, stageId: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Default (first open stage)</option>
+                    {(dealOptionsForConvert?.stages || []).filter((s:any)=>s.kind==='OPEN').map((s:any) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-700">Estimated Value</label>
+                  <input
+                    type="number"
+                    value={convertForm.estimatedValue}
+                    onChange={(e) => setConvertForm({ ...convertForm, estimatedValue: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-700">Expected Close Date</label>
+                  <input
+                    type="date"
+                    value={convertForm.expectedCloseDate}
+                    onChange={(e) => setConvertForm({ ...convertForm, expectedCloseDate: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConvertLead(null)}
+                className="rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const extra: any = {};
+                    if (convertForm.dealName) extra.dealName = convertForm.dealName;
+                    if (convertForm.ownerId) extra.ownerId = Number(convertForm.ownerId);
+                    if (convertForm.stageId) extra.stageId = Number(convertForm.stageId);
+                    if (convertForm.estimatedValue !== "") extra.estimatedValue = Number(convertForm.estimatedValue);
+                    if (convertForm.expectedCloseDate) extra.expectedCloseDate = convertForm.expectedCloseDate;
+                    if (convertForm.productServiceId) extra.productServiceId = Number(convertForm.productServiceId);
+                    if (convertForm.customerId) extra.customerId = Number(convertForm.customerId);
+                    const updated = await updateLeadStatusApi(convertLead.id, "CONVERTED" as any, undefined, undefined, extra);
+                    setLeads(previous => previous.map(l => l.id === convertLead.id ? updated : l));
+                    setDetailLead(previous => previous?.id === convertLead.id ? updated : previous);
+                    setConvertLead(null);
+                  } catch (err: any) {
+                    alert(err?.message || "Failed to convert lead");
+                  }
+                }}
+                className="rounded-lg bg-[#1d61e7] px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+              >
+                Convert to Deal
               </button>
             </div>
           </div>

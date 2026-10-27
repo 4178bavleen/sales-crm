@@ -18,18 +18,11 @@ import {
 } from "lucide-react";
 import type { Lead, LeadStatus, Priority } from "../../types/lead";
 import type { CreateLeadFormProps } from "../../types/createLeadForm";
-import { getSession } from "../../lib/auth";
 import { fetchLeadOptions } from "../../lib/leads";
 
 interface SourceItem {
   id: number;
   name: string;
-}
-
-interface OwnerItem {
-  id: number;
-  name: string;
-  email?: string;
 }
 
 interface ReasonItem {
@@ -49,13 +42,9 @@ export default function CreateLeadModal({
   onUpdate,
 }: CreateLeadFormProps) {
   const isEdit = Boolean(initialLead);
-  const session = getSession();
-  const currentUserId = session?.user?.id;
-  const currentUserName = session?.user?.name;
 
   // Fully dynamic options loaded from backend API
   const [sources, setSources] = useState<SourceItem[]>([]);
-  const [owners, setOwners] = useState<OwnerItem[]>([]);
   const [statuses, setStatuses] = useState<LeadStatus[]>([]);
   const [priorities, setPriorities] = useState<Priority[]>([]);
   const [noFollowUpReasons, setNoFollowUpReasons] = useState<ReasonItem[]>([]);
@@ -68,7 +57,6 @@ export default function CreateLeadModal({
   const [email, setEmail] = useState(initialLead?.email || "");
   const [phone, setPhone] = useState(initialLead?.phone || "");
   const [sourceId, setSourceId] = useState<number | null>(initialLead?.sourceId ?? null);
-  const [ownerId, setOwnerId] = useState<number | null>(initialLead?.ownerId ?? null);
   const [status, setStatus] = useState<LeadStatus | "">(initialLead?.status || "");
   const [priority, setPriority] = useState<Priority | "">(initialLead?.priority || "");
   const [notes, setNotes] = useState(initialLead?.notes || "");
@@ -128,24 +116,6 @@ export default function CreateLeadModal({
           }
         }
 
-        if (data.owners) {
-          setOwners(data.owners);
-          if (initialLead?.ownerId != null) {
-            setOwnerId(initialLead.ownerId);
-          } else if (initialLead?.owner) {
-            const matched = data.owners.find(
-              o => o.name.toLowerCase() === initialLead.owner.toLowerCase(),
-            );
-            if (matched) setOwnerId(matched.id);
-            else if (data.owners.length > 0) setOwnerId(data.owners[0].id);
-          } else {
-            const loggedInOwner = data.owners.find(
-              o => o.id === currentUserId || o.name === currentUserName,
-            );
-            setOwnerId(loggedInOwner ? loggedInOwner.id : data.owners[0]?.id ?? null);
-          }
-        }
-
         if (data.statuses && data.statuses.length > 0) {
           setStatuses(data.statuses);
           if (!initialLead?.status) {
@@ -185,7 +155,7 @@ export default function CreateLeadModal({
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, currentUserName, initialLead]);
+  }, [initialLead]);
 
   // Close on Escape
   useEffect(() => {
@@ -222,7 +192,6 @@ export default function CreateLeadModal({
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const selectedOwner = owners.find(o => o.id === ownerId);
   const selectedSource = sources.find(s => s.id === sourceId);
 
   // Submit
@@ -251,8 +220,8 @@ export default function CreateLeadModal({
         phone: phone.trim(),
         source: selectedSource?.name || "",
         sourceId: sourceId,
-        owner: selectedOwner?.name || "",
-        ownerId: ownerId,
+        owner: initialLead?.owner || "Unassigned",
+        ownerId: initialLead?.ownerId ?? null,
         status: status as LeadStatus,
         priority: priority as Priority,
         createdAt: initialLead?.createdAt ?? new Date().toISOString().slice(0, 10),
@@ -307,7 +276,7 @@ export default function CreateLeadModal({
             <p className="mt-0.5 text-xs sm:text-sm text-slate-600">
               {isEdit
                 ? "Update prospect details, status, and follow-up schedule."
-                : "Add a new prospect to your CRM and configure ownership and follow-up."}
+                : "Add a new prospect to your CRM and configure status and follow-up."}
             </p>
           </div>
         </div>
@@ -517,29 +486,6 @@ export default function CreateLeadModal({
                   ))}
                 </select>
                 <p className="mt-1 text-[11px] text-slate-500">Tracks originating acquisition channel.</p>
-              </div>
-
-              {/* Lead Owner */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                  Sales Owner
-                </label>
-                <select
-                  value={ownerId ?? ""}
-                  onChange={e => setOwnerId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-xs font-medium text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
-                >
-                  {isLoadingOptions && <option value="">Loading owners from backend...</option>}
-                  {!isLoadingOptions && owners.length === 0 && (
-                    <option value="">No active users found</option>
-                  )}
-                  {owners.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} {u.email ? `(${u.email})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-slate-500">Assigns team member responsible for lead.</p>
               </div>
 
               {/* Lead Status (Dynamic from backend) */}
@@ -753,7 +699,11 @@ export default function CreateLeadModal({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-slate-500">Owner:</span>
                   <span className="font-semibold text-slate-900">
-                    {selectedOwner?.name || <span className="text-slate-400 italic">Unassigned</span>}
+                    {initialLead?.owner && initialLead.owner !== "Unassigned" ? (
+                      initialLead.owner
+                    ) : (
+                      <span className="text-slate-400 italic">Unassigned (Assign via 3 dots)</span>
+                    )}
                   </span>
                 </div>
 

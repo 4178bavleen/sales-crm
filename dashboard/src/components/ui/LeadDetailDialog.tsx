@@ -1,4 +1,4 @@
-import { Pencil, X } from "lucide-react";
+import { Pencil, UserCheck, X } from "lucide-react";
 import type { LeadDetailDialogProps } from "../../types/leadUi";
 import { formatDate, leadDetailFields } from "../../pages/leads/leadColumns";
 import { PriorityText, StatusBadge } from "./LeadBadges";
@@ -11,6 +11,7 @@ export default function LeadDetailDialog({
   lead,
   onClose,
   onEdit,
+  onAssign,
 }: LeadDetailDialogProps) {
   return (
     <div
@@ -32,6 +33,16 @@ export default function LeadDetailDialog({
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            {onAssign && (
+              <button
+                type="button"
+                onClick={onAssign}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-2xs hover:bg-blue-100 transition cursor-pointer"
+              >
+                <UserCheck size={13} className="text-blue-600" />
+                Assign
+              </button>
+            )}
             {onEdit && (
               <button
                 type="button"
@@ -74,20 +85,36 @@ export default function LeadDetailDialog({
           <h3 className="mb-4 mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Contact information
           </h3>
-          {leadDetailFields.map(({ label, Icon, get }) => (
-            <div
-              key={label}
-              className="flex items-start gap-3 border-b border-slate-100 py-3"
-            >
-              <Icon size={16} className="mt-0.5 text-slate-400" />
-              <div>
-                <p className="text-[11px] text-slate-400">{label}</p>
-                <p className="mt-1 break-words text-sm text-slate-700">
-                  {get(lead)}
-                </p>
+          {leadDetailFields.map(({ label, Icon, get }) => {
+            const isOwnerField = label === "Lead Owner";
+            const value = get(lead);
+            return (
+              <div
+                key={label}
+                className="flex items-start justify-between border-b border-slate-100 py-3"
+              >
+                <div className="flex items-start gap-3">
+                  <Icon size={16} className="mt-0.5 text-slate-400" />
+                  <div>
+                    <p className="text-[11px] text-slate-400">{label}</p>
+                    <p className="mt-1 break-words text-sm text-slate-700">
+                      {value}
+                    </p>
+                  </div>
+                </div>
+
+                {isOwnerField && onAssign && (
+                  <button
+                    type="button"
+                    onClick={onAssign}
+                    className="self-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-600 shadow-2xs hover:bg-blue-50 transition cursor-pointer"
+                  >
+                    {value === "Unassigned" ? "Assign" : "Change"}
+                  </button>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <p className="mt-5 text-[11px] text-slate-400">
             Created {formatDate(lead.createdAt)}

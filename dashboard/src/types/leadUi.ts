@@ -33,6 +33,7 @@ export type LeadDetailDialogProps = {
   lead: Lead;
   onClose: () => void;
   onEdit?: () => void;
+  onAssign?: () => void;
   onStatusChange?: (status: LeadStatus) => void;
   availableStatuses?: LeadStatus[];
 };
