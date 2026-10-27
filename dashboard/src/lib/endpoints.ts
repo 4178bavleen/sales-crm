@@ -125,6 +125,14 @@ export const ENDPOINTS = {
     delete: (id: number) => `/products-services/${id}`,
   },
 
+  notifications: {
+    list: "/notifications",
+    unreadCount: "/notifications/unread-count",
+    readAll: "/notifications/read-all",
+    read: (id: number) => `/notifications/${id}/read`,
+    delete: (id: number) => `/notifications/${id}`,
+  },
+
   health: "/health",
 } as const;
 

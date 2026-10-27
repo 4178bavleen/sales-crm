@@ -10,6 +10,7 @@ import type {
 
 
 import type { UpdateLeadStatusInput } from './lead.validation.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 export class LeadServiceError extends Error {
   constructor(
     message: string,
@@ -208,11 +209,11 @@ export async function getLeads(input: ListLeadsInput) {
     ...(sourceId && sourceId.length > 0 ? { sourceId: { in: sourceId } } : {}),
     ...(createdFrom || createdTo
       ? {
-          createdAt: {
-            ...(createdFrom ? { gte: createdFrom } : {}),
-            ...(createdTo ? { lte: createdTo } : {}),
-          },
-        }
+        createdAt: {
+          ...(createdFrom ? { gte: createdFrom } : {}),
+          ...(createdTo ? { lte: createdTo } : {}),
+        },
+      }
       : {}),
     ...(and.length > 0 ? { AND: and } : {}),
   }
@@ -441,7 +442,26 @@ export async function assignLead(
   }
 
   if (lead.ownerId === ownerId) {
-    return getLeadById(leadId)
+    const updatedLead = await getLeadById(leadId)
+
+    // Notify the new owner after the assignment succeeds.
+    if (ownerId !== null && ownerId !== assignedById) {
+      try {
+        await createInAppNotification({
+          userId: ownerId,
+          type: 'LEAD_ASSIGNED',
+          title: 'New lead assigned to you',
+          body: `You have been assigned the lead: ${updatedLead.contactName}`,
+          entityType: 'lead',
+          entityId: updatedLead.id,
+        })
+      } catch (error) {
+        // Assignment should remain successful if notification creation fails.
+        console.error('Failed to create lead assignment notification:', error)
+      }
+    }
+
+    return updatedLead
   }
 
   await prisma.$transaction(async (tx) => {
@@ -554,6 +574,8 @@ export async function updateLeadStatus(
     })
   }
 
+  const conversion = input as any
+
   return prisma.$transaction(async (tx) => {
     let companyId = existing.companyId
 
@@ -603,16 +625,32 @@ export async function updateLeadStatus(
       contactId = contact.id
     }
 
-    const customer = await tx.customer.create({
-      data: {
-        companyId,
-        primaryContactId: contactId,
-        ownerId: existing.ownerId ?? actorId,
-        convertedAt: now,
-        notes: `Converted from lead #${id}`,
-      },
-      select: { id: true },
-    })
+    let customerIdToUse = conversion.customerId ?? null
+    if (customerIdToUse) {
+      const existingCustomer = await tx.customer.findFirst({
+        where: { id: customerIdToUse, deletedAt: null },
+        select: { id: true },
+      })
+      if (!existingCustomer) customerIdToUse = null
+    }
+
+    const customer = customerIdToUse
+      ? await tx.customer.findFirst({
+        where: { id: customerIdToUse },
+        select: { id: true },
+      })
+      : await tx.customer.create({
+        data: {
+          companyId,
+          primaryContactId: contactId,
+          ownerId: conversion.ownerId ?? existing.ownerId ?? actorId,
+          convertedAt: now,
+          notes: `Converted from lead #${id}`,
+        },
+        select: { id: true },
+      })
+
+    if (!customer) throw new LeadServiceError('Failed to create customer', 500)
 
     const existingDealCount = await tx.deal.count({
       where: {
@@ -631,29 +669,47 @@ export async function updateLeadStatus(
         data: { customerId: customer.id },
       })
     } else {
-      const stage = await tx.pipelineStage.findFirst({
-        where: { kind: 'OPEN', isActive: true },
-        orderBy: { position: 'asc' },
-        select: { id: true },
-      })
+      let stageIdToUse = conversion.stageId ?? null
+      if (stageIdToUse) {
+        const s = await tx.pipelineStage.findFirst({
+          where: { id: stageIdToUse, isActive: true, kind: 'OPEN' },
+          select: { id: true },
+        })
+        if (!s) stageIdToUse = null
+      }
+      if (!stageIdToUse) {
+        const stage = await tx.pipelineStage.findFirst({
+          where: { kind: 'OPEN', isActive: true },
+          orderBy: { position: 'asc' },
+          select: { id: true },
+        })
+        stageIdToUse = stage?.id ?? null
+      }
 
-      if (stage) {
-        const dealName = [existing.companyName, existing.contactName]
-          .filter((value): value is string => Boolean(value?.trim()))
-          .map((value) => value.trim())
-          .join(' - ')
-          .slice(0, 200)
+      if (stageIdToUse) {
+        const dealName =
+          conversion.dealName?.trim() ||
+          [existing.companyName, existing.contactName]
+            .filter((value): value is string => Boolean(value?.trim()))
+            .map((value) => value.trim())
+            .join(' - ')
+            .slice(0, 200) ||
+          `Lead #${id}`
 
         const deal = await tx.deal.create({
           data: {
-            name: dealName || `Lead #${id}`,
+            name: dealName,
             leadId: id,
             customerId: customer.id,
-            ownerId: existing.ownerId ?? actorId,
+            ownerId: conversion.ownerId ?? existing.ownerId ?? actorId,
             createdById: actorId,
-            productServiceId: existing.productServiceId,
-            stageId: stage.id,
-            estimatedValue: 0,
+            productServiceId:
+              conversion.productServiceId !== undefined
+                ? conversion.productServiceId
+                : existing.productServiceId,
+            stageId: stageIdToUse,
+            estimatedValue: conversion.estimatedValue ?? 0,
+            expectedCloseDate: conversion.expectedCloseDate ?? null,
           },
           select: { id: true },
         })
@@ -662,7 +718,7 @@ export async function updateLeadStatus(
           data: {
             dealId: deal.id,
             fromStageId: null,
-            toStageId: stage.id,
+            toStageId: stageIdToUse,
             changedById: actorId,
             note: 'Deal created from lead conversion',
           },

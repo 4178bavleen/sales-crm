@@ -19,10 +19,10 @@ import meetingRoutes from './modules/meetings/meeting.routes.js'
 import targetRoutes from './modules/targets/target.routes.js'
 import reportsRoutes from './modules/reports/reports.routes.js'
 import productServiceRoutes from './modules/products-services/products-services.routes.js'
+import notificationRoutes from './modules/notifications/notification.routes.js'
 
 
 const app = express()
-
 app.disable('x-powered-by')
 
 app.use(helmet())
@@ -56,6 +56,7 @@ app.use('/api/v1/meetings', meetingRoutes)
 app.use('/api/v1/targets', targetRoutes)
 app.use('/api/v1/reports', reportsRoutes)
 app.use('/api/v1/products-services', productServiceRoutes)
+app.use('/api/v1/notifications', notificationRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 

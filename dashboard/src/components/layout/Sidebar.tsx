@@ -14,12 +14,15 @@ import {
   UserCog,
   ShieldCheck,
   Package,
+  Bell,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
+import { useNotifications } from "../../context/NotificationContext";
 
 const primaryNav = [
   { name: "Dashboard", path: "/", icon: Home },
+  { name: "Notifications", path: "/notifications", icon: Bell },
   { name: "Calendar", path: "/calendar", icon: Calendar },
   { name: "Leads", path: "/leads", icon: Users },
   { name: "Contacts", path: "/contacts", icon: Contact },
@@ -44,6 +47,7 @@ const managementNav = [
 
 export default function Sidebar() {
   const session = useSession();
+  const { unreadCount } = useNotifications();
   const userName = session?.user.name ?? "Gabriel Deora";
   const userRole = session?.user.role ?? "Admin";
   const initials =
@@ -109,6 +113,11 @@ export default function Sidebar() {
                     }`}
                   />
                   <span className="truncate">{name}</span>
+                  {name === "Notifications" && unreadCount > 0 && (
+                    <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

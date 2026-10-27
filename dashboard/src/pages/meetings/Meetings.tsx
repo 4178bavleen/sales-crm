@@ -41,6 +41,7 @@ import type {
 } from "../../types/meeting";
 import { getSession } from "../../lib/auth";
 import { ApiError } from "../../lib/api";
+import { useNotifications } from "../../context/NotificationContext";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
 
@@ -49,6 +50,7 @@ const meetingColumnOptions: TableSettingsColumn[] = [
   { key: "title", label: "Meeting Title" },
   { key: "connectedTo", label: "Connected To" },
   { key: "organizer", label: "Organizer" },
+  { key: "attendees", label: "Attendees" },
   { key: "status", label: "Status" },
   { key: "actions", label: "Actions" },
 ];
@@ -109,6 +111,7 @@ function getStatusBadge(status: MeetingStatus) {
 }
 
 export default function MeetingsPage() {
+  const { refreshNotifications, refreshUnreadCount } = useNotifications();
   const [meetings, setMeetings] = useState<MeetingItem[]>([]);
   const [options, setOptions] = useState<MeetingOptions | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,6 +139,7 @@ export default function MeetingsPage() {
   const [editingMeeting, setEditingMeeting] = useState<MeetingItem | null>(null);
   const [savingForm, setSavingForm] = useState(false);
   const [formError, setFormError] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailMeeting, setDetailMeeting] = useState<MeetingItem | null>(null);
@@ -155,6 +159,7 @@ export default function MeetingsPage() {
     contactId: string;
     leadId: string;
     dealId: string;
+    participantUserIds: number[];
     notes: string;
     outcome: string;
     nextSteps: string;
@@ -168,6 +173,7 @@ export default function MeetingsPage() {
     contactId: "none",
     leadId: "none",
     dealId: "none",
+    participantUserIds: [],
     notes: "",
     outcome: "",
     nextSteps: "",
@@ -238,7 +244,18 @@ export default function MeetingsPage() {
         const matchesLead = m.lead?.contactName.toLowerCase().includes(s) ?? false;
         const matchesDeal = m.deal?.name.toLowerCase().includes(s) ?? false;
         const matchesNotes = m.notes?.toLowerCase().includes(s) ?? false;
-        if (!matchesTitle && !matchesLocation && !matchesLead && !matchesDeal && !matchesNotes) {
+        const matchesParticipant = m.participants?.some((p) =>
+          p.user?.name.toLowerCase().includes(s) ||
+          p.contact?.fullName.toLowerCase().includes(s),
+        ) ?? false;
+        if (
+          !matchesTitle &&
+          !matchesLocation &&
+          !matchesLead &&
+          !matchesDeal &&
+          !matchesNotes &&
+          !matchesParticipant
+        ) {
           return false;
         }
       }
@@ -316,10 +333,12 @@ export default function MeetingsPage() {
       contactId: "none",
       leadId: "none",
       dealId: "none",
+      participantUserIds: [],
       notes: "",
       outcome: "",
       nextSteps: "",
     });
+    setEmployeeSearch("");
     setFormError("");
     setFormMode("create");
     setEditingMeeting(null);
@@ -334,6 +353,10 @@ export default function MeetingsPage() {
       .slice(0, 16);
 
     const contactPart = m.participants?.find((p) => p.contactId)?.contactId;
+    const existingUserIds =
+      m.participants
+        ?.map((p) => p.userId)
+        .filter((uid): uid is number => typeof uid === "number") || [];
 
     setFormData({
       title: m.title,
@@ -345,10 +368,12 @@ export default function MeetingsPage() {
       contactId: contactPart ? String(contactPart) : "none",
       leadId: m.leadId ? String(m.leadId) : "none",
       dealId: m.dealId ? String(m.dealId) : "none",
+      participantUserIds: existingUserIds,
       notes: m.notes || "",
       outcome: m.outcome || "",
       nextSteps: m.nextSteps || "",
     });
+    setEmployeeSearch("");
     setFormError("");
     setFormMode("edit");
     setEditingMeeting(m);
@@ -391,6 +416,7 @@ export default function MeetingsPage() {
         leadId: formData.leadId !== "none" ? Number(formData.leadId) : null,
         dealId: formData.dealId !== "none" ? Number(formData.dealId) : null,
         participantContactIds: formData.contactId !== "none" ? [Number(formData.contactId)] : undefined,
+        participantUserIds: formData.participantUserIds,
         notes: formData.notes.trim() || null,
         outcome: formData.outcome.trim() || null,
         nextSteps: formData.nextSteps.trim() || null,
@@ -400,6 +426,8 @@ export default function MeetingsPage() {
         const created = await createMeeting(payload as CreateMeetingInput);
         setMeetings((prev) => [created, ...prev]);
         showToast("success", `Meeting "${created.title}" scheduled.`);
+        void refreshNotifications();
+        void refreshUnreadCount();
       } else if (editingMeeting) {
         const updated = await updateMeeting(editingMeeting.id, payload);
         setMeetings((prev) =>
@@ -409,6 +437,8 @@ export default function MeetingsPage() {
           setDetailMeeting(updated);
         }
         showToast("success", `Meeting "${updated.title}" updated.`);
+        void refreshNotifications();
+        void refreshUnreadCount();
       }
 
       setFormOpen(false);
@@ -520,7 +550,7 @@ export default function MeetingsPage() {
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Schedule client consultations, sales discovery demos, and manage team appointments.
+            Schedule client consultations, sales discovery demos, and collaborate with involved employees.
           </p>
         </div>
 
@@ -672,7 +702,7 @@ export default function MeetingsPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search meetings by title, location, client, deal..."
+                placeholder="Search meetings by title, location, client, employee..."
                 className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -813,6 +843,7 @@ export default function MeetingsPage() {
             {filteredMeetings.map((m) => {
               const dt = formatDateTime(m.startsAt);
               const badge = getStatusBadge(m.status);
+              const involvedEmployees = m.participants?.filter((p) => p.user && p.userId) || [];
 
               return (
                 <div
@@ -922,6 +953,29 @@ export default function MeetingsPage() {
                         )}
                       </div>
                     )}
+
+                    {/* Involved Employees */}
+                    {involvedEmployees.length > 0 && (
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Employees:
+                        </span>
+                        <div className="flex items-center -space-x-1.5 overflow-hidden">
+                          {involvedEmployees.slice(0, 3).map((p) => (
+                            <div
+                              key={p.id}
+                              title={`${p.user?.name} (${p.user?.email})`}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-800 ring-2 ring-white text-[9px] font-bold"
+                            >
+                              {p.user?.name.charAt(0) || "U"}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-600 truncate max-w-[160px]">
+                          {involvedEmployees.map((p) => p.user?.name).join(", ")}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Card Footer: Organizer & Quick Status Changer */}
@@ -969,6 +1023,9 @@ export default function MeetingsPage() {
                   {!hiddenColumns.includes("organizer") && (
                     <th className="py-3 px-4 min-w-[140px]">Organizer</th>
                   )}
+                  {!hiddenColumns.includes("attendees") && (
+                    <th className="py-3 px-4 min-w-[160px]">Employees</th>
+                  )}
                   {!hiddenColumns.includes("status") && (
                     <th className="py-3 px-4 text-center min-w-[110px]">Status</th>
                   )}
@@ -981,6 +1038,7 @@ export default function MeetingsPage() {
                 {filteredMeetings.map((m, index) => {
                   const dt = formatDateTime(m.startsAt);
                   const badge = getStatusBadge(m.status);
+                  const involvedEmployees = m.participants?.filter((p) => p.user) || [];
 
                   return (
                     <tr
@@ -1046,6 +1104,23 @@ export default function MeetingsPage() {
                         <td className="py-3 px-4">
                           <div className="text-slate-950 font-bold">{m.organizer.name}</div>
                           <div className="text-[11px] font-semibold text-slate-700">{m.organizer.email}</div>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.includes("attendees") && (
+                        <td className="py-3 px-4">
+                          {involvedEmployees.length > 0 ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs font-semibold text-blue-700">
+                                {involvedEmployees.length} Employee(s)
+                              </span>
+                              <span className="text-[11px] text-slate-600 truncate max-w-[170px]">
+                                {involvedEmployees.map((p) => p.user?.name).join(", ")}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
                         </td>
                       )}
 
@@ -1119,7 +1194,7 @@ export default function MeetingsPage() {
                     {formMode === "create" ? "Schedule New Meeting" : "Edit Meeting Details"}
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Set up timing, location, agenda, and CRM connections
+                    Set up timing, location, involved employees, and CRM connections
                   </p>
                 </div>
               </div>
@@ -1291,6 +1366,168 @@ export default function MeetingsPage() {
                 </div>
               </div>
 
+              {/* Involve Employees / Team Members Section */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Users size={15} className="text-blue-600" />
+                    <label className="text-xs font-bold text-slate-800">
+                      Involve Employees / Team Members
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {formData.participantUserIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, participantUserIds: [] }))
+                        }
+                        className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      {formData.participantUserIds.length} selected
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Involved employees will automatically receive an in-app notification when this meeting is scheduled or updated.
+                </p>
+
+                {/* Selected Employee Badges */}
+                {formData.participantUserIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {formData.participantUserIds.map((uId) => {
+                      const u = options?.users.find((user) => user.id === uId);
+                      if (!u) return null;
+                      return (
+                        <span
+                          key={uId}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/90 px-2.5 py-1 text-xs font-semibold text-blue-900 shadow-2xs"
+                        >
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-200 text-[9px] font-bold text-blue-800">
+                            {u.name.charAt(0)}
+                          </span>
+                          <span className="truncate max-w-[140px]">{u.name}</span>
+                          <button
+                            type="button"
+                            title={`Remove ${u.name}`}
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                participantUserIds: prev.participantUserIds.filter(
+                                  (id) => id !== uId,
+                                ),
+                              }))
+                            }
+                            className="rounded-full p-0.5 text-blue-500 hover:bg-blue-200 hover:text-blue-900 transition cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Optional search input when multiple users exist */}
+                {(options?.users.length ?? 0) > 4 && (
+                  <div className="relative">
+                    <Search
+                      size={13}
+                      className="absolute left-3 top-2.5 text-slate-400"
+                    />
+                    <input
+                      type="text"
+                      value={employeeSearch}
+                      onChange={(e) => setEmployeeSearch(e.target.value)}
+                      placeholder="Search team members..."
+                      className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                    />
+                  </div>
+                )}
+
+                {/* Scrollable list of selectable employees */}
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                  {!options?.users.length ? (
+                    <p className="text-xs text-slate-400 py-2 text-center italic">
+                      No active employees available
+                    </p>
+                  ) : (
+                    options.users
+                      .filter(
+                        (u) =>
+                          !employeeSearch.trim() ||
+                          u.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                          u.email.toLowerCase().includes(employeeSearch.toLowerCase()),
+                      )
+                      .map((u) => {
+                        const isSelected = formData.participantUserIds.includes(u.id);
+                        const initials =
+                          u.name
+                            .split(" ")
+                            .map((part) => part[0])
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase() || "EM";
+
+                        return (
+                          <div
+                            key={u.id}
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                participantUserIds: isSelected
+                                  ? prev.participantUserIds.filter((id) => id !== u.id)
+                                  : [...prev.participantUserIds, u.id],
+                              }));
+                            }}
+                            className={`flex items-center justify-between rounded-xl px-2.5 py-2 transition cursor-pointer select-none text-xs ${
+                              isSelected
+                                ? "bg-blue-50/80 border border-blue-300 shadow-2xs font-semibold text-blue-950"
+                                : "bg-white hover:bg-slate-100/70 border border-slate-200/60 text-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                                  isSelected
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-200 text-slate-700"
+                                }`}
+                              >
+                                {initials}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-xs leading-none font-semibold text-slate-900">
+                                  {u.name}
+                                </p>
+                                <p className="truncate text-[10px] text-slate-500 mt-0.5">
+                                  {u.email}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                                isSelected
+                                  ? "border-blue-600 bg-blue-600 text-white"
+                                  : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && <Check size={11} strokeWidth={3} />}
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
               {/* Agenda / Notes */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -1433,6 +1670,43 @@ export default function MeetingsPage() {
                 </div>
               )}
 
+              {/* Involved Employees / Attendees */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-600" />
+                    <span className="text-xs font-semibold text-slate-700">Involved Team Members</span>
+                  </div>
+                  <span className="text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 border border-blue-200">
+                    {detailMeeting.participants?.filter((p) => p.user).length || 0} Involved
+                  </span>
+                </div>
+                {detailMeeting.participants?.filter((p) => p.user).length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {detailMeeting.participants
+                      .filter((p) => p.user)
+                      .map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs"
+                        >
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-xs shrink-0">
+                            {p.user?.name.charAt(0) || "U"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">{p.user?.name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{p.user?.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic rounded-xl border border-dashed border-slate-200 p-3 text-center">
+                    No additional team members involved in this meeting.
+                  </p>
+                )}
+              </div>
+
               {/* Connected Records */}
               {(detailMeeting.lead || detailMeeting.deal) && (
                 <div className="space-y-2">
@@ -1458,7 +1732,7 @@ export default function MeetingsPage() {
               {/* Notes */}
               {detailMeeting.notes && (
                 <div>
-                  <span className="text-xs font-semibold text-slate-700">Agenda / Discussion Notes</span>
+                  <span className="text-xs font-semibold text-slate-700">Agenda & Discussion Notes</span>
                   <p className="mt-1 rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs text-slate-700 leading-relaxed">
                     {detailMeeting.notes}
                   </p>

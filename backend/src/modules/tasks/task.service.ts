@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import { Priority, TaskStatus } from '../../generated/prisma/client.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 
 type TaskInput = Record<string, unknown>
 
@@ -98,6 +99,7 @@ async function validateReferences(data: TaskInput) {
     }
 }
 
+
 export async function createTask(data: TaskInput, actorId: number) {
     await validateReferences(data)
 
@@ -111,7 +113,7 @@ export async function createTask(data: TaskInput, actorId: number) {
         )
     }
 
-    return prisma.task.create({
+    const task = await prisma.task.create({
         data: {
             title: data.title as string,
             description: (data.description as string | null | undefined) ?? null,
@@ -128,7 +130,27 @@ export async function createTask(data: TaskInput, actorId: number) {
         },
         include: taskInclude,
     })
+
+    // Notify the assignee after the task has been created.
+    if (task.assignedToId !== actorId) {
+        try {
+            await createInAppNotification({
+                userId: task.assignedToId,
+                type: 'TASK_ASSIGNED',
+                title: 'New task assigned',
+                body: `You have been assigned a task: ${task.title}`,
+                entityType: 'task',
+                entityId: task.id,
+            })
+        } catch (error) {
+            // Do not report task creation as failed if notification creation fails.
+            console.error('Failed to create task assignment notification:', error)
+        }
+    }
+
+    return task
 }
+
 
 export async function listTasks(query: {
     page?: number
@@ -189,10 +211,13 @@ export async function getTaskById(id: number) {
     return task
 }
 
+
 export async function updateTask(id: number, data: TaskInput) {
     const existing = await prisma.task.findUnique({ where: { id } })
 
-    if (!existing) throw new TaskServiceError('Task not found', 404)
+    if (!existing) {
+        throw new TaskServiceError('Task not found', 404)
+    }
 
     await validateReferences(data)
 
@@ -210,8 +235,33 @@ export async function updateTask(id: number, data: TaskInput) {
         include: taskInclude,
     })
 
+    // Notify only when the task is assigned to a different user.
+    const newAssigneeId = updated.assignedToId
+
+    if (
+        data.assignedToId !== undefined &&
+        newAssigneeId !== existing.assignedToId
+    ) {
+        try {
+            await createInAppNotification({
+                userId: newAssigneeId,
+                type: 'TASK_ASSIGNED',
+                title: 'Task reassigned to you',
+                body: `You have been assigned a task: ${updated.title}`,
+                entityType: 'task',
+                entityId: updated.id,
+            })
+        } catch (error) {
+            console.error(
+                'Failed to create task reassignment notification:',
+                error,
+            )
+        }
+    }
+
     return updated
 }
+
 
 export async function updateTaskStatus(
     id: number,
