@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   Calendar,
@@ -120,7 +121,15 @@ export default function MeetingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters & View state
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null && q !== search) {
+      setSearch(q);
+    }
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<MeetingStatus | "ALL">("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);

@@ -85,7 +85,8 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [filters, setFilters] = useState<LeadsFilter>(emptyFilters);
   const [selectedOwner, setSelectedOwner] = useState<string>("");
   const [dateRange, setDateRange] = useState<string>("All Time");
@@ -94,13 +95,20 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [searchParams, setSearchParams] = useSearchParams();
   const urlLeadId = searchParams.get("leadId") || searchParams.get("id");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const [rawOwners, setRawOwners] = useState<{ id: number; name: string; email?: string }[]>([]);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Sync search param when changed externally via Topbar
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null && q !== search) {
+      setSearch(q);
+    }
+  }, [searchParams]);
 
   // Auto-dismiss toast after 4s
   useEffect(() => {

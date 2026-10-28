@@ -139,7 +139,8 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState<TaskStatus[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<Priority[]>([]);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
@@ -218,7 +219,14 @@ export default function Tasks() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  // Sync search param when changed externally via Topbar
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null && q !== search) {
+      setSearch(q);
+    }
+  }, [searchParams]);
+
   const urlTaskId = searchParams.get("taskId") || searchParams.get("id");
 
   const closeDetailTask = useCallback(() => {
