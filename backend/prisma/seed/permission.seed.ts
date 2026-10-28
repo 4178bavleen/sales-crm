@@ -1,6 +1,6 @@
-import { PrismaClient } from '../../src/generated/prisma/client.js'
+import { prisma } from '../../src/config/database.js'
 
-const prisma = new PrismaClient()
+
 
 const roles = [
   { name: 'ADMIN', description: 'Full system administration' },
