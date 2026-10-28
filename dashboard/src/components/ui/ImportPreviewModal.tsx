@@ -60,7 +60,7 @@ export default function ImportPreviewModal({
         role="dialog"
         aria-modal="true"
         aria-label="Import Preview"
-        className="dialog-enter flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="dialog-enter flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -132,21 +132,22 @@ export default function ImportPreviewModal({
         )}
 
         {/* Table Preview */}
-        <div className="flex-1 overflow-auto px-6 py-4">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-left text-xs">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="min-w-[1200px] w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5 w-10 text-center">#</th>
-                  <th className="px-3 py-2.5">Lead Name</th>
-                  <th className="px-3 py-2.5">Company</th>
-                  <th className="px-3 py-2.5">Email</th>
-                  <th className="px-3 py-2.5">Phone</th>
-                  <th className="px-3 py-2.5">Lead Source</th>
-                  <th className="px-3 py-2.5">Status</th>
-                  <th className="px-3 py-2.5">Priority</th>
-                  <th className="px-3 py-2.5">Owner</th>
-                  <th className="px-3 py-2.5">Next Follow-up</th>
+                  <th className="px-3 py-2.5 min-w-[160px]">Lead Name</th>
+                  <th className="px-3 py-2.5 min-w-[140px]">Company</th>
+                  <th className="px-3 py-2.5 min-w-[180px]">Email</th>
+                  <th className="px-3 py-2.5 min-w-[130px]">Phone</th>
+                  <th className="px-3 py-2.5 min-w-[120px]">Lead Source</th>
+                  <th className="px-3 py-2.5 min-w-[110px]">Status</th>
+                  <th className="px-3 py-2.5 min-w-[100px]">Priority</th>
+                  <th className="px-3 py-2.5 min-w-[130px]">Owner</th>
+                  <th className="px-3 py-2.5 min-w-[130px]">Next Follow-up</th>
+                  <th className="px-3 py-2.5 min-w-[200px]">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -164,6 +165,7 @@ export default function ImportPreviewModal({
                   const nextFollowUp = row.data.nextFollowUpAt
                     ? String(row.data.nextFollowUpAt).slice(0, 10)
                     : "—";
+                  const notes = String(row.data.notes || row.data.note || "—");
 
                   return (
                     <tr
@@ -228,6 +230,9 @@ export default function ImportPreviewModal({
                       </td>
                       <td className="px-3 py-2 text-slate-600 font-mono text-[11px] whitespace-nowrap">
                         {nextFollowUp}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 text-[11px] max-w-[220px] truncate" title={notes !== "—" ? notes : undefined}>
+                        {notes}
                       </td>
                     </tr>
                   );
