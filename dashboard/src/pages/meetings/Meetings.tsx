@@ -848,7 +848,7 @@ export default function MeetingsPage() {
           </div>
         ) : viewMode === "grid" ? (
           /* Cards View */
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredMeetings.map((m) => {
               const dt = formatDateTime(m.startsAt);
               const badge = getStatusBadge(m.status);
@@ -858,40 +858,40 @@ export default function MeetingsPage() {
                 <div
                   key={m.id}
                   onClick={() => handleOpenDetail(m)}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
+                  className="group relative flex flex-col justify-between rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
                 >
                   <div>
                     {/* Card Top: Date badge + Status Pill + Actions */}
-                    <div className="flex items-start justify-between gap-2.5 mb-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
                       {/* Date Block */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50 px-2.5 py-1.5 text-center min-w-[50px] shadow-2xs">
-                          <span className="text-[10px] font-bold text-blue-600 tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200/90 bg-slate-50 px-2 py-0.5 text-center min-w-[38px] shadow-2xs">
+                          <span className="text-[11px] font-bold text-blue-700 tracking-wider">
                             {dt.month}
                           </span>
-                          <span className="text-base font-extrabold text-slate-900 leading-tight">
+                          <span className="text-base font-extrabold text-slate-950 leading-none">
                             {dt.day}
                           </span>
                         </div>
                         <div>
-                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${badge.bg}`}>
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${badge.bg}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
                             {badge.label}
                           </span>
-                          <p className="mt-0.5 text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                            <Clock size={11} className="text-slate-400" />
-                            <span>{dt.time} ({m.durationMinutes} min)</span>
+                          <p className="mt-0.5 text-xs font-bold text-slate-800 flex items-center gap-1">
+                            <Clock size={12} className="text-slate-600 shrink-0" />
+                            <span>{dt.time} ({m.durationMinutes}m)</span>
                           </p>
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           title="View Details"
                           onClick={() => handleOpenDetail(m)}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                          className="rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
                         >
                           <Eye size={13} />
                         </button>
@@ -899,7 +899,7 @@ export default function MeetingsPage() {
                           type="button"
                           title="Edit Meeting"
                           onClick={(e) => handleOpenEdit(m, e)}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                          className="rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
                         >
                           <Pencil size={13} />
                         </button>
@@ -907,7 +907,7 @@ export default function MeetingsPage() {
                           type="button"
                           title="Delete Meeting"
                           onClick={(e) => handleOpenDelete(m, e)}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                          className="rounded-md p-1 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -915,49 +915,51 @@ export default function MeetingsPage() {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition">
+                    <h3 className="text-[15px] font-bold text-slate-950 truncate group-hover:text-blue-700 transition">
                       {m.title}
                     </h3>
 
                     {/* Location or Meeting Link */}
-                    <div className="mt-2 space-y-1 text-xs text-slate-500">
-                      {m.meetingLink && (
-                        <div className="flex items-center gap-1.5 text-blue-600 font-medium">
-                          <Video size={13} className="shrink-0" />
-                          <a
-                            href={m.meetingLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="truncate hover:underline flex items-center gap-1"
-                          >
-                            <span>Join Video Call</span>
-                            <ExternalLink size={10} />
-                          </a>
-                        </div>
-                      )}
+                    {(m.meetingLink || m.location) && (
+                      <div className="mt-1 space-y-0.5 text-xs font-semibold text-slate-800">
+                        {m.meetingLink && (
+                          <div className="flex items-center gap-1.5 text-blue-700 font-bold truncate">
+                            <Video size={13} className="shrink-0" />
+                            <a
+                              href={m.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="truncate hover:underline flex items-center gap-1"
+                            >
+                              <span>Join Video Call</span>
+                              <ExternalLink size={10} />
+                            </a>
+                          </div>
+                        )}
 
-                      {m.location && (
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <MapPin size={13} className="shrink-0 text-slate-400" />
-                          <span className="truncate">{m.location}</span>
-                        </div>
-                      )}
-                    </div>
+                        {m.location && (
+                          <div className="flex items-center gap-1.5 text-slate-800 truncate">
+                            <MapPin size={13} className="shrink-0 text-slate-600" />
+                            <span className="truncate">{m.location}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Associated Lead or Deal */}
                     {(m.lead || m.deal) && (
-                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                      <div className="mt-1.5 flex items-center gap-1 flex-wrap">
                         {m.lead && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                            <Users size={10} className="text-slate-500" />
-                            <span className="truncate max-w-[130px]">{m.lead.contactName}</span>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 border border-slate-300/80 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">
+                            <Users size={11} className="text-slate-700 shrink-0" />
+                            <span className="truncate max-w-[120px]">{m.lead.contactName}</span>
                           </span>
                         )}
                         {m.deal && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200/60 px-2 py-0.5 text-[10px] font-semibold">
-                            <FolderGit2 size={10} />
-                            <span className="truncate max-w-[130px]">{m.deal.name}</span>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-900 border border-purple-300 px-1.5 py-0.5 text-[11px] font-bold">
+                            <FolderGit2 size={11} className="text-purple-700 shrink-0" />
+                            <span className="truncate max-w-[120px]">{m.deal.name}</span>
                           </span>
                         )}
                       </div>
@@ -965,22 +967,22 @@ export default function MeetingsPage() {
 
                     {/* Involved Employees */}
                     {involvedEmployees.length > 0 && (
-                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                           Employees:
                         </span>
-                        <div className="flex items-center -space-x-1.5 overflow-hidden">
+                        <div className="flex items-center -space-x-1 overflow-hidden">
                           {involvedEmployees.slice(0, 3).map((p) => (
                             <div
                               key={p.id}
                               title={`${p.user?.name} (${p.user?.email})`}
-                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-800 ring-2 ring-white text-[9px] font-bold"
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-900 ring-2 ring-white text-[10px] font-bold"
                             >
                               {p.user?.name.charAt(0) || "U"}
                             </div>
                           ))}
                         </div>
-                        <span className="text-[11px] font-medium text-slate-600 truncate max-w-[160px]">
+                        <span className="text-xs font-semibold text-slate-900 truncate max-w-[150px]">
                           {involvedEmployees.map((p) => p.user?.name).join(", ")}
                         </span>
                       </div>
@@ -988,9 +990,9 @@ export default function MeetingsPage() {
                   </div>
 
                   {/* Card Footer: Organizer & Quick Status Changer */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-700 font-bold text-[9px]">
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-slate-900 font-bold">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-900 font-bold text-[10px]">
                         {m.organizer.name.charAt(0)}
                       </div>
                       <span className="truncate max-w-[100px]">{m.organizer.name}</span>
@@ -1002,7 +1004,7 @@ export default function MeetingsPage() {
                         <button
                           type="button"
                           onClick={(e) => handleQuickStatusChange(m, "COMPLETED", e)}
-                          className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
+                          className="rounded-md bg-emerald-50 border border-emerald-300 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
                         >
                           Complete
                         </button>
