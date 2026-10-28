@@ -543,6 +543,7 @@ model Task {
   customer     Customer? @relation(fields: [customerId], references: [id])
   company      Company?  @relation(fields: [companyId], references: [id])
   meeting      Meeting?  @relation("MeetingFollowUpTasks", fields: [meetingId], references: [id])
+  rescheduleHistory TaskRescheduleHistory[]
 
   activities Activity[]
 
@@ -826,4 +827,20 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+
+model TaskRescheduleHistory {
+  id             Int      @id @default(autoincrement())
+  taskId         Int
+  previousDueAt  DateTime
+  newDueAt       DateTime
+  rescheduledById Int
+  note           String?
+  createdAt      DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@map("task_reschedule_history")
 }

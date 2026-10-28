@@ -64,6 +64,10 @@ export function parseTaskInput(
     data.dueAt = dueAt
   }
 
+  if ('rescheduleNote' in body && typeof body.rescheduleNote === 'string') {
+    data.rescheduleNote = body.rescheduleNote.trim() || null
+  }
+
   if ('priority' in body) {
     if (!priorities.includes(body.priority as Priority)) {
       throw new TaskValidationError(

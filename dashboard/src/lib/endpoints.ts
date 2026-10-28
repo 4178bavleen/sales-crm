@@ -57,11 +57,18 @@ export const ENDPOINTS = {
   tasks: {
     list: "/tasks",
     options: "/tasks/options",
+    followUpStats: "/tasks/follow-up-stats",
     byId: (id: number) => `/tasks/${id}`,
     create: "/tasks",
     update: (id: number) => `/tasks/${id}`,
     updateStatus: (id: number) => `/tasks/${id}/status`,
     delete: (id: number) => `/tasks/${id}`,
+  },
+
+  activities: {
+    list: "/activities",
+    byId: (id: number) => `/activities/${id}`,
+    create: "/activities",
   },
 
   deals: {

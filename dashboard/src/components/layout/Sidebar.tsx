@@ -5,6 +5,7 @@ import {
   Building2,
   UserRound,
   CheckSquare,
+  CalendarClock,
   CalendarDays,
   Calendar,
   GitFork,
@@ -31,6 +32,7 @@ const primaryNav = [
 ];
 
 const salesNav = [
+  { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock },
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
   { name: "Meetings", path: "/meetings", icon: CalendarDays },
   { name: "Deals & Pipeline", path: "/deals", icon: GitFork },

@@ -1,5 +1,6 @@
+import { PrismaClient } from '../../src/generated/prisma/client.js'
 
-import { prisma } from '../../src/config/database.js'
+const prisma = new PrismaClient()
 
 const roles = [
   { name: 'ADMIN', description: 'Full system administration' },
@@ -8,50 +9,49 @@ const roles = [
   { name: 'REPORT_VIEWER', description: 'Read-only reporting access' },
 ]
 
-const permissionDefinitions = [
-  ['dashboard.view', 'View dashboard'],
+const permissions = [
+  ['users.view', 'View users'],
+  ['users.create', 'Create users'],
+  ['users.edit', 'Edit users'],
+  ['users.delete', 'Delete users'],
+  ['roles.view', 'View roles and permissions'],
+  ['roles.manage', 'Manage roles and permissions'],
   ['leads.view', 'View leads'],
   ['leads.create', 'Create leads'],
   ['leads.edit', 'Edit leads'],
   ['leads.delete', 'Delete leads'],
-  ['leads.assign', 'Assign leads'],
+  ['leads.import', 'Import leads'],
+  ['leads.export', 'Export leads'],
+  ['deals.view', 'View deals and pipelines'],
+  ['deals.create', 'Create deals'],
+  ['deals.edit', 'Edit deals'],
+  ['deals.delete', 'Delete deals'],
+  ['deals.move', 'Move deals between stages'],
   ['contacts.view', 'View contacts'],
   ['contacts.create', 'Create contacts'],
   ['contacts.edit', 'Edit contacts'],
   ['contacts.delete', 'Delete contacts'],
-  ['companies.view', 'View companies'],
-  ['companies.create', 'Create companies'],
-  ['companies.edit', 'Edit companies'],
-  ['companies.delete', 'Delete companies'],
-  ['deals.view', 'View deals'],
-  ['deals.create', 'Create deals'],
-  ['deals.edit', 'Edit deals'],
-  ['deals.delete', 'Delete deals'],
   ['tasks.view', 'View tasks'],
   ['tasks.create', 'Create tasks'],
   ['tasks.edit', 'Edit tasks'],
   ['tasks.delete', 'Delete tasks'],
+  ['activities.view', 'View activities'],
+  ['activities.create', 'Create activities'],
+  ['targets.view', 'View sales targets'],
+  ['targets.create', 'Create sales targets'],
+  ['targets.edit', 'Edit sales targets'],
+  ['targets.delete', 'Delete sales targets'],
   ['meetings.view', 'View meetings'],
   ['meetings.create', 'Create meetings'],
   ['meetings.edit', 'Edit meetings'],
   ['meetings.delete', 'Delete meetings'],
-  ['targets.view', 'View targets'],
-  ['targets.create', 'Create targets'],
-  ['targets.edit', 'Edit targets'],
-  ['targets.delete', 'Delete targets'],
   ['reports.view', 'View reports'],
   ['reports.export', 'Export reports'],
-  ['users.view', 'View users'],
-  ['users.create', 'Create users'],
-  ['users.edit', 'Edit users'],
-  ['users.deactivate', 'Deactivate users'],
-  ['permissions.view', 'View roles and permissions'],
-  ['permissions.manage', 'Manage role permissions'],
   ['products_services.view', 'View products and services'],
   ['products_services.create', 'Create products and services'],
   ['products_services.edit', 'Edit products and services'],
   ['products_services.delete', 'Delete products and services'],
-] as const
+]
 
 export async function seedPermissions() {
   for (const role of roles) {
@@ -62,7 +62,7 @@ export async function seedPermissions() {
     })
   }
 
-  for (const [code, description] of permissionDefinitions) {
+  for (const [code, description] of permissions) {
     await prisma.permission.upsert({
       where: { code },
       update: { description },
@@ -70,17 +70,21 @@ export async function seedPermissions() {
     })
   }
 
-  const admin = await prisma.role.findUniqueOrThrow({
+  const admin = await prisma.role.findUnique({
     where: { name: 'ADMIN' },
     select: { id: true },
   })
 
-  const permissions = await prisma.permission.findMany({
+  if (!admin) {
+    throw new Error('ADMIN role not found after seed')
+  }
+
+  const allPermissions = await prisma.permission.findMany({
     select: { id: true },
   })
 
   await prisma.rolePermission.createMany({
-    data: permissions.map((permission) => ({
+    data: allPermissions.map((permission) => ({
       roleId: admin.id,
       permissionId: permission.id,
     })),
@@ -91,11 +95,18 @@ export async function seedPermissions() {
     where: { name: 'SALES_MANAGER' },
     select: { id: true },
   })
+
   if (salesManager) {
     const managerPerms = await prisma.permission.findMany({
       where: {
         code: {
           in: [
+            'tasks.view',
+            'tasks.create',
+            'tasks.edit',
+            'tasks.delete',
+            'activities.view',
+            'activities.create',
             'targets.view',
             'targets.create',
             'targets.edit',
@@ -114,6 +125,7 @@ export async function seedPermissions() {
       },
       select: { id: true },
     })
+
     await prisma.rolePermission.createMany({
       data: managerPerms.map((p) => ({
         roleId: salesManager.id,
@@ -127,13 +139,29 @@ export async function seedPermissions() {
     where: { name: 'SALES_EMPLOYEE' },
     select: { id: true },
   })
+
   if (salesEmployee) {
     const empPerms = await prisma.permission.findMany({
       where: {
-        code: { in: ['targets.view', 'meetings.view', 'meetings.create', 'meetings.edit', 'products_services.view'] },
+        code: {
+          in: [
+            'tasks.view',
+            'tasks.create',
+            'tasks.edit',
+            'tasks.delete',
+            'activities.view',
+            'activities.create',
+            'targets.view',
+            'meetings.view',
+            'meetings.create',
+            'meetings.edit',
+            'products_services.view',
+          ],
+        },
       },
       select: { id: true },
     })
+
     await prisma.rolePermission.createMany({
       data: empPerms.map((p) => ({
         roleId: salesEmployee.id,
@@ -142,26 +170,4 @@ export async function seedPermissions() {
       skipDuplicates: true,
     })
   }
-
-  const reportViewer = await prisma.role.findUnique({
-    where: { name: 'REPORT_VIEWER' },
-    select: { id: true },
-  })
-  if (reportViewer) {
-    const viewerPerms = await prisma.permission.findMany({
-      where: {
-        code: { in: ['reports.view', 'reports.export', 'dashboard.view'] },
-      },
-      select: { id: true },
-    })
-    await prisma.rolePermission.createMany({
-      data: viewerPerms.map((p) => ({
-        roleId: reportViewer.id,
-        permissionId: p.id,
-      })),
-      skipDuplicates: true,
-    })
-  }
-
-  console.log(`✅ Seeded ${permissionDefinitions.length} permissions.`)
 }
