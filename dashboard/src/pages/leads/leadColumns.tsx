@@ -52,17 +52,16 @@ export const leadDetailFields: LeadField[] = [
 
 /** Flat string fields for CSV export. */
 export const leadCsvFields: LeadCsvField[] = [
-  { label: "First Name", get: lead => lead.firstName },
-  { label: "Last Name", get: lead => lead.lastName },
-  { label: "Company", get: lead => lead.company },
-  { label: "Email", get: lead => lead.email },
-  { label: "Phone", get: lead => lead.phone },
-  { label: "Lead Source", get: lead => lead.source },
-  { label: "Lead Owner", get: lead => lead.owner },
-  { label: "Lead Status", get: lead => lead.status },
+  { label: "Lead Name", get: lead => `${lead.firstName} ${lead.lastName}`.trim() },
+  { label: "Company", get: lead => lead.company || "" },
+  { label: "Email", get: lead => lead.email || "" },
+  { label: "Phone", get: lead => lead.phone || "" },
+  { label: "Lead Source", get: lead => lead.source || "" },
+  { label: "Status", get: lead => lead.status },
   { label: "Priority", get: lead => lead.priority },
-  { label: "Next Follow-up", get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? "No follow-up needed" : "—") },
-  { label: "Created At", get: lead => lead.createdAt },
+  { label: "Owner", get: lead => lead.owner || "" },
+  { label: "Next Follow-up", get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? "No follow-up" : "") },
+  { label: "Notes", get: lead => lead.notes || "" },
 ];
 
 export const leadColumns: LeadColumn[] = [

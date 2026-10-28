@@ -348,7 +348,14 @@ export async function fetchLeadOptions(): Promise<LeadOptionsData> {
 export type ImportPreviewResponse = {
   totalRows: number;
   duplicateCount: number;
-  duplicates: Array<{ rowNumber: number; duplicateOfRow: number; field: string; value: string }>;
+  duplicates: Array<{
+    rowNumber: number;
+    duplicateOfRow?: number;
+    duplicateOfLeadId?: number;
+    field: string;
+    value: string;
+    reason?: string;
+  }>;
   rows: Array<{ rowNumber: number; data: Record<string, unknown> }>;
 };
 

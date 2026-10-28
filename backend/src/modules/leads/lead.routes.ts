@@ -17,15 +17,10 @@ import { requirePermission } from '../permission/permission.middleware.js'
 import {
   uploadLeadImportFile,
   previewLeadImport,
-} from "./import/lead-import.controller";
-
-import {
   confirmLeadImportController,
-} from "./import/lead-import.controller";
-
+} from "./import/lead-import.controller.js";
 
 const router = Router()
-
 
 router.use(authenticateToken)
 router.post('/',  requirePermission('leads.create'), createLead)
@@ -40,7 +35,6 @@ router.patch('/:id/status', requirePermission('leads.edit'), changeLeadStatus)
 
 router.post(
   "/import/preview",
-  authenticateToken,
   requirePermission("leads.create"),
   uploadLeadImportFile,
   previewLeadImport,
@@ -48,7 +42,6 @@ router.post(
 
 router.post(
   "/import/confirm",
-  authenticateToken,
   requirePermission("leads.create"),
   confirmLeadImportController,
 );
