@@ -156,7 +156,7 @@ export async function createLead(
       priority: input.priority,
       status: input.status,
       notes: input.notes || null,
-      ownerId: input.ownerId ?? null,
+      ownerId: input.ownerId ?? actorId,
       nextFollowUpAt: input.nextFollowUpAt ?? null,
       noFollowUpReasonId: input.noFollowUpReasonId ?? null,
       createdById: actorId,
@@ -230,7 +230,11 @@ export async function getLeads(input: ListLeadsInput) {
   ])
 
   return {
-    leads,
+    leads: leads.map((lead) => ({
+      ...lead,
+      ownerId: lead.ownerId ?? lead.createdById,
+      owner: lead.owner ?? lead.createdBy,
+    })),
     pagination: {
       page,
       limit,
@@ -317,7 +321,11 @@ export async function getLeadById(id: number) {
     throw new LeadServiceError('Lead not found', 404)
   }
 
-  return lead
+  return {
+    ...lead,
+    ownerId: lead.ownerId ?? lead.createdById,
+    owner: lead.owner ?? lead.createdBy,
+  }
 }
 
 export async function updateLead(

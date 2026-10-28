@@ -50,6 +50,7 @@ import {
   leadColumns,
   leadCsvFields,
   leadColumnOptions,
+  formatDate,
 } from "./leadColumns";
 import TableSettings from "../../components/ui/TableSettings";
 import type { LeadsFilter } from "../../types/leadsPage";
@@ -58,6 +59,8 @@ import AssignLeadDialog from "../../components/ui/AssignLeadDialog";
 import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import ImportPreviewModal from "../../components/ui/ImportPreviewModal";
+import ImportModal from "../../components/ui/ImportModal";
+import LeadDeleteDialog from "../../components/ui/LeadDeleteDialog";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import { useSession } from "../../lib/useSession";
 
@@ -95,6 +98,7 @@ export default function Leads() {
   const urlLeadId = searchParams.get("leadId") || searchParams.get("id");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
+  const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const [rawOwners, setRawOwners] = useState<{ id: number; name: string; email?: string }[]>([]);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -173,6 +177,7 @@ export default function Leads() {
     data: ImportPreviewResponse;
   } | null>(null);
   const [importResult, setImportResult] = useState<ImportConfirmResponse | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -580,14 +585,21 @@ export default function Leads() {
     }
   }
 
-  async function deleteLead(id: number) {
+  async function handleConfirmDeleteLead(lead: Lead) {
     try {
-      await deleteLeadApi(id);
-      setLeads(previous => previous.filter(lead => lead.id !== id));
-      setSelectedIds(previous => previous.filter(item => item !== id));
-      setDetailLead(null);
+      await deleteLeadApi(lead.id);
+      setLeads(previous => previous.filter(item => item.id !== lead.id));
+      setSelectedIds(previous => previous.filter(item => item !== lead.id));
+      if (detailLead?.id === lead.id) setDetailLead(null);
+      setToastMessage({
+        type: "success",
+        message: `Lead "${lead.firstName} ${lead.lastName}".trim() was successfully deleted.`,
+      });
     } catch (err) {
       console.error("Failed to delete lead:", err);
+      const msg = err instanceof Error ? err.message : "Failed to delete lead";
+      setToastMessage({ type: "error", message: msg });
+      throw err;
     }
   }
 
@@ -613,16 +625,16 @@ export default function Leads() {
 
   function exportExcel() {
     const data = filteredLeads.map(lead => ({
-      "First Name": lead.firstName,
-      "Last Name": lead.lastName,
-      "Company": lead.company,
+      "Lead Name": `${lead.firstName} ${lead.lastName}`.trim(),
+      "Company": lead.company || "",
       "Email": lead.email || "",
       "Phone": lead.phone || "",
-      "Lead Source": lead.source,
-      "Lead Owner": lead.owner,
-      "Lead Status": lead.status,
+      "Lead Source": lead.source || "",
+      "Status": lead.status,
       "Priority": lead.priority,
-      "Created At": lead.createdAt,
+      "Owner": lead.owner || "",
+      "Next Follow-up": lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? "No follow-up" : ""),
+      "Notes": lead.notes || "",
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -630,11 +642,106 @@ export default function Leads() {
     XLSX.writeFile(workbook, "sales-crm-leads.xlsx");
   }
 
-  function triggerImport(acceptType: ".csv" | ".xlsx, .xls" | ".csv, .xlsx, .xls") {
-    if (fileInputRef.current) {
-      fileInputRef.current.accept = acceptType;
-      fileInputRef.current.click();
+  function downloadSampleTemplate(format: "xlsx" | "csv") {
+    const headers = [
+      "Lead Name",
+      "Company",
+      "Email",
+      "Phone",
+      "Lead Source",
+      "Status",
+      "Priority",
+      "Owner",
+      "Next Follow-up",
+      "Notes",
+    ];
+
+    const sampleRows = [
+      [
+        "John Doe",
+        "Acme Corp",
+        "john.doe@example.com",
+        "5550192834",
+        "Website",
+        "NEW",
+        "HIGH",
+        "admin",
+        "2026-11-15",
+        "Interested in enterprise CRM platform",
+      ],
+      [
+        "Jane Smith",
+        "Global Logistics",
+        "jane.smith@example.com",
+        "5550149872",
+        "Referral",
+        "CONTACTED",
+        "MEDIUM",
+        "admin",
+        "2026-11-20",
+        "Requested callback next Tuesday",
+      ],
+    ];
+
+    if (format === "csv") {
+      const csvContent = [
+        headers.join(","),
+        ...sampleRows.map((row) =>
+          row.map((val) => `"${val.replace(/"/g, '""')}"`).join(","),
+        ),
+      ].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "leads_import_template.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+      ws["!cols"] = [
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 26 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 35 },
+        { wch: 16 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Leads Template");
+      XLSX.writeFile(wb, "leads_import_template.xlsx");
     }
+  }
+
+  async function handleFileFromModal(file: File) {
+    setShowImportModal(false);
+    try {
+      setLoading(true);
+      setApiError(null);
+      const previewData = await previewLeadImportFile(file);
+      if (!previewData.rows || previewData.rows.length === 0) {
+        throw new Error("No data rows found in the selected file.");
+      }
+      setImportPreview({
+        file,
+        data: previewData,
+      });
+    } catch (err) {
+      console.error("Preview failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to parse import file";
+      setApiError(msg);
+      setToastMessage({ type: "error", message: msg });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function triggerImport() {
+    setShowImportModal(true);
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -653,7 +760,9 @@ export default function Leads() {
       });
     } catch (err) {
       console.error("Preview failed:", err);
-      setApiError(err instanceof Error ? err.message : "Failed to parse import file");
+      const msg = err instanceof Error ? err.message : "Failed to parse import file";
+      setApiError(msg);
+      setToastMessage({ type: "error", message: msg });
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -662,10 +771,30 @@ export default function Leads() {
 
   async function handleConfirmImport() {
     if (!importPreview) return;
-    const res = await confirmLeadImportRows(importPreview.data.rows);
-    setImportPreview(null);
-    await refreshLeads();
-    setImportResult(res);
+    try {
+      const res = await confirmLeadImportRows(importPreview.data.rows);
+      setImportPreview(null);
+      await refreshLeads();
+      setImportResult(res);
+      if (res.created > 0) {
+        setToastMessage({
+          type: "success",
+          message: `Imported ${res.created} lead${res.created === 1 ? "" : "s"}${
+            res.duplicates > 0 ? ` (${res.duplicates} duplicates skipped)` : ""
+          }`,
+        });
+      } else if (res.duplicates > 0) {
+        setToastMessage({
+          type: "error",
+          message: `All ${res.duplicates} rows were duplicates and skipped.`,
+        });
+      }
+    } catch (err) {
+      console.error("Confirm import failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to import leads";
+      setToastMessage({ type: "error", message: msg });
+      throw err;
+    }
   }
 
   // Full-page create / edit form
@@ -770,29 +899,18 @@ export default function Leads() {
 
                 <div className="my-1 border-t border-slate-100" />
                 <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Import Options
+                  Import Leads
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     setShowMoreMenu(false);
-                    triggerImport(".csv");
+                    triggerImport();
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
-                  <Upload size={14} className="text-slate-400" />
-                  Import CSV (.csv)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMoreMenu(false);
-                    triggerImport(".xlsx, .xls");
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <FileSpreadsheet size={14} className="text-emerald-600" />
-                  Import Excel (.xlsx)
+                  <Upload size={14} className="text-[#1d61e7]" />
+                  Import Leads
                 </button>
               </div>
             )}
@@ -1229,7 +1347,7 @@ export default function Leads() {
               <div className="my-1 border-t border-slate-100" />
               <button
                 type="button"
-                onClick={() => deleteLead(lead.id)}
+                onClick={() => setDeletingLead(lead)}
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
               >
                 <Trash2 size={13} className="text-rose-500" />
@@ -1342,6 +1460,22 @@ export default function Leads() {
         </div>
       )}
 
+      {/* Delete Lead Confirmation Dialog */}
+      <LeadDeleteDialog
+        lead={deletingLead}
+        isOpen={Boolean(deletingLead)}
+        onClose={() => setDeletingLead(null)}
+        onConfirm={handleConfirmDeleteLead}
+      />
+
+      {/* Import Modal with Template Prompt */}
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onFileSelect={handleFileFromModal}
+        onDownloadTemplate={downloadSampleTemplate}
+      />
+
       {/* Import Preview Modal */}
       {importPreview && (
         <ImportPreviewModal
@@ -1349,6 +1483,7 @@ export default function Leads() {
           previewData={importPreview.data}
           onClose={() => setImportPreview(null)}
           onConfirm={handleConfirmImport}
+          onDownloadTemplate={downloadSampleTemplate}
         />
       )}
 

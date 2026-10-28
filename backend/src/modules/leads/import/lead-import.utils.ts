@@ -21,6 +21,7 @@ export const ALLOWED_IMPORT_HEADERS = [
   "notes",
   "nextFollowUpAt",
   "noFollowUpReasonId",
+  "ownerId",
 ];
 
 const HEADER_MAP: Record<string, string> = {
@@ -28,17 +29,39 @@ const HEADER_MAP: Record<string, string> = {
   contact: "contactName",
   name: "contactName",
   fullname: "contactName",
+  leadname: "contactName",
+  lead: "contactName",
+  clientname: "contactName",
+  customername: "contactName",
+  personname: "contactName",
   firstname: "firstName",
   first: "firstName",
+  fname: "firstName",
   lastname: "lastName",
   last: "lastName",
+  lname: "lastName",
   companyname: "companyName",
   company: "companyName",
+  organization: "companyName",
+  organizationname: "companyName",
+  org: "companyName",
+  business: "companyName",
+  businessname: "companyName",
+  firm: "companyName",
   phone: "phone",
   phonenumber: "phone",
   mobile: "phone",
+  mobilenumber: "phone",
+  telephone: "phone",
+  tel: "phone",
+  cell: "phone",
+  cellphone: "phone",
+  contactnumber: "phone",
   email: "email",
   emailaddress: "email",
+  emailid: "email",
+  mail: "email",
+  mailid: "email",
   sourceid: "sourceId",
   source: "sourceId",
   leadsource: "sourceId",
@@ -46,16 +69,36 @@ const HEADER_MAP: Record<string, string> = {
   productservice: "productServiceId",
   product: "productServiceId",
   service: "productServiceId",
+  productname: "productServiceId",
+  servicename: "productServiceId",
   priority: "priority",
   notes: "notes",
   note: "notes",
+  remark: "notes",
+  remarks: "notes",
+  comment: "notes",
+  comments: "notes",
+  description: "notes",
   status: "status",
   leadstatus: "status",
+  stage: "status",
+  leadstage: "status",
   nextfollowupat: "nextFollowUpAt",
   nextfollowup: "nextFollowUpAt",
+  nextfollowupdate: "nextFollowUpAt",
+  followup: "nextFollowUpAt",
   followupdate: "nextFollowUpAt",
   nofollowupreasonid: "noFollowUpReasonId",
   nofollowupreason: "noFollowUpReasonId",
+  owner: "ownerId",
+  ownername: "ownerId",
+  ownerid: "ownerId",
+  leadowner: "ownerId",
+  assignedto: "ownerId",
+  assigneduser: "ownerId",
+  assignee: "ownerId",
+  agent: "ownerId",
+  salesrep: "ownerId",
 };
 
 export interface ParsedImportRow {
@@ -65,9 +108,11 @@ export interface ParsedImportRow {
 
 export interface FileDuplicate {
   rowNumber: number;
-  duplicateOfRow: number;
-  field: "email" | "phone";
+  duplicateOfRow?: number;
+  duplicateOfLeadId?: number;
+  field: string;
   value: string;
+  reason?: string;
 }
 
 export interface ParsedImportFile {
@@ -91,15 +136,16 @@ function normalizeHeader(header: unknown): string {
   return HEADER_MAP[clean] || clean;
 }
 
-function normalizeEmail(value: unknown): string | undefined {
+export function normalizeEmail(value: unknown): string | undefined {
   if (value === null || value === undefined || value === "") {
     return undefined;
   }
 
-  return String(value).trim().toLowerCase();
+  const str = String(value).trim().toLowerCase();
+  return str || undefined;
 }
 
-function normalizePhone(value: unknown): string | undefined {
+export function normalizePhone(value: unknown): string | undefined {
   if (value === null || value === undefined || value === "") {
     return undefined;
   }
@@ -130,8 +176,16 @@ function normalizeCellValue(
     return trimmed === "" ? undefined : trimmed;
   }
 
+  if (typeof value === "number") {
+    if (header === "phone") {
+      return String(Math.floor(value));
+    }
+    return value;
+  }
+
   // Excel may represent dates as JavaScript Date objects.
   if (value instanceof Date) {
+    if (isNaN(value.getTime())) return undefined;
     if (header === "nextFollowUpAt") {
       return value.toISOString();
     }
@@ -243,16 +297,18 @@ export function parseLeadImportFile(
       return;
     }
 
-    if (!record.contactName) {
+    if (record.contactName && String(record.contactName).trim() !== "") {
+      record.contactName = String(record.contactName).trim();
+    } else {
       const parts = [record.firstName, record.lastName].filter(Boolean);
       if (parts.length > 0) {
-        record.contactName = parts.join(" ");
+        record.contactName = parts.map((p) => String(p).trim()).join(" ");
       } else if (record.companyName || record.company) {
-        record.contactName = String(record.companyName || record.company);
+        record.contactName = String(record.companyName || record.company).trim();
       } else if (record.email) {
         record.contactName = String(record.email).split("@")[0] || "Unknown Lead";
       } else if (record.phone) {
-        record.contactName = String(record.phone);
+        record.contactName = String(record.phone).trim();
       } else {
         record.contactName = `Imported Lead #${index + 1}`;
       }

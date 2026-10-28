@@ -56,8 +56,8 @@ export function toLead(backendLead: BackendLead): Lead {
     source: backendLead.source?.name || "Unknown",
     sourceId: backendLead.sourceId ?? backendLead.source?.id ?? null,
     productService: backendLead.productService?.name || undefined,
-    owner: backendLead.owner?.name || "Unassigned",
-    ownerId: backendLead.ownerId ?? backendLead.owner?.id ?? null,
+    owner: backendLead.owner?.name || backendLead.createdBy?.name || "Unassigned",
+    ownerId: backendLead.ownerId ?? backendLead.owner?.id ?? backendLead.createdById ?? null,
     status: backendLead.status,
     priority: backendLead.priority,
     createdAt: backendLead.createdAt ? backendLead.createdAt.slice(0, 10) : "",
@@ -348,7 +348,14 @@ export async function fetchLeadOptions(): Promise<LeadOptionsData> {
 export type ImportPreviewResponse = {
   totalRows: number;
   duplicateCount: number;
-  duplicates: Array<{ rowNumber: number; duplicateOfRow: number; field: string; value: string }>;
+  duplicates: Array<{
+    rowNumber: number;
+    duplicateOfRow?: number;
+    duplicateOfLeadId?: number;
+    field: string;
+    value: string;
+    reason?: string;
+  }>;
   rows: Array<{ rowNumber: number; data: Record<string, unknown> }>;
 };
 

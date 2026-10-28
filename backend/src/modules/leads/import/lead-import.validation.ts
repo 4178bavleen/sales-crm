@@ -2,23 +2,27 @@
 import { z } from 'zod'
 
 const optionalText = (max: number) =>
-  z.string()
-    .trim()
-    .max(max)
-    .optional()
-    .transform((value) => value || undefined)
+  z.preprocess(
+    (value) => {
+      if (value === null || value === undefined || value === "") return undefined;
+      const str = String(value).trim();
+      return str === "" ? undefined : str;
+    },
+    z.string().max(max).optional(),
+  )
 
 const optionalPositiveInt = z.preprocess(
-  (value) =>
-    value === '' || value === undefined || value === null
-      ? undefined
-      : Number(value),
+  (value) => {
+    if (value === "" || value === undefined || value === null) return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+  },
   z.number().int().positive().optional(),
 )
 
 const optionalDate = z.preprocess(
   (value) => {
-    if (value === '' || value === undefined || value === null) return undefined;
+    if (value === "" || value === undefined || value === null) return undefined;
     const d = new Date(value as string | number | Date);
     return isNaN(d.getTime()) ? undefined : d;
   },
@@ -26,36 +30,56 @@ const optionalDate = z.preprocess(
 )
 
 export const importedLeadRowSchema = z.object({
-  contactName: z.string().trim().min(1).max(150),
+  contactName: z.preprocess(
+    (value) => (value === null || value === undefined ? "" : String(value).trim()),
+    z.string().min(1, "Contact name is required").max(150),
+  ),
 
   companyName: optionalText(150),
   phone: optionalText(30),
 
   email: z.preprocess(
-    (value) =>
-      typeof value === 'string' && !value.trim()
-        ? undefined
-        : value,
-    z.string().trim().email().max(254).optional(),
+    (value) => {
+      if (value === null || value === undefined || value === "") return undefined;
+      const str = String(value).trim().toLowerCase();
+      return str === "" ? undefined : str;
+    },
+    z.string().email("Invalid email format").max(254).optional(),
   ),
 
   sourceId: optionalPositiveInt,
   productServiceId: optionalPositiveInt,
 
+  ownerId: z.preprocess(
+    (value) => (value === "" || value === undefined || value === null ? undefined : value),
+    z.union([z.number().int().positive(), z.string()]).optional(),
+  ),
+  owner: optionalText(150),
+  leadOwner: optionalText(150),
+
   priority: z.preprocess(
-    (value) =>
-      value === '' || value === undefined || value === null
-        ? 'MEDIUM'
-        : String(value).trim().toUpperCase(),
-    z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+    (value) => {
+      if (value === "" || value === undefined || value === null) return "MEDIUM";
+      const str = String(value).trim().toUpperCase();
+      if (str.includes("URGENT")) return "URGENT";
+      if (str.includes("HIGH")) return "HIGH";
+      if (str.includes("LOW")) return "LOW";
+      return "MEDIUM";
+    },
+    z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
   ),
 
   status: z.preprocess(
-    (value) =>
-      value === '' || value === undefined || value === null
-        ? 'NEW'
-        : String(value).trim().toUpperCase(),
-    z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']).default('NEW'),
+    (value) => {
+      if (value === "" || value === undefined || value === null) return "NEW";
+      const str = String(value).trim().toUpperCase();
+      if (str.includes("CONTACT")) return "CONTACTED";
+      if (str.includes("DISQUAL")) return "DISQUALIFIED";
+      if (str.includes("CONVERT") || str.includes("WON")) return "CONVERTED";
+      if (str.includes("QUALIF")) return "QUALIFIED";
+      return "NEW";
+    },
+    z.enum(["NEW", "CONTACTED", "QUALIFIED", "DISQUALIFIED", "CONVERTED"]).default("NEW"),
   ),
 
   notes: optionalText(5000),
