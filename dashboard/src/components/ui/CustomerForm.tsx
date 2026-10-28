@@ -201,7 +201,7 @@ export default function CustomerForm({
                 {/* Primary Contact */}
                 <div>
                   <label className="block text-xs font-bold text-slate-900 mb-1.5">
-                    Primary Key Contact
+                    Account Owner
                   </label>
                   <div className="relative">
                     <UserRound
@@ -230,7 +230,7 @@ export default function CustomerForm({
                 {/* Account Owner */}
                 <div>
                   <label className="block text-xs font-bold text-slate-900 mb-1.5">
-                    Account Owner
+                    Deal Owner
                   </label>
                   <div className="relative">
                     <Handshake
