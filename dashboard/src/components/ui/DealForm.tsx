@@ -11,7 +11,7 @@ import {
   Trophy,
   XCircle,
   AlertCircle,
-  IndianRupee,
+  
 } from "lucide-react";
 import type { DealFormValues, DealStatus } from "../../types/deal";
 import type { DealFormProps, DealOptionsData } from "../../types/dealForm";
