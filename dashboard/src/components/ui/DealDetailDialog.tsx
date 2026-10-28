@@ -1,4 +1,4 @@
-import { X, CircleDollarSign } from "lucide-react";
+import { X, IndianRupee } from "lucide-react";
 import type { DealDetailDialogProps } from "../../types/dealUi";
 import {
   dealDetailFields,
@@ -57,7 +57,7 @@ export default function DealDetailDialog({
           {/* Identity + status + value */}
           <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
-              <CircleDollarSign size={22} />
+              <IndianRupee size={22} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-bold text-slate-950">{deal.name}</p>

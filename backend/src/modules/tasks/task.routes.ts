@@ -5,6 +5,7 @@ import {
   createTaskController,
   deleteTaskController,
   getTaskController,
+  getFollowUpStatsController,
   getTaskOptionsController,
   listTasksController,
   updateTaskController,
@@ -18,6 +19,7 @@ router.use(authenticateToken)
 router.post('/', requirePermission('tasks.create'), createTaskController)
 router.get('/', requirePermission('tasks.view'), listTasksController)
 router.get('/options', requirePermission('tasks.view'), getTaskOptionsController)
+router.get('/follow-up-stats', requirePermission('tasks.view'), getFollowUpStatsController)
 router.get('/:id', requirePermission('tasks.view'), getTaskController)
 router.patch('/:id', requirePermission('tasks.edit'), updateTaskController)
 router.patch(

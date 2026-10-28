@@ -1,7 +1,7 @@
 import {
   Building2,
   CalendarDays,
-  CircleDollarSign,
+  IndianRupee,
   Handshake,
   Layers,
   ListChecks,
@@ -26,11 +26,11 @@ export function formatDealDate(date: string) {
   });
 }
 
-/** Compact USD formatting (whole dollars — pipeline values, not cents). */
+/** Compact INR formatting (whole rupees — pipeline values, not paise). */
 export function formatCurrency(value: number) {
-  return value.toLocaleString("en-US", {
+  return (Number(value) || 0).toLocaleString("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
   });
 }
@@ -61,7 +61,7 @@ export const dealDetailFields: DealField[] = [
   { label: "Stage", Icon: Layers, get: deal => deal.stage || "—" },
   {
     label: "Estimated Value",
-    Icon: CircleDollarSign,
+    Icon: IndianRupee,
     get: deal => formatCurrency(deal.estimatedValue),
   },
   {
@@ -135,7 +135,7 @@ export const dealColumns: DealColumn[] = [
     cell: deal => (
       <div className="flex items-center gap-2">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[#154fc1]">
-          <CircleDollarSign size={16} />
+          <IndianRupee size={16} />
         </div>
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-[#154fc1] group-hover:underline">
