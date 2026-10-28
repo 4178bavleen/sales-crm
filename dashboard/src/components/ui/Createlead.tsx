@@ -25,11 +25,6 @@ interface SourceItem {
   name: string;
 }
 
-interface ReasonItem {
-  id: number;
-  name: string;
-}
-
 function formatLabel(value: string): string {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase().replace(/_/g, " ");
@@ -47,7 +42,6 @@ export default function CreateLeadModal({
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [statuses, setStatuses] = useState<LeadStatus[]>([]);
   const [priorities, setPriorities] = useState<Priority[]>([]);
-  const [noFollowUpReasons, setNoFollowUpReasons] = useState<ReasonItem[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
 
   // Form field state
@@ -77,15 +71,15 @@ export default function CreateLeadModal({
   const [noFollowUp, setNoFollowUp] = useState<boolean>(
     Boolean(
       initialLead?.noFollowUp ||
-      initialLead?.noFollowUpReasonId ||
+      initialLead?.noFollowUpNote ||
       (initialLead && !initialLead.nextFollowUpAt)
     ),
   );
   const [followUpDate, setFollowUpDate] = useState<string>(
     formatInitialDate(initialLead?.nextFollowUpAt) || "",
   );
-  const [noFollowUpReasonId, setNoFollowUpReasonId] = useState<number | null>(
-    initialLead?.noFollowUpReasonId ?? null,
+  const [noFollowUpNote, setNoFollowUpNote] = useState<string>(
+    initialLead?.noFollowUpNote || "",
   );
 
   const [showErrors, setShowErrors] = useState(false);
@@ -130,15 +124,6 @@ export default function CreateLeadModal({
             setPriority(defaultMed);
           }
         }
-
-        if (data.noFollowUpReasons && data.noFollowUpReasons.length > 0) {
-          setNoFollowUpReasons(data.noFollowUpReasons);
-          if (initialLead?.noFollowUpReasonId != null) {
-            setNoFollowUpReasonId(initialLead.noFollowUpReasonId);
-          } else {
-            setNoFollowUpReasonId(data.noFollowUpReasons[0].id);
-          }
-        }
       })
       .catch(err => {
         if (!cancelled) {
@@ -172,7 +157,7 @@ export default function CreateLeadModal({
   const contactName = `${trimmedFirst} ${trimmedLast}`.trim();
   const nameInvalid = contactName.length < 2;
   const emailInvalid = !!email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const followUpInvalid = !noFollowUp && !followUpDate;
+  const followUpInvalid = (!noFollowUp && !followUpDate) || (noFollowUp && !noFollowUpNote.trim());
 
   // Quick preset helper (calculated dynamically from current datetime)
   const setTomorrowMorning = () => {
@@ -206,11 +191,6 @@ export default function CreateLeadModal({
 
     setIsSubmitting(true);
     try {
-      const resolvedReasonId =
-        noFollowUpReasonId ??
-        initialLead?.noFollowUpReasonId ??
-        (noFollowUpReasons.length > 0 ? noFollowUpReasons[0].id : 1);
-
       const leadPayload: Lead = {
         id: initialLead?.id ?? Date.now(),
         firstName: trimmedFirst,
@@ -228,7 +208,7 @@ export default function CreateLeadModal({
         notes: notes.trim() || undefined,
         nextFollowUpAt: noFollowUp ? undefined : followUpDate || undefined,
         noFollowUp: noFollowUp,
-        noFollowUpReasonId: noFollowUp ? resolvedReasonId : undefined,
+        noFollowUpNote: noFollowUp ? noFollowUpNote.trim() : undefined,
       };
 
       if (isEdit && initialLead && onUpdate) {
@@ -606,6 +586,26 @@ export default function CreateLeadModal({
                   <p className="text-[11px] text-slate-500">Check this box if no future follow-up or reminder is required for this lead.</p>
                 </div>
               </label>
+
+              {noFollowUp && (
+                <div className="mt-3 max-w-md">
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Reason / Note for No Follow-up <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={noFollowUpNote}
+                    onChange={e => setNoFollowUpNote(e.target.value)}
+                    placeholder="Enter reason why no follow-up is needed..."
+                    rows={2}
+                    className={`w-full rounded-xl border bg-white p-3 text-xs text-slate-900 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 ${
+                      showErrors && !noFollowUpNote.trim() ? "border-rose-300 bg-rose-50/20" : "border-slate-200"
+                    }`}
+                  />
+                  {showErrors && !noFollowUpNote.trim() && (
+                    <p className="mt-1 text-[11px] text-rose-600 font-medium">Please enter a reason why no follow-up is needed.</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -711,7 +711,10 @@ export default function CreateLeadModal({
                   <span className="text-[11px] text-slate-500">Next Action:</span>
                   <span className="font-semibold text-slate-900 text-right">
                     {noFollowUp ? (
-                      <span className="text-slate-600">No follow-up needed</span>
+                      <span className="text-slate-600">
+                        No follow-up needed
+                        {noFollowUpNote.trim() ? ` (${noFollowUpNote.trim()})` : ""}
+                      </span>
                     ) : followUpDate ? (
                       new Date(followUpDate).toLocaleString("en-US", {
                         month: "short",

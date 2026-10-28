@@ -29,6 +29,7 @@ export type FormValues = {
   notes: string;
   followUpDate: string;
   noFollowUp: boolean;
+  noFollowUpNote: string;
   website: string;
   industry: string;
   street: string;

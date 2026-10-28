@@ -45,7 +45,7 @@ export const leadDetailFields: LeadField[] = [
   { label: "Phone", Icon: Phone, get: lead => lead.phone || "—" },
   { label: "Lead Owner", Icon: UserRound, get: lead => lead.owner || "Unassigned" },
   { label: "Lead Source", Icon: CircleHelp, get: lead => lead.source || "—" },
-  { label: "Next Follow-up", Icon: CalendarDays, get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? "No follow-up needed" : "—") },
+  { label: "Next Follow-up", Icon: CalendarDays, get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? (lead.noFollowUpNote ? `No follow-up (${lead.noFollowUpNote})` : "No follow-up needed") : "—") },
   { label: "Created Time", Icon: CalendarDays, get: lead => formatDate(lead.createdAt) },
   { label: "Priority", Icon: Clock3, get: lead => lead.priority },
 ];
@@ -60,7 +60,7 @@ export const leadCsvFields: LeadCsvField[] = [
   { label: "Status", get: lead => lead.status },
   { label: "Priority", get: lead => lead.priority },
   { label: "Owner", get: lead => lead.owner || "" },
-  { label: "Next Follow-up", get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? "No follow-up" : "") },
+  { label: "Next Follow-up", get: lead => lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : (lead.noFollowUp ? (lead.noFollowUpNote ? `No follow-up (${lead.noFollowUpNote})` : "No follow-up") : "") },
   { label: "Notes", get: lead => lead.notes || "" },
 ];
 
@@ -173,7 +173,18 @@ export const leadColumns: LeadColumn[] = [
     className: "whitespace-nowrap text-xs text-slate-950 min-w-[130px]",
     cell: lead => {
       if (!lead.nextFollowUpAt) {
-        return <span className="text-slate-600 font-medium italic">{lead.noFollowUp ? "No follow-up" : "—"}</span>;
+        return (
+          <span
+            className="text-slate-600 font-medium italic"
+            title={lead.noFollowUpNote || undefined}
+          >
+            {lead.noFollowUp
+              ? lead.noFollowUpNote
+                ? `No follow-up (${lead.noFollowUpNote})`
+                : "No follow-up"
+              : "—"}
+          </span>
+        );
       }
       return (
         <div className="flex items-center gap-1.5 text-slate-950 font-semibold">

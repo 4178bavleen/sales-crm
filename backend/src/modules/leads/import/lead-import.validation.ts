@@ -84,10 +84,10 @@ export const importedLeadRowSchema = z.object({
 
   notes: optionalText(5000),
   nextFollowUpAt: optionalDate,
-  noFollowUpReasonId: optionalPositiveInt,
+  noFollowUpNote: optionalText(2000),
 }).transform((row) => {
-  if (!row.nextFollowUpAt && row.noFollowUpReasonId === undefined) {
-    row.noFollowUpReasonId = 1
+  if (!row.nextFollowUpAt && !row.noFollowUpNote) {
+    row.noFollowUpNote = "No follow-up needed"
   }
   return row
 })

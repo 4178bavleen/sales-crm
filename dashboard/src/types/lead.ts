@@ -34,8 +34,8 @@ export type Lead = {
   // Prisma-aligned optional fields (stored on Lead / its linked Company)
   notes?: string;
   nextFollowUpAt?: string; // Lead.nextFollowUpAt
-  noFollowUp?: boolean; // -> Lead.noFollowUpReasonId on the backend
-  noFollowUpReasonId?: number | null;
+  noFollowUp?: boolean; // -> Lead.noFollowUpNote on the backend
+  noFollowUpNote?: string | null;
   website?: string; // Company.website
   industry?: string; // Company.industry
   address?: string; // Company.address

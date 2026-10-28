@@ -430,10 +430,10 @@ export async function confirmLeadImport(
       const finalOwnerId =
         resolveOwnerId(rawOwner, users, createdById) ?? createdById;
 
-      // Resolve noFollowUpReasonId
-      let noFollowUpReasonId = data.noFollowUpReasonId;
-      if (!data.nextFollowUpAt && !noFollowUpReasonId && defaultNoFollowUpReason) {
-        noFollowUpReasonId = defaultNoFollowUpReason.id;
+      // Resolve noFollowUpNote
+      let noFollowUpNote = data.noFollowUpNote ?? (row.values.noFollowUpNote ? String(row.values.noFollowUpNote).trim() : null);
+      if (!data.nextFollowUpAt && !noFollowUpNote) {
+        noFollowUpNote = "No follow-up needed";
       }
 
       const companyName = data.companyName ? String(data.companyName).trim() : null;
@@ -454,7 +454,7 @@ export async function confirmLeadImport(
           status: data.status ?? "NEW",
           notes: data.notes ?? null,
           nextFollowUpAt: data.nextFollowUpAt ? new Date(data.nextFollowUpAt) : null,
-          noFollowUpReasonId: noFollowUpReasonId ?? null,
+          noFollowUpNote: noFollowUpNote ?? null,
           createdById,
         },
         select: {

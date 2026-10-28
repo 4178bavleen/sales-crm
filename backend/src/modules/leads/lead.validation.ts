@@ -85,7 +85,7 @@ export const createLeadSchema = z.object({
   notes: optionalText(5000),
   ownerId: z.number().int().positive().nullable().optional(),
   nextFollowUpAt: z.coerce.date().nullable().optional(),
-  noFollowUpReasonId: z.number().int().positive().nullable().optional(),
+  noFollowUpNote: optionalText(2000).nullable(),
 })
 
 export const updateLeadSchema = z.object({
@@ -98,7 +98,7 @@ export const updateLeadSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   notes: z.string().trim().max(5000).nullable().optional(),
   nextFollowUpAt: z.coerce.date().nullable().optional(),
-  noFollowUpReasonId: z.number().int().positive().nullable().optional(),
+  noFollowUpNote: optionalText(2000).nullable(),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: 'Provide at least one field to update' },

@@ -493,7 +493,7 @@ export default function Leads() {
         notes: lead.notes,
         nextFollowUpAt: lead.nextFollowUpAt,
         noFollowUp: lead.noFollowUp,
-        noFollowUpReasonId: lead.noFollowUpReasonId,
+        noFollowUpNote: lead.noFollowUpNote,
       });
       setLeads(previous => [created, ...previous]);
       setShowCreateModal(false);
@@ -519,7 +519,7 @@ export default function Leads() {
         notes: lead.notes,
         nextFollowUpAt: lead.nextFollowUpAt,
         noFollowUp: lead.noFollowUp,
-        noFollowUpReasonId: lead.noFollowUpReasonId,
+        noFollowUpNote: lead.noFollowUpNote,
       });
 
       const existing = leads.find(l => l.id === id);

@@ -233,7 +233,6 @@ model Reason {
   isActive Boolean    @default(true)
 
   disqualifiedLeads Lead[] @relation("LeadDisqualifyReason")
-  noFollowUpLeads   Lead[] @relation("LeadNoFollowUpReason")
   lostDeals         Deal[] @relation("DealLostReason")
   cancelledTasks    Task[] @relation("TaskCancelReason")
 
@@ -367,9 +366,9 @@ model Lead {
   disqualifyNote     String?
   disqualifiedAt     DateTime?
 
-  // every active lead: next follow-up date OR a reason why none is needed
+  // every active lead: next follow-up date OR a note why none is needed
   nextFollowUpAt     DateTime?
-  noFollowUpReasonId Int?
+  noFollowUpNote     String?
 
   // links (filled as the lead matures)
   contactId           Int?
@@ -387,7 +386,6 @@ model Lead {
   createdBy         User            @relation("LeadCreatedBy", fields: [createdById], references: [id])
   owner             User?           @relation("LeadOwner", fields: [ownerId], references: [id])
   disqualifyReason  Reason?         @relation("LeadDisqualifyReason", fields: [disqualifyReasonId], references: [id])
-  noFollowUpReason  Reason?         @relation("LeadNoFollowUpReason", fields: [noFollowUpReasonId], references: [id])
   contact           Contact?        @relation(fields: [contactId], references: [id])
   company           Company?        @relation(fields: [companyId], references: [id])
   convertedCustomer Customer?       @relation(fields: [convertedCustomerId], references: [id])

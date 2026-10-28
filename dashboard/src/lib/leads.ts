@@ -18,7 +18,7 @@ export type BackendLead = {
   createdById: number;
   ownerId: number | null;
   nextFollowUpAt: string | null;
-  noFollowUpReasonId?: number | null;
+  noFollowUpNote?: string | null;
   disqualifyReasonId: number | null;
   disqualifyNote: string | null;
   disqualifiedAt: string | null;
@@ -63,8 +63,8 @@ export function toLead(backendLead: BackendLead): Lead {
     createdAt: backendLead.createdAt ? backendLead.createdAt.slice(0, 10) : "",
     notes: backendLead.notes || undefined,
     nextFollowUpAt: backendLead.nextFollowUpAt || undefined,
-    noFollowUp: !backendLead.nextFollowUpAt || Boolean(backendLead.noFollowUpReasonId),
-    noFollowUpReasonId: backendLead.noFollowUpReasonId ?? null,
+    noFollowUp: !backendLead.nextFollowUpAt || Boolean(backendLead.noFollowUpNote),
+    noFollowUpNote: backendLead.noFollowUpNote ?? null,
   };
 }
 
@@ -150,7 +150,7 @@ export type CreateLeadInput = {
   notes?: string;
   nextFollowUpAt?: string;
   noFollowUp?: boolean;
-  noFollowUpReasonId?: number | null;
+  noFollowUpNote?: string | null;
 };
 
 /**
@@ -202,10 +202,10 @@ export async function createLead(lead: CreateLeadInput): Promise<Lead> {
 
   if (lead.nextFollowUpAt) {
     payload.nextFollowUpAt = new Date(lead.nextFollowUpAt).toISOString();
-    payload.noFollowUpReasonId = null;
-  } else if (lead.noFollowUp || lead.noFollowUpReasonId) {
+    payload.noFollowUpNote = null;
+  } else if (lead.noFollowUp || lead.noFollowUpNote) {
     payload.nextFollowUpAt = null;
-    payload.noFollowUpReasonId = lead.noFollowUpReasonId || 1;
+    payload.noFollowUpNote = lead.noFollowUpNote?.trim() || "No follow-up needed";
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.list, {
@@ -237,10 +237,14 @@ export async function updateLead(id: number, updates: Partial<CreateLeadInput>):
 
   if (updates.nextFollowUpAt) {
     payload.nextFollowUpAt = new Date(updates.nextFollowUpAt).toISOString();
-    payload.noFollowUpReasonId = null;
-  } else if (updates.noFollowUp || updates.noFollowUpReasonId) {
-    payload.nextFollowUpAt = null;
-    payload.noFollowUpReasonId = updates.noFollowUpReasonId || 1;
+    payload.noFollowUpNote = null;
+  } else if (updates.noFollowUp !== undefined || updates.noFollowUpNote !== undefined) {
+    if (updates.noFollowUp || updates.noFollowUpNote) {
+      payload.nextFollowUpAt = null;
+      payload.noFollowUpNote = updates.noFollowUpNote?.trim() || "No follow-up needed";
+    } else {
+      payload.noFollowUpNote = null;
+    }
   }
 
   if (Object.keys(payload).length > 0) {

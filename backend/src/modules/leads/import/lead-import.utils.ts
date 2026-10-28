@@ -20,7 +20,7 @@ export const ALLOWED_IMPORT_HEADERS = [
   "status",
   "notes",
   "nextFollowUpAt",
-  "noFollowUpReasonId",
+  "noFollowUpNote",
   "ownerId",
 ];
 
@@ -88,8 +88,10 @@ const HEADER_MAP: Record<string, string> = {
   nextfollowupdate: "nextFollowUpAt",
   followup: "nextFollowUpAt",
   followupdate: "nextFollowUpAt",
-  nofollowupreasonid: "noFollowUpReasonId",
-  nofollowupreason: "noFollowUpReasonId",
+  nofollowupreasonid: "noFollowUpNote",
+  nofollowupreason: "noFollowUpNote",
+  nofollowupnote: "noFollowUpNote",
+  nofollowup: "noFollowUpNote",
   owner: "ownerId",
   ownername: "ownerId",
   ownerid: "ownerId",
@@ -337,8 +339,8 @@ export function parseLeadImportFile(
       }
     }
 
-    if (!record.nextFollowUpAt && !record.noFollowUpReasonId) {
-      record.noFollowUpReasonId = 1;
+    if (!record.nextFollowUpAt && !record.noFollowUpNote) {
+      record.noFollowUpNote = "No follow-up needed";
     }
 
     rows.push({

@@ -35,6 +35,7 @@ const leadSelect = {
   createdById: true,
   ownerId: true,
   nextFollowUpAt: true,
+  noFollowUpNote: true,
   disqualifyReasonId: true,
   disqualifyNote: true,
   disqualifiedAt: true,
@@ -158,7 +159,7 @@ export async function createLead(
       notes: input.notes || null,
       ownerId: input.ownerId ?? actorId,
       nextFollowUpAt: input.nextFollowUpAt ?? null,
-      noFollowUpReasonId: input.noFollowUpReasonId ?? null,
+      noFollowUpNote: input.noFollowUpNote ?? null,
       createdById: actorId,
     },
     select: leadSelect,
@@ -358,7 +359,7 @@ export async function updateLead(
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
     notes?: string | null
     nextFollowUpAt?: Date | null
-    noFollowUpReasonId?: number | null
+    noFollowUpNote?: string | null
   } = {}
 
   if (input.contactName !== undefined) {
@@ -389,8 +390,8 @@ export async function updateLead(
   if (input.nextFollowUpAt !== undefined) {
     data.nextFollowUpAt = input.nextFollowUpAt
   }
-  if (input.noFollowUpReasonId !== undefined) {
-    data.noFollowUpReasonId = input.noFollowUpReasonId
+  if (input.noFollowUpNote !== undefined) {
+    data.noFollowUpNote = input.noFollowUpNote
   }
 
   return prisma.lead.update({
