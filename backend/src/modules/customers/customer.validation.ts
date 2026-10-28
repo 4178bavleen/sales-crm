@@ -5,7 +5,9 @@ const optionalText = (max: number) =>
 
 export const createCustomerSchema = z.object({
   companyId: z.number().int().positive().nullable().optional(),
+  companyName: z.string().trim().max(200).nullable().optional(),
   primaryContactId: z.number().int().positive().nullable().optional(),
+  primaryContactName: z.string().trim().max(200).nullable().optional(),
   ownerId: z.number().int().positive().nullable().optional(),
   convertedAt: z.coerce.date().optional(),
   notes: optionalText(5000),
@@ -13,7 +15,9 @@ export const createCustomerSchema = z.object({
 
 export const updateCustomerSchema = z.object({
   companyId: z.number().int().positive().nullable().optional(),
+  companyName: z.string().trim().max(200).nullable().optional(),
   primaryContactId: z.number().int().positive().nullable().optional(),
+  primaryContactName: z.string().trim().max(200).nullable().optional(),
   ownerId: z.number().int().positive().nullable().optional(),
   convertedAt: z.coerce.date().optional(),
   notes: z.string().trim().max(5000).nullable().optional(),

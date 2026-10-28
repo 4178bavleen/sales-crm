@@ -31,6 +31,7 @@ import { executeGlobalSearch, matchSystemPages } from "../../lib/search";
 import type {
   SearchCategory,
   SearchLeadResult,
+  SearchCustomerResult,
   SearchContactResult,
   SearchDealResult,
   SearchTaskResult,
@@ -66,6 +67,7 @@ export default function Topbar() {
 
   // Search results
   const [leadResults, setLeadResults] = useState<SearchLeadResult[]>([]);
+  const [customerResults, setCustomerResults] = useState<SearchCustomerResult[]>([]);
   const [contactResults, setContactResults] = useState<SearchContactResult[]>([]);
   const [dealResults, setDealResults] = useState<SearchDealResult[]>([]);
   const [taskResults, setTaskResults] = useState<SearchTaskResult[]>([]);
@@ -140,6 +142,7 @@ export default function Topbar() {
     const trimmed = query.trim();
     if (!trimmed) {
       setLeadResults([]);
+      setCustomerResults([]);
       setContactResults([]);
       setDealResults([]);
       setTaskResults([]);
@@ -152,12 +155,14 @@ export default function Topbar() {
     try {
       const results = await executeGlobalSearch(trimmed, 4);
       setLeadResults(results.leads);
+      setCustomerResults(results.customers);
       setContactResults(results.contacts);
       setDealResults(results.deals);
       setTaskResults(results.tasks);
       setMeetingResults(results.meetings);
     } catch {
       setLeadResults([]);
+      setCustomerResults([]);
       setContactResults([]);
       setDealResults([]);
       setTaskResults([]);
@@ -171,6 +176,7 @@ export default function Topbar() {
   useEffect(() => {
     if (!search.trim()) {
       setLeadResults([]);
+      setCustomerResults([]);
       setContactResults([]);
       setDealResults([]);
       setTaskResults([]);
@@ -191,6 +197,7 @@ export default function Topbar() {
 
   const totalResultsCount =
     leadResults.length +
+    customerResults.length +
     dealResults.length +
     contactResults.length +
     taskResults.length +
@@ -204,6 +211,15 @@ export default function Topbar() {
     if (activeCategory === "ALL" || activeCategory === "PAGES") {
       matchedPages.forEach((p) =>
         list.push({ url: p.path, label: p.name, kind: "Page" })
+      );
+    }
+    if (activeCategory === "ALL" || activeCategory === "CUSTOMERS") {
+      customerResults.forEach((c) =>
+        list.push({
+          url: `/customers?search=${encodeURIComponent(c.company && c.company !== "—" ? c.company : "")}`,
+          label: `${c.company} (Customer)`,
+          kind: "Customer",
+        })
       );
     }
     if (activeCategory === "ALL" || activeCategory === "LEADS") {
@@ -257,6 +273,7 @@ export default function Topbar() {
     activeCategory,
     matchedPages,
     leadResults,
+    customerResults,
     dealResults,
     contactResults,
     taskResults,
@@ -281,6 +298,8 @@ export default function Topbar() {
     // Intelligent default route based on matched categories
     if (matchedPages.length > 0) {
       navigate(matchedPages[0].path);
+    } else if (customerResults.length > 0 && leadResults.length === 0) {
+      navigate(`/customers?search=${encodeURIComponent(query)}`);
     } else if (dealResults.length > 0 && leadResults.length === 0) {
       navigate(`/deals?search=${encodeURIComponent(query)}`);
     } else if (contactResults.length > 0 && leadResults.length === 0) {
@@ -432,6 +451,7 @@ export default function Topbar() {
                   {(
                     [
                       { id: "ALL", label: `All (${totalResultsCount})` },
+                      { id: "CUSTOMERS", label: `Customers (${customerResults.length})` },
                       { id: "LEADS", label: `Leads (${leadResults.length})` },
                       { id: "DEALS", label: `Deals (${dealResults.length})` },
                       { id: "CONTACTS", label: `Contacts (${contactResults.length})` },
@@ -472,7 +492,7 @@ export default function Topbar() {
                         No matches found for "{search}"
                       </p>
                       <p className="mt-0.5 text-[11px] text-slate-400">
-                        Try searching across leads, deals, contacts, tasks, or meetings.
+                        Try searching across customers, leads, deals, contacts, tasks, or meetings.
                       </p>
                     </div>
                   ) : (
@@ -508,6 +528,48 @@ export default function Topbar() {
                                 </button>
                               );
                             })}
+                          </div>
+                        )}
+
+                      {/* CUSTOMERS SECTION */}
+                      {(activeCategory === "ALL" || activeCategory === "CUSTOMERS") &&
+                        customerResults.length > 0 && (
+                          <div className="p-2">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              <span>Customers ({customerResults.length})</span>
+                              <span className="text-blue-600">Client Accounts</span>
+                            </div>
+                            {customerResults.map((cust) => (
+                              <button
+                                key={`cust-${cust.id}`}
+                                type="button"
+                                onClick={() =>
+                                  handleSelectResult(
+                                    `/customers?search=${encodeURIComponent(
+                                      cust.company && cust.company !== "—" ? cust.company : ""
+                                    )}`
+                                  )
+                                }
+                                className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                    <UserRound size={14} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      {cust.company || "Customer"}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      {cust.industry || "General"} &bull; Contact: {cust.primaryContact || "—"} &bull; Owner: {cust.owner || "Unassigned"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                  Customer
+                                </span>
+                              </button>
+                            ))}
                           </div>
                         )}
 
@@ -706,6 +768,13 @@ export default function Topbar() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-400">Search in:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
+                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
+                    >
+                      Customers
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleSelectResult(`/leads?search=${encodeURIComponent(search)}`)}
@@ -1160,6 +1229,28 @@ export default function Topbar() {
                       <span className="text-[10px] font-bold text-purple-600">Page</span>
                     </button>
                   ))}
+                  {customerResults.map((cust) => (
+                    <button
+                      key={`m-cust-${cust.id}`}
+                      type="button"
+                      onClick={() =>
+                        handleSelectResult(
+                          `/customers?search=${encodeURIComponent(
+                            cust.company && cust.company !== "—" ? cust.company : ""
+                          )}`
+                        )
+                      }
+                      className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{cust.company || "Customer"}</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {cust.industry || "General"} &bull; {cust.primaryContact || ""}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-blue-600">Customer</span>
+                    </button>
+                  ))}
                   {leadResults.map((lead) => (
                     <button
                       key={`m-lead-${lead.id}`}
@@ -1234,6 +1325,13 @@ export default function Topbar() {
               )}
 
               <div className="flex flex-wrap justify-around border-t border-slate-100 bg-slate-50 p-2 text-center text-xs gap-1 font-semibold text-blue-600">
+                <button
+                  type="button"
+                  onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
+                >
+                  Customers
+                </button>
+                <span>&bull;</span>
                 <button
                   type="button"
                   onClick={() => handleSelectResult(`/leads?search=${encodeURIComponent(search)}`)}

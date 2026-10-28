@@ -22,6 +22,7 @@ import { getSession } from "./auth";
 import type {
   GlobalSearchResults,
   SearchLeadResult,
+  SearchCustomerResult,
   SearchDealResult,
   SearchContactResult,
   SearchTaskResult,
@@ -67,6 +68,7 @@ export async function executeGlobalSearch(
   if (!trimmed) {
     return {
       leads: [],
+      customers: [],
       deals: [],
       contacts: [],
       tasks: [],
@@ -78,10 +80,14 @@ export async function executeGlobalSearch(
   const token = getSession()?.token;
   const encoded = encodeURIComponent(trimmed);
 
-  const [leadsRes, contactsRes, dealsRes, tasksRes, meetingsRes] =
+  const [leadsRes, customersRes, contactsRes, dealsRes, tasksRes, meetingsRes] =
     await Promise.allSettled([
       request<{ leads: SearchLeadResult[] }>(
         `${ENDPOINTS.leads.list}?search=${encoded}&limit=${limit}`,
+        { method: "GET", token }
+      ),
+      request<{ customers: SearchCustomerResult[] }>(
+        `${ENDPOINTS.customers.list}?search=${encoded}&limit=${limit}`,
         { method: "GET", token }
       ),
       request<{ contacts: SearchContactResult[] }>(
@@ -104,6 +110,7 @@ export async function executeGlobalSearch(
 
   return {
     leads: leadsRes.status === "fulfilled" ? leadsRes.value.leads || [] : [],
+    customers: customersRes.status === "fulfilled" ? customersRes.value.customers || [] : [],
     contacts: contactsRes.status === "fulfilled" ? contactsRes.value.contacts || [] : [],
     deals: dealsRes.status === "fulfilled" ? dealsRes.value.items || [] : [],
     tasks: tasksRes.status === "fulfilled" ? tasksRes.value.items || [] : [],

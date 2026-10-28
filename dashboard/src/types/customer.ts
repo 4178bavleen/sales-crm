@@ -76,7 +76,9 @@ export type Customer = {
  */
 export type CustomerFormValues = {
   companyId?: number | null;
+  companyName?: string | null;
   primaryContactId?: number | null;
+  primaryContactName?: string | null;
   ownerId?: number | null;
   company: string;
   primaryContact: string;

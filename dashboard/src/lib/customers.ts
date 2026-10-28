@@ -70,7 +70,9 @@ export async function fetchCustomerOptions(): Promise<CustomerOptionsResponse> {
 
 export async function createCustomer(payload: {
   companyId?: number | null;
+  companyName?: string | null;
   primaryContactId?: number | null;
+  primaryContactName?: string | null;
   ownerId?: number | null;
   convertedAt?: string;
   notes?: string;
@@ -86,7 +88,9 @@ export async function updateCustomer(
   id: number,
   payload: {
     companyId?: number | null;
+    companyName?: string | null;
     primaryContactId?: number | null;
+    primaryContactName?: string | null;
     ownerId?: number | null;
     convertedAt?: string;
     notes?: string;

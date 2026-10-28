@@ -22,7 +22,6 @@ import { useNotifications } from "../../context/NotificationContext";
 
 const primaryNav = [
   { name: "Dashboard", path: "/", icon: Home },
-  { name: "Notifications", path: "/notifications", icon: Bell },
   { name: "Calendar", path: "/calendar", icon: Calendar },
   { name: "Leads", path: "/leads", icon: Users },
   { name: "Contacts", path: "/contacts", icon: Contact },
@@ -43,6 +42,7 @@ const managementNav = [
   { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck },
   { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Documents", path: "/documents", icon: FileText },
+  { name: "Notifications", path: "/notifications", icon: Bell },
 ];
 
 export default function Sidebar() {
@@ -99,7 +99,7 @@ export default function Sidebar() {
                 `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
                   isActive
                     ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
-                    : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Companies" || name === "Customers" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
+                    : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Companies" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
                 }`
               }
             >

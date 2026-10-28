@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 export type SearchCategory =
   | "ALL"
   | "LEADS"
+  | "CUSTOMERS"
   | "DEALS"
   | "CONTACTS"
   | "TASKS"
@@ -17,6 +18,16 @@ export interface SearchLeadResult {
   phone: string | null;
   status: string;
   priority: string;
+}
+
+export interface SearchCustomerResult {
+  id: number;
+  company: string;
+  industry: string;
+  primaryContact: string;
+  owner: string;
+  dealCount: number;
+  pipelineValue: number;
 }
 
 export interface SearchContactResult {
@@ -64,6 +75,7 @@ export interface SystemPageItem {
 
 export interface GlobalSearchResults {
   leads: SearchLeadResult[];
+  customers: SearchCustomerResult[];
   deals: SearchDealResult[];
   contacts: SearchContactResult[];
   tasks: SearchTaskResult[];

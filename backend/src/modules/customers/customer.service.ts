@@ -82,20 +82,126 @@ function formatCustomer(c: any) {
   }
 }
 
-export async function createCustomer(input: CreateCustomerInput) {
-  if (input.companyId) {
-    const comp = await prisma.company.findFirst({
-      where: { id: input.companyId, deletedAt: null },
+async function resolveCompany(
+  companyId?: number | null,
+  companyName?: string | null,
+): Promise<number | null | undefined> {
+  if (companyName !== undefined) {
+    const trimmed = companyName?.trim()
+    if (!trimmed || trimmed === '—' || trimmed === '-') {
+      return null
+    }
+
+    if (companyId) {
+      const existingById = await prisma.company.findFirst({
+        where: { id: companyId, deletedAt: null },
+      })
+      if (
+        existingById &&
+        existingById.name.toLowerCase() === trimmed.toLowerCase()
+      ) {
+        return existingById.id
+      }
+    }
+
+    const norm = trimmed.toLowerCase()
+    const foundByName = await prisma.company.findFirst({
+      where: {
+        OR: [
+          { name: { equals: trimmed, mode: 'insensitive' } },
+          { normalizedName: norm },
+        ],
+        deletedAt: null,
+      },
     })
-    if (!comp) throw new CustomerServiceError('Company not found', 400)
+    if (foundByName) {
+      return foundByName.id
+    }
+
+    const created = await prisma.company.create({
+      data: {
+        name: trimmed,
+        normalizedName: norm,
+        industry: 'Other',
+      },
+    })
+    return created.id
   }
 
-  if (input.primaryContactId) {
+  if (companyId !== undefined) {
+    if (companyId === null) return null
+    const comp = await prisma.company.findFirst({
+      where: { id: companyId, deletedAt: null },
+    })
+    if (!comp) throw new CustomerServiceError('Company not found', 400)
+    return comp.id
+  }
+
+  return undefined
+}
+
+async function resolvePrimaryContact(
+  primaryContactId?: number | null,
+  primaryContactName?: string | null,
+  companyId?: number | null,
+): Promise<number | null | undefined> {
+  if (primaryContactName !== undefined) {
+    const trimmed = primaryContactName?.trim()
+    if (!trimmed || trimmed === '—' || trimmed === '-') {
+      return null
+    }
+
+    if (primaryContactId) {
+      const existingById = await prisma.contact.findFirst({
+        where: { id: primaryContactId },
+      })
+      if (
+        existingById &&
+        existingById.fullName.toLowerCase() === trimmed.toLowerCase()
+      ) {
+        return existingById.id
+      }
+    }
+
+    const foundByName = await prisma.contact.findFirst({
+      where: {
+        fullName: { equals: trimmed, mode: 'insensitive' },
+        deletedAt: null,
+        ...(companyId ? { companyId } : {}),
+      },
+    })
+    if (foundByName) {
+      return foundByName.id
+    }
+
+    const created = await prisma.contact.create({
+      data: {
+        fullName: trimmed,
+        companyId: companyId ?? null,
+      },
+    })
+    return created.id
+  }
+
+  if (primaryContactId !== undefined) {
+    if (primaryContactId === null) return null
     const contact = await prisma.contact.findFirst({
-      where: { id: input.primaryContactId, deletedAt: null },
+      where: { id: primaryContactId },
     })
     if (!contact) throw new CustomerServiceError('Primary contact not found', 400)
+    return contact.id
   }
+
+  return undefined
+}
+
+export async function createCustomer(input: CreateCustomerInput) {
+  const companyId = await resolveCompany(input.companyId, input.companyName)
+  const primaryContactId = await resolvePrimaryContact(
+    input.primaryContactId,
+    input.primaryContactName,
+    companyId ?? null,
+  )
 
   if (input.ownerId) {
     const owner = await prisma.user.findFirst({
@@ -106,8 +212,8 @@ export async function createCustomer(input: CreateCustomerInput) {
 
   const created = await prisma.customer.create({
     data: {
-      companyId: input.companyId ?? null,
-      primaryContactId: input.primaryContactId ?? null,
+      companyId: companyId ?? null,
+      primaryContactId: primaryContactId ?? null,
       ownerId: input.ownerId ?? null,
       convertedAt: input.convertedAt ?? new Date(),
       notes: input.notes ?? null,
@@ -189,19 +295,12 @@ export async function getCustomerById(id: number) {
 export async function updateCustomer(id: number, input: UpdateCustomerInput) {
   await getCustomerById(id)
 
-  if (input.companyId !== undefined && input.companyId !== null) {
-    const comp = await prisma.company.findFirst({
-      where: { id: input.companyId, deletedAt: null },
-    })
-    if (!comp) throw new CustomerServiceError('Company not found', 400)
-  }
-
-  if (input.primaryContactId !== undefined && input.primaryContactId !== null) {
-    const contact = await prisma.contact.findFirst({
-      where: { id: input.primaryContactId, deletedAt: null },
-    })
-    if (!contact) throw new CustomerServiceError('Primary contact not found', 400)
-  }
+  const resolvedCompanyId = await resolveCompany(input.companyId, input.companyName)
+  const resolvedContactId = await resolvePrimaryContact(
+    input.primaryContactId,
+    input.primaryContactName,
+    resolvedCompanyId !== undefined ? (resolvedCompanyId ?? null) : undefined,
+  )
 
   if (input.ownerId !== undefined && input.ownerId !== null) {
     const owner = await prisma.user.findFirst({
@@ -210,15 +309,26 @@ export async function updateCustomer(id: number, input: UpdateCustomerInput) {
     if (!owner) throw new CustomerServiceError('Owner not found or inactive', 400)
   }
 
+  const updateData: any = {}
+  if (resolvedCompanyId !== undefined) {
+    updateData.companyId = resolvedCompanyId
+  }
+  if (resolvedContactId !== undefined) {
+    updateData.primaryContactId = resolvedContactId
+  }
+  if (input.ownerId !== undefined) {
+    updateData.ownerId = input.ownerId
+  }
+  if (input.convertedAt !== undefined) {
+    updateData.convertedAt = input.convertedAt
+  }
+  if (input.notes !== undefined) {
+    updateData.notes = input.notes
+  }
+
   const updated = await prisma.customer.update({
     where: { id },
-    data: {
-      companyId: input.companyId,
-      primaryContactId: input.primaryContactId,
-      ownerId: input.ownerId,
-      convertedAt: input.convertedAt,
-      notes: input.notes,
-    },
+    data: updateData,
     include: customerInclude,
   })
 

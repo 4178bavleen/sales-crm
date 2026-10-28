@@ -343,11 +343,13 @@ export default function Customers() {
     setFormCustomerId(customer.id);
     setFormValues({
       companyId: customer.companyId ?? null,
+      companyName: customer.company === "—" ? "" : customer.company,
       primaryContactId: customer.primaryContactId ?? null,
+      primaryContactName: customer.primaryContact === "—" ? "" : customer.primaryContact,
       ownerId: customer.ownerId ?? null,
-      company: customer.company,
-      primaryContact: customer.primaryContact,
-      owner: customer.owner,
+      company: customer.company === "—" ? "" : customer.company,
+      primaryContact: customer.primaryContact === "—" ? "" : customer.primaryContact,
+      owner: customer.owner === "Unassigned" ? "" : customer.owner,
       convertedAt: customer.convertedAt
         ? customer.convertedAt.slice(0, 10)
         : new Date().toISOString().slice(0, 10),
@@ -359,10 +361,15 @@ export default function Customers() {
 
   async function saveCustomer(values: CustomerFormValues) {
     try {
+      const companyName = values.company?.trim() || values.companyName?.trim() || undefined;
+      const contactName = values.primaryContact?.trim() || values.primaryContactName?.trim() || undefined;
+
       if (formCustomerId === null) {
         await createCustomer({
           companyId: values.companyId,
+          companyName,
           primaryContactId: values.primaryContactId,
+          primaryContactName: contactName,
           ownerId: values.ownerId,
           convertedAt: values.convertedAt,
           notes: values.notes,
@@ -374,7 +381,9 @@ export default function Customers() {
       } else {
         await updateCustomer(formCustomerId, {
           companyId: values.companyId,
+          companyName,
           primaryContactId: values.primaryContactId,
+          primaryContactName: contactName,
           ownerId: values.ownerId,
           convertedAt: values.convertedAt,
           notes: values.notes,
@@ -587,14 +596,7 @@ export default function Customers() {
             )}
           </div>
 
-          {/* Column Settings */}
-          {view === "list" && (
-            <TableSettings
-              columns={customerColumnOptions}
-              hidden={hiddenColumns}
-              onChange={setHiddenColumns}
-            />
-          )}
+          
 
           {/* Create Customer Button */}
           <button
@@ -883,6 +885,17 @@ export default function Customers() {
             </button>
           )}
         </div>
+
+        {/* Right side of filter bar: Column Settings */}
+        {view === "list" && (
+          <div className="shrink-0">
+            <TableSettings
+              columns={customerColumnOptions}
+              hidden={hiddenColumns}
+              onChange={setHiddenColumns}
+            />
+          </div>
+        )}
       </div>
 
       {/* Main Table / Grid Container */}
@@ -902,7 +915,6 @@ export default function Customers() {
             rows={pageCustomers}
             getRowId={(customer) => customer.id}
             onRowClick={(customer) => setDetailCustomer(customer)}
-            selectable
             selectedIds={selectedIds}
             onSelectionChange={(ids) => setSelectedIds(ids as number[])}
             getRowLabel={(customer) => customer.company}
@@ -959,79 +971,108 @@ export default function Customers() {
             }
           />
         ) : (
-          <div className="grid min-h-[300px] gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-h-[260px] gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {pageCustomers.map((customer) => (
               <div
                 key={customer.id}
                 onClick={() => setDetailCustomer(customer)}
-                className="group relative flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-blue-400 hover:shadow-md cursor-pointer"
+                className="group relative flex flex-col justify-between rounded-xl border border-slate-300/90 bg-white p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md hover:shadow-blue-500/10 cursor-pointer"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2">
+                  {/* Top Row: Company initial, Name, Industry, and Action buttons */}
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1] font-bold text-sm">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-[#1d61e7] font-bold text-lg ring-1 ring-blue-500/20 shadow-2xs">
                         {(customer.company || "C").charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-900 group-hover:text-blue-600">
+                        <p className="truncate text-base font-bold text-slate-950 group-hover:text-blue-600 transition-colors">
                           {customer.company}
                         </p>
-                        <p className="truncate text-xs font-semibold text-slate-500">
+                        <span className="mt-0.5 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600 truncate max-w-[155px]">
                           {customer.industry || "General Industry"}
-                        </p>
+                        </span>
                       </div>
                     </div>
 
                     <div
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
                         type="button"
                         onClick={() => openEditForm(customer)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition"
                         title="Edit customer"
                       >
                         <Pencil size={14} />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomer(customer.id, customer.company)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                        title="Delete customer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
-                    <p className="flex items-center gap-2">
-                      <UserCheck size={14} className="text-slate-400 shrink-0" />
-                      <span className="font-semibold text-slate-700">Contact:</span>
-                      <span className="truncate">{customer.primaryContact || "—"}</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Handshake size={14} className="text-slate-400 shrink-0" />
-                      <span className="font-semibold text-slate-700">Owner:</span>
-                      <span className="truncate">{customer.owner || "Unassigned"}</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Layers size={14} className="text-slate-400 shrink-0" />
-                      <span className="font-semibold text-slate-700">Deals:</span>
-                      <span>
-                        {customer.dealCount}{" "}
-                        {customer.dealCount === 1 ? "deal" : "deals"}
+                  {/* Clean Minimal Key Metrics Panel */}
+                  <div className="mt-3.5 grid grid-cols-2 gap-2 rounded-xl bg-slate-50/90 p-2.5 text-sm border border-slate-200/80">
+                    <div className="rounded-lg bg-white p-2.5 shadow-2xs border border-slate-200/60">
+                      <span className="text-xs font-bold text-slate-700 block">
+                        Deals Attached
                       </span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <CircleDollarSign size={14} className="text-emerald-600 shrink-0" />
-                      <span className="font-semibold text-slate-700">Pipeline:</span>
-                      <span className="font-bold text-slate-900">
+                      <span className="text-base font-normal text-slate-800">
+                        {customer.dealCount}{" "}
+                        <span className="text-sm font-normal text-slate-500">
+                          {customer.dealCount === 1 ? "deal" : "deals"}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="rounded-lg bg-white p-2.5 shadow-2xs border border-slate-200/60">
+                      <span className="text-xs font-bold text-slate-700 block">
+                        Pipeline Value
+                      </span>
+                      <span className="text-base font-normal text-slate-800 truncate block">
                         {formatCurrency(customer.pipelineValue)}
                       </span>
-                    </p>
+                    </div>
+                  </div>
+
+                  {/* Account Stakeholder Meta */}
+                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold text-xs sm:text-sm">
+                        <UserCheck size={14} className="text-slate-400 shrink-0" />
+                        Primary Contact
+                      </span>
+                      <span className="font-normal text-slate-700 truncate max-w-[140px] text-xs sm:text-sm">
+                        {customer.primaryContact || "—"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold text-xs sm:text-sm">
+                        <Handshake size={14} className="text-slate-400 shrink-0" />
+                        Owner
+                      </span>
+                      <span className="font-normal text-slate-700 truncate max-w-[140px] text-xs sm:text-sm">
+                        {customer.owner || "Unassigned"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] text-slate-400 font-medium">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays size={12} />
+                {/* Footer with Converted Date and View Profile Pill */}
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs sm:text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5 font-normal text-slate-500">
+                    <CalendarDays size={14} className="text-slate-400" />
                     {formatCustomerDate(customer.convertedAt)}
                   </span>
-                  <span className="text-[#1d61e7] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="inline-flex items-center gap-0.5 font-bold text-blue-600 opacity-90 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
                     View profile &rarr;
                   </span>
                 </div>

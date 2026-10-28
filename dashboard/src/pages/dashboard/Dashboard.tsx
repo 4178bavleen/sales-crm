@@ -13,7 +13,6 @@ import {
   RotateCw,
   AlertCircle,
   Building2,
-  CheckCircle2,
   CalendarClock,
   Award,
   ExternalLink,
@@ -51,6 +50,7 @@ import type { Lead } from "../../types/lead";
 import type { MeetingItem } from "../../types/meeting";
 import type { Task } from "../../types/task";
 import CreateLeadModal from "../../components/ui/Createlead";
+import DynamicSparkline from "../../components/ui/DynamicSparkline";
 
 function formatCurrency(val: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -203,6 +203,55 @@ export default function Dashboard() {
       conversionRate: summary?.leadConversionRate ?? 0,
     };
   }, [overview, leads]);
+
+  const sparkTrends = useMemo(() => {
+    if (!overview?.trends || overview.trends.length === 0) {
+      return {
+        pipeline: [
+          Math.round(stats.pipelineValue * 0.3),
+          Math.round(stats.pipelineValue * 0.5),
+          Math.round(stats.pipelineValue * 0.7),
+          Math.round(stats.pipelineValue * 0.85),
+          stats.pipelineValue || 35000,
+        ],
+        revenue: [
+          Math.round(stats.wonRevenue * 0.25),
+          Math.round(stats.wonRevenue * 0.45),
+          Math.round(stats.wonRevenue * 0.6),
+          Math.round(stats.wonRevenue * 0.8),
+          stats.wonRevenue || 45580,
+        ],
+        leads: [
+          Math.max(1, Math.round(stats.totalLeads * 0.3)),
+          Math.max(2, Math.round(stats.totalLeads * 0.5)),
+          Math.max(3, Math.round(stats.totalLeads * 0.7)),
+          Math.max(4, Math.round(stats.totalLeads * 0.85)),
+          stats.totalLeads || 15,
+        ],
+        winRate: [
+          Math.max(10, Math.round((stats.winRate || 50) * 0.6)),
+          Math.max(15, Math.round((stats.winRate || 50) * 0.75)),
+          Math.max(20, Math.round((stats.winRate || 50) * 0.85)),
+          Math.max(25, Math.round((stats.winRate || 50) * 0.95)),
+          stats.winRate || 66,
+        ],
+        avgDeal: [
+          Math.round((stats.averageDealSize || 20000) * 0.4),
+          Math.round((stats.averageDealSize || 20000) * 0.6),
+          Math.round((stats.averageDealSize || 20000) * 0.8),
+          Math.round((stats.averageDealSize || 20000) * 0.9),
+          stats.averageDealSize || 22790,
+        ],
+      };
+    }
+    return {
+      pipeline: overview.trends.map((t) => t.wonRevenue * 1.35 + t.leads * 150),
+      revenue: overview.trends.map((t) => t.wonRevenue),
+      leads: overview.trends.map((t) => t.leads),
+      winRate: overview.trends.map((t) => (t.wonDealsCount > 0 ? Math.min(100, t.wonDealsCount * 22) : 20)),
+      avgDeal: overview.trends.map((t) => (t.wonDealsCount > 0 ? Math.round(t.wonRevenue / t.wonDealsCount) : 18000)),
+    };
+  }, [overview, stats]);
 
   // Calendar calculations
   const calendarDays = useMemo(() => {
@@ -466,130 +515,121 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 1. IMPORTANT STAT CARDS IN DASHBOARD (TOP KPI ROW) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/* KPI 1: Pipeline Value */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-[#1d61e7]" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-              Pipeline Value
-            </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[#1d61e7]">
-              <DollarSign className="h-4 w-4" />
+      {/* 1. PERSISTENT 5 STAT CARDS GRID MATCHING LEADS, CUSTOMERS, REPORTS & CONTACTS */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Card 1: Pipeline Value */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1]">
+              <DollarSign size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">Pipeline Value</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
+                {formatCurrency(stats.pipelineValue)}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold text-[#154fc1] flex items-center gap-0.5">
+                <span>↑</span> {stats.openDeals > 0 ? `${stats.openDeals} open deals` : `${stats.totalDeals} deals`}
+              </p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-slate-900">
-              {formatCurrency(stats.pipelineValue)}
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <TrendingUp className="h-3 w-3" />
-              18.4%
-            </span>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-500">
-            {stats.openDeals > 0
-              ? `${stats.openDeals} active open deals`
-              : `${stats.totalDeals} total pipeline opportunities`}
-          </p>
+          <DynamicSparkline
+            data={sparkTrends.pipeline}
+            color="blue"
+            gradientId="dash-stat-dyn-pipeline"
+          />
         </div>
 
-        {/* KPI 2: Closed Won Revenue */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-              Won Revenue
-            </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="h-4 w-4" />
+        {/* Card 2: Won Revenue */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <TrendingUp size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">Won Revenue</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
+                {formatCurrency(stats.wonRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold text-emerald-700 flex items-center gap-0.5">
+                <span>↑</span> {stats.wonDeals > 0 ? `${stats.wonDeals} won deals` : "Active revenue"}
+              </p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-slate-900">
-              {formatCurrency(stats.wonRevenue)}
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <TrendingUp className="h-3 w-3" />
-              {stats.wonDeals > 0 ? `${stats.wonDeals} deals` : "Active"}
-            </span>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-500">
-            {stats.wonDeals} deals closed won successfully
-          </p>
+          <DynamicSparkline
+            data={sparkTrends.revenue}
+            color="emerald"
+            gradientId="dash-stat-dyn-revenue"
+          />
         </div>
 
-        {/* KPI 3: Active Leads */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-              Total Leads
-            </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
-              <Users className="h-4 w-4" />
+        {/* Card 3: Total Leads */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+              <Users size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">Total Leads</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
+                {formatNumber(stats.totalLeads)}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold text-purple-700 flex items-center gap-0.5">
+                <span>↑</span> {stats.conversionRate > 0 ? `${stats.conversionRate}% conv.` : "Tracking"}
+              </p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-slate-900">
-              {formatNumber(stats.totalLeads)}
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700">
-              {stats.conversionRate > 0 ? `${stats.conversionRate}% conv.` : "Tracking"}
-            </span>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-500">
-            {leads.filter((l) => l.priority === "URGENT" || l.priority === "HIGH").length} high priority leads
-          </p>
+          <DynamicSparkline
+            data={sparkTrends.leads}
+            color="purple"
+            gradientId="dash-stat-dyn-leads"
+          />
         </div>
 
-        {/* KPI 4: Win Conversion Rate */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-              Win Rate
-            </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-              <Target className="h-4 w-4" />
+        {/* Card 4: Win Rate */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+              <Target size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">Win Rate</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
+                {stats.winRate > 0 ? `${stats.winRate}%` : "0%"}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold text-amber-800 flex items-center gap-0.5">
+                <span>↑</span> {stats.wonDeals}W / {Math.max(0, stats.totalDeals - stats.wonDeals)}L
+              </p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-slate-900">
-              {stats.winRate > 0 ? `${stats.winRate}%` : "66.7%"}
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
-              +4.2% MoM
-            </span>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-500">
-            Ratio of closed-won opportunities
-          </p>
+          <DynamicSparkline
+            data={sparkTrends.winRate}
+            color="amber"
+            gradientId="dash-stat-dyn-winrate"
+          />
         </div>
 
-        {/* KPI 5: Average Deal Size */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-              Avg Deal Size
-            </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
-              <Award className="h-4 w-4" />
+        {/* Card 5: Avg Deal Size */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-rose-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-rose-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
+              <Award size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">Avg Deal Size</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
+                {formatCurrency(stats.averageDealSize || (stats.wonDeals > 0 ? Math.round(stats.wonRevenue / stats.wonDeals) : 0))}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold text-rose-700 flex items-center gap-0.5">
+                <span>↑</span> Realized avg
+              </p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-slate-900">
-              {formatCurrency(stats.averageDealSize || 22790)}
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700">
-              Enterprise
-            </span>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-500">
-            Average revenue realized per won deal
-          </p>
+          <DynamicSparkline
+            data={sparkTrends.avgDeal}
+            color="rose"
+            gradientId="dash-stat-dyn-avgdeal"
+          />
         </div>
       </div>
 
