@@ -133,6 +133,15 @@ export const ENDPOINTS = {
     delete: (id: number) => `/notifications/${id}`,
   },
 
+  customers: {
+    list: "/customers",
+    options: "/customers/options",
+    byId: (id: number) => `/customers/${id}`,
+    create: "/customers",
+    update: (id: number) => `/customers/${id}`,
+    delete: (id: number) => `/customers/${id}`,
+  },
+
   health: "/health",
 } as const;
 

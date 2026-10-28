@@ -16,6 +16,9 @@
 
 export type Customer = {
   id: number;
+  companyId?: number | null;
+  primaryContactId?: number | null;
+  ownerId?: number | null;
   /**
    * Resolved from Customer.companyId -> Company.name.
    * This is the customer's row title, since the schema has no name of its own.
@@ -43,6 +46,27 @@ export type Customer = {
   /** ISO date strings (Customer.createdAt / updatedAt). */
   createdAt: string;
   updatedAt: string;
+  companyDetails?: {
+    id: number;
+    name: string;
+    industry?: string | null;
+    website?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    country?: string | null;
+  } | null;
+  contactDetails?: {
+    id: number;
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+    jobTitle?: string | null;
+  } | null;
+  ownerDetails?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
 };
 
 /**
@@ -51,6 +75,9 @@ export type Customer = {
  * `company` and `primaryContact` are sent as names at the API boundary.
  */
 export type CustomerFormValues = {
+  companyId?: number | null;
+  primaryContactId?: number | null;
+  ownerId?: number | null;
   company: string;
   primaryContact: string;
   owner: string;

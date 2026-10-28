@@ -36,6 +36,9 @@ const emptyValues: CustomerFormValues = {
 export default function CustomerForm({
   mode,
   values,
+  companies = [],
+  contacts = [],
+  owners = [],
   onClose,
   onSubmit,
 }: CustomerFormProps) {
@@ -64,19 +67,28 @@ export default function CustomerForm({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const companyOptions: string[] = [];
-  const contactOptions: string[] = [];
+  const companyOptions: string[] = companies.map(c => c.name);
+  const contactOptions: string[] = contacts.map(c => c.name);
+  const ownerOptions: string[] = owners.length > 0 ? owners.map(o => o.name) : CUSTOMER_OWNERS;
 
   const companyInvalid = !form.company;
   const errorMessage = companyInvalid
-    ? "Please select the company this customer was converted from."
+    ? "Please select or enter the company this customer was converted from."
     : "";
 
   function submit() {
     setShowErrors(true);
     if (companyInvalid) return;
 
+    // Resolve IDs if available
+    const matchedCompany = companies.find(c => c.name.toLowerCase() === form.company.trim().toLowerCase());
+    const matchedContact = contacts.find(c => c.name.toLowerCase() === form.primaryContact.trim().toLowerCase());
+    const matchedOwner = owners.find(o => o.name.toLowerCase() === form.owner.trim().toLowerCase());
+
     onSubmit({
+      companyId: matchedCompany?.id ?? form.companyId ?? null,
+      primaryContactId: matchedContact?.id ?? form.primaryContactId ?? null,
+      ownerId: matchedOwner?.id ?? form.ownerId ?? null,
       company: form.company,
       primaryContact: form.primaryContact,
       owner: form.owner,
@@ -137,7 +149,7 @@ export default function CustomerForm({
             label="Account Owner"
             value={form.owner}
             onChange={value => update("owner", value)}
-            options={CUSTOMER_OWNERS}
+            options={ownerOptions}
           />
         </div>
         <div className={cellClass}>
