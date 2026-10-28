@@ -50,6 +50,13 @@ export const importedLeadRowSchema = z.object({
   sourceId: optionalPositiveInt,
   productServiceId: optionalPositiveInt,
 
+  ownerId: z.preprocess(
+    (value) => (value === "" || value === undefined || value === null ? undefined : value),
+    z.union([z.number().int().positive(), z.string()]).optional(),
+  ),
+  owner: optionalText(150),
+  leadOwner: optionalText(150),
+
   priority: z.preprocess(
     (value) => {
       if (value === "" || value === undefined || value === null) return "MEDIUM";

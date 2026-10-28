@@ -54,9 +54,14 @@ export async function previewLeadImport(
       return;
     }
 
+    const currentUserId = Number(
+      (req as Request & { user?: { id?: number | string } }).user?.id,
+    ) || undefined;
+
     const parsed = await getLeadImportPreview(
       req.file.buffer,
       req.file.originalname,
+      currentUserId,
     );
 
     res.status(200).json({

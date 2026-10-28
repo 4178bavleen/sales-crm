@@ -91,10 +91,14 @@ const HEADER_MAP: Record<string, string> = {
   nofollowupreasonid: "noFollowUpReasonId",
   nofollowupreason: "noFollowUpReasonId",
   owner: "ownerId",
+  ownername: "ownerId",
   ownerid: "ownerId",
   leadowner: "ownerId",
   assignedto: "ownerId",
+  assigneduser: "ownerId",
   assignee: "ownerId",
+  agent: "ownerId",
+  salesrep: "ownerId",
 };
 
 export interface ParsedImportRow {

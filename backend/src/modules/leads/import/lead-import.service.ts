@@ -22,12 +22,70 @@ type ImportResult = {
   leadId?: number;
 };
 
+function resolveOwnerId(
+  rawOwner: unknown,
+  users: Array<{ id: number; name: string; email: string }>,
+  fallbackUserId?: number,
+): number | undefined {
+  if (rawOwner !== null && rawOwner !== undefined && String(rawOwner).trim() !== "") {
+    const str = String(rawOwner).trim().toLowerCase();
+    const asNum = Number(str);
+
+    // 1. Check exact ID
+    if (Number.isFinite(asNum) && asNum > 0) {
+      const byId = users.find((u) => u.id === asNum);
+      if (byId) return byId.id;
+    }
+
+    // 2. Check exact email
+    const byEmail = users.find((u) => u.email.toLowerCase() === str);
+    if (byEmail) return byEmail.id;
+
+    // 3. Check exact name
+    const byName = users.find((u) => u.name.toLowerCase() === str);
+    if (byName) return byName.id;
+
+    // 4. Check email prefix (e.g. "admin" for "admin@gmail.com")
+    const byEmailPrefix = users.find((u) => {
+      const prefix = u.email.split("@")[0].toLowerCase();
+      return prefix === str;
+    });
+    if (byEmailPrefix) return byEmailPrefix.id;
+
+    // 5. Check first name or words in name (e.g. "gabrial" in "gabrial deora")
+    const byNamePart = users.find((u) => {
+      const parts = u.name.toLowerCase().split(/\s+/);
+      return parts.includes(str) || u.name.toLowerCase().startsWith(str);
+    });
+    if (byNamePart) return byNamePart.id;
+
+    // 6. Substring search if distinct
+    const bySubstring = users.filter((u) =>
+      u.name.toLowerCase().includes(str) || u.email.toLowerCase().includes(str),
+    );
+    if (bySubstring.length === 1) return bySubstring[0].id;
+  }
+
+  // Fallback to current user / importing user if provided
+  if (fallbackUserId && users.some((u) => u.id === fallbackUserId)) {
+    return fallbackUserId;
+  }
+
+  // Default to first user if fallbackUserId not found but users exist
+  if (users.length > 0) {
+    return users[0].id;
+  }
+
+  return undefined;
+}
+
 /**
  * Parses file and detects duplicates both within the file AND against the database.
  */
 export async function getLeadImportPreview(
   buffer: Buffer,
   originalName: string,
+  currentUserId?: number,
 ): Promise<ParsedImportFile> {
   const parsed = parseLeadImportFile(buffer, originalName);
 
@@ -99,15 +157,14 @@ export async function getLeadImportPreview(
       );
       if (s) row.data.source = s.name;
     }
-    const rawOwner = row.data.ownerId || row.data.owner || row.data.leadOwner;
-    if (rawOwner) {
-      const u = users.find(
-        (usr) =>
-          usr.id === Number(rawOwner) ||
-          usr.name.toLowerCase() === String(rawOwner).toLowerCase() ||
-          usr.email.toLowerCase() === String(rawOwner).toLowerCase(),
-      );
-      if (u) row.data.owner = u.name;
+    const rawOwner = row.data.ownerId ?? row.data.owner ?? row.data.leadOwner;
+    const resolvedOwnerId = resolveOwnerId(rawOwner, users, currentUserId);
+    if (resolvedOwnerId) {
+      const u = users.find((usr) => usr.id === resolvedOwnerId);
+      if (u) {
+        row.data.ownerId = u.id;
+        row.data.owner = u.name;
+      }
     }
   }
 
@@ -364,18 +421,14 @@ export async function confirmLeadImport(
       }
 
       // Resolve ownerId
-      let ownerId: number | undefined;
-      const rawOwner = row.values.owner || row.values.leadOwner || row.values.ownerId;
-      if (rawOwner) {
-        const str = String(rawOwner).trim().toLowerCase();
-        const found = users.find(
-          (u) =>
-            u.name.toLowerCase() === str ||
-            u.email.toLowerCase() === str ||
-            String(u.id) === str,
-        );
-        if (found) ownerId = found.id;
-      }
+      const rawOwner =
+        data.ownerId ??
+        row.values.ownerId ??
+        row.values.owner ??
+        row.values.leadOwner ??
+        data.owner;
+      const finalOwnerId =
+        resolveOwnerId(rawOwner, users, createdById) ?? createdById;
 
       // Resolve noFollowUpReasonId
       let noFollowUpReasonId = data.noFollowUpReasonId;
@@ -396,7 +449,7 @@ export async function confirmLeadImport(
           normalizedCompany: companyName?.toLowerCase() ?? null,
           sourceId: sourceId ?? null,
           productServiceId: productServiceId ?? null,
-          ownerId: ownerId ?? null,
+          ownerId: finalOwnerId ?? null,
           priority: data.priority ?? "MEDIUM",
           status: data.status ?? "NEW",
           notes: data.notes ?? null,
@@ -409,6 +462,17 @@ export async function confirmLeadImport(
           contactName: true,
         },
       });
+
+      if (finalOwnerId) {
+        await prisma.leadAssignment.create({
+          data: {
+            leadId: lead.id,
+            assignedToId: finalOwnerId,
+            assignedById: createdById,
+            note: "Assigned via import",
+          },
+        });
+      }
 
       created++;
       if (email) seenEmails.set(email, row.rowNumber);
