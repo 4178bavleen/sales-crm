@@ -60,6 +60,7 @@ import DataTable from "../../components/ui/DataTable";
 import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import ImportPreviewModal from "../../components/ui/ImportPreviewModal";
 import ImportModal from "../../components/ui/ImportModal";
+import LeadDeleteDialog from "../../components/ui/LeadDeleteDialog";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import { useSession } from "../../lib/useSession";
 
@@ -97,6 +98,7 @@ export default function Leads() {
   const urlLeadId = searchParams.get("leadId") || searchParams.get("id");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
+  const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const [rawOwners, setRawOwners] = useState<{ id: number; name: string; email?: string }[]>([]);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -583,14 +585,21 @@ export default function Leads() {
     }
   }
 
-  async function deleteLead(id: number) {
+  async function handleConfirmDeleteLead(lead: Lead) {
     try {
-      await deleteLeadApi(id);
-      setLeads(previous => previous.filter(lead => lead.id !== id));
-      setSelectedIds(previous => previous.filter(item => item !== id));
-      setDetailLead(null);
+      await deleteLeadApi(lead.id);
+      setLeads(previous => previous.filter(item => item.id !== lead.id));
+      setSelectedIds(previous => previous.filter(item => item !== lead.id));
+      if (detailLead?.id === lead.id) setDetailLead(null);
+      setToastMessage({
+        type: "success",
+        message: `Lead "${lead.firstName} ${lead.lastName}".trim() was successfully deleted.`,
+      });
     } catch (err) {
       console.error("Failed to delete lead:", err);
+      const msg = err instanceof Error ? err.message : "Failed to delete lead";
+      setToastMessage({ type: "error", message: msg });
+      throw err;
     }
   }
 
@@ -1338,7 +1347,7 @@ export default function Leads() {
               <div className="my-1 border-t border-slate-100" />
               <button
                 type="button"
-                onClick={() => deleteLead(lead.id)}
+                onClick={() => setDeletingLead(lead)}
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
               >
                 <Trash2 size={13} className="text-rose-500" />
@@ -1450,6 +1459,14 @@ export default function Leads() {
           <span className="text-xs font-semibold">{toastMessage.message}</span>
         </div>
       )}
+
+      {/* Delete Lead Confirmation Dialog */}
+      <LeadDeleteDialog
+        lead={deletingLead}
+        isOpen={Boolean(deletingLead)}
+        onClose={() => setDeletingLead(null)}
+        onConfirm={handleConfirmDeleteLead}
+      />
 
       {/* Import Modal with Template Prompt */}
       <ImportModal
