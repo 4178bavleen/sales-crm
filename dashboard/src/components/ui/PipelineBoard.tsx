@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
-  CircleDollarSign,
+  IndianRupee,
   GripVertical,
   ListChecks,
   Building2,
@@ -229,7 +229,7 @@ export default function PipelineBoard({
                   {/* Value & Product tag */}
                   <div className="mt-2.5 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 text-xs font-bold text-slate-950">
-                      <CircleDollarSign size={13} className="text-emerald-700" />
+                      <IndianRupee size={13} className="text-emerald-700" />
                       <span>{formatCurrency(deal.estimatedValue)}</span>
                     </div>
                     {deal.product && (

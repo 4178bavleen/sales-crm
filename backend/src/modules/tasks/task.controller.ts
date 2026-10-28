@@ -4,6 +4,7 @@ import {
   createTask,
   deleteTask,
   getTaskById,
+  getFollowUpStats,
   getTaskOptions,
   listTasks,
   TaskServiceError,
@@ -76,7 +77,8 @@ export async function listTasksController(
     const query = req.query;
 
     const userId = Number(req.user?.id);
-    const isAdmin = req.user?.role === 'ADMIN';
+    const userRole = req.user?.role?.toUpperCase();
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SALES_MANAGER';
 
     if (!userId || !Number.isSafeInteger(userId)) {
       res.status(401).json({
@@ -102,9 +104,12 @@ export async function listTasksController(
         | undefined,
 
       // Admin sees all tasks (or filters by assignedToId if specified); employees only see their assigned tasks.
-      assignedToId: isAdmin
-        ? (query.assignedToId ? parseId(query.assignedToId, 'assignedToId') : undefined)
-        : userId,
+      assignedToId: query.assignedToId ? parseId(query.assignedToId, 'assignedToId') : undefined,
+      userId,
+      isAdmin,
+
+
+
 
       dueFrom: query.dueFrom
         ? new Date(String(query.dueFrom))
@@ -112,6 +117,17 @@ export async function listTasksController(
 
       dueTo: query.dueTo
         ? new Date(String(query.dueTo))
+        : undefined,
+      followUpView: query.followUpView
+        ? (() => {
+          const value = String(query.followUpView)
+          if (!['today', 'overdue', 'upcoming', 'completed'].includes(value)) {
+            throw new TaskValidationError(
+              'followUpView must be today, overdue, upcoming, or completed',
+            )
+          }
+          return value as 'today' | 'overdue' | 'upcoming' | 'completed'
+        })()
         : undefined,
     });
 
@@ -157,7 +173,11 @@ export async function updateTaskController(
       return
     }
 
-    const task = await updateTask(parseId(req.params.id), data)
+    const task = await updateTask(
+      parseId(req.params.id),
+      data,
+      actorId(req as AuthenticatedRequest),
+    )
 
     res.json({
       success: true,
@@ -242,5 +262,34 @@ export async function getTaskOptionsController(
     })
   } catch (error) {
     handleError(error, res, next)
+  }
+}
+
+export async function getFollowUpStatsController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = Number(req.user?.id);
+    const userRole = req.user?.role?.toUpperCase();
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SALES_MANAGER';
+
+    if (!userId || !Number.isSafeInteger(userId)) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+      return;
+    }
+
+    const stats = await getFollowUpStats(userId, isAdmin);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    handleError(error, res, next);
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  CircleDollarSign,
+  IndianRupee,
   Building2,
   Users,
   Package,
@@ -11,7 +11,7 @@ import {
   Trophy,
   XCircle,
   AlertCircle,
-  IndianRupee,
+  
 } from "lucide-react";
 import type { DealFormValues, DealStatus } from "../../types/deal";
 import type { DealFormProps, DealOptionsData } from "../../types/dealForm";
@@ -194,7 +194,7 @@ export default function DealForm({
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#1d61e7]">
-              <CircleDollarSign size={20} />
+              <IndianRupee size={20} />
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900">
@@ -472,7 +472,7 @@ export default function DealForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Closed Revenue
+                    Closed Revenue (INR)
                   </label>
                   <input
                     type="number"

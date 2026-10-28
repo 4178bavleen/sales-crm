@@ -108,7 +108,7 @@ export default function DealMoveDialog({
             <>
               <div className={cellClass}>
                 <Field
-                  label="Revenue"
+                  label="Revenue (INR)"
                   value={wonRevenue}
                   onChange={setWonRevenue}
                   type="number"

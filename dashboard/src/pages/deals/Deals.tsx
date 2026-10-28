@@ -11,7 +11,7 @@ import {
   Download,
   RotateCw,
   Layers,
-  CircleDollarSign,
+  IndianRupee,
   Package,
   RotateCcw,
   Check,
@@ -654,7 +654,7 @@ export default function Deals() {
                 </span>
               </div>
               <div className="flex items-center gap-2 rounded-lg bg-emerald-50/60 px-3 py-1.5 border border-emerald-100/80">
-                <CircleDollarSign size={13} className="text-emerald-600" />
+                <IndianRupee size={13} className="text-emerald-600" />
                 <span className="text-xs text-slate-500 font-medium">Won:</span>
                 <span className="text-xs font-bold text-emerald-700">
                   {formatCurrency(wonTotal)}

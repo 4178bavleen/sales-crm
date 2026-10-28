@@ -47,6 +47,17 @@ const taskInclude = {
     cancelReason: {
         select: { id: true, name: true },
     },
+    rescheduleHistory: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+    },
+    activities: {
+        include: {
+            performedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { occurredAt: 'desc' },
+        take: 10,
+    },
 } as const
 
 async function validateReferences(data: TaskInput) {
@@ -160,15 +171,71 @@ export async function listTasks(query: {
     assignedToId?: number
     dueFrom?: Date
     dueTo?: Date
+    followUpView?: 'today' | 'overdue' | 'upcoming' | 'completed'
+    userId?: number
+    isAdmin?: boolean
 }) {
     const page = Math.max(query.page ?? 1, 1)
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100)
 
+    const now = new Date()
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
+
+    const startOfTomorrow = new Date(startOfToday)
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1)
+
+    let followUpFilter = {}
+
+    switch (query.followUpView) {
+        case 'today':
+            followUpFilter = {
+                status: { in: ['OPEN', 'IN_PROGRESS'] as TaskStatus[] },
+                dueAt: {
+                    gte: startOfToday,
+                    lt: startOfTomorrow,
+                },
+            }
+            break
+
+        case 'overdue':
+            followUpFilter = {
+                status: { in: ['OPEN', 'IN_PROGRESS'] as TaskStatus[] },
+                dueAt: { lt: startOfToday },
+            }
+            break
+
+        case 'upcoming':
+            followUpFilter = {
+                status: { in: ['OPEN', 'IN_PROGRESS'] as TaskStatus[] },
+                dueAt: { gte: startOfTomorrow },
+            }
+            break
+
+        case 'completed':
+            followUpFilter = {
+                status: 'COMPLETED' as TaskStatus,
+            }
+            break
+    }
+
+    const userFilter = query.isAdmin
+        ? (query.assignedToId ? { assignedToId: query.assignedToId } : {})
+        : query.userId
+            ? {
+                OR: [
+                    { assignedToId: query.userId },
+                    { createdById: query.userId },
+                ],
+            }
+            : (query.assignedToId ? { assignedToId: query.assignedToId } : {});
+
     const where = {
-        ...(query.status ? { status: query.status } : {}),
+        ...followUpFilter,
+        ...userFilter,
+        ...(query.status && !query.followUpView ? { status: query.status } : {}),
         ...(query.priority ? { priority: query.priority } : {}),
-        ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}),
-        ...(query.dueFrom || query.dueTo
+        ...(!query.followUpView && (query.dueFrom || query.dueTo)
             ? {
                 dueAt: {
                     ...(query.dueFrom ? { gte: query.dueFrom } : {}),
@@ -212,7 +279,7 @@ export async function getTaskById(id: number) {
 }
 
 
-export async function updateTask(id: number, data: TaskInput) {
+export async function updateTask(id: number, data: TaskInput, actorId?: number) {
     const existing = await prisma.task.findUnique({ where: { id } })
 
     if (!existing) {
@@ -221,15 +288,50 @@ export async function updateTask(id: number, data: TaskInput) {
 
     await validateReferences(data)
 
+    const dueDateChanged =
+        data.dueAt !== undefined &&
+        data.dueAt !== null &&
+        new Date(data.dueAt as string | Date).getTime() !== existing.dueAt.getTime()
+
+    if (dueDateChanged && actorId) {
+        await prisma.taskRescheduleHistory.create({
+            data: {
+                taskId: id,
+                previousDueAt: existing.dueAt,
+                newDueAt: new Date(data.dueAt as string | Date),
+                rescheduledById: actorId,
+                note: (data.rescheduleNote as string) || (data.note as string) || null,
+            },
+        })
+    }
+
+    const { rescheduleNote, note: _n, ...cleanData } = data
+
+    // When a task is rescheduled (due date changed) or explicitly set to OPEN / IN_PROGRESS,
+    // ensure the task is reopened and completion/cancellation fields are cleared.
+    const shouldReopen =
+        (dueDateChanged && !data.status) ||
+        data.status === 'OPEN' ||
+        data.status === 'IN_PROGRESS';
+
+    const nextStatus = (data.status as TaskStatus) || (dueDateChanged ? ('OPEN' as TaskStatus) : existing.status);
+
     const updated = await prisma.task.update({
         where: { id },
         data: {
-            ...data,
-            ...(data.status === 'COMPLETED' && !existing.completedAt
-                ? { completedAt: new Date() }
+            ...cleanData,
+            status: nextStatus,
+            ...(dueDateChanged ? { rescheduleCount: { increment: 1 } } : {}),
+            ...(nextStatus === 'COMPLETED' && !existing.completedAt
+                ? { completedAt: new Date(), completedById: actorId ?? null }
                 : {}),
-            ...(data.status === 'OPEN' || data.status === 'IN_PROGRESS'
-                ? { completedAt: null, completedById: null, completionNote: null }
+            ...(shouldReopen
+                ? {
+                    completedAt: null,
+                    completedById: null,
+                    completionNote: null,
+                    cancelReasonId: null,
+                }
                 : {}),
         },
         include: taskInclude,
@@ -353,3 +455,62 @@ export async function getTaskOptions() {
     }
 }
 
+
+export async function getFollowUpStats(userId: number, isAdmin: boolean) {
+    const now = new Date()
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
+
+    const startOfTomorrow = new Date(startOfToday)
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1)
+
+    const baseWhere = isAdmin
+        ? {}
+        : {
+            OR: [
+                { assignedToId: userId },
+                { createdById: userId },
+            ],
+        }
+
+    const [dueToday, overdue, upcoming, completed, all] = await Promise.all([
+        prisma.task.count({
+            where: {
+                ...baseWhere,
+                status: { in: ['OPEN', 'IN_PROGRESS'] },
+                dueAt: { gte: startOfToday, lt: startOfTomorrow },
+            },
+        }),
+        prisma.task.count({
+            where: {
+                ...baseWhere,
+                status: { in: ['OPEN', 'IN_PROGRESS'] },
+                dueAt: { lt: startOfToday },
+            },
+        }),
+        prisma.task.count({
+            where: {
+                ...baseWhere,
+                status: { in: ['OPEN', 'IN_PROGRESS'] },
+                dueAt: { gte: startOfTomorrow },
+            },
+        }),
+        prisma.task.count({
+            where: {
+                ...baseWhere,
+                status: 'COMPLETED',
+            },
+        }),
+        prisma.task.count({
+            where: baseWhere,
+        }),
+    ])
+
+    return {
+        dueToday,
+        overdue,
+        upcoming,
+        completed,
+        all,
+    }
+}
