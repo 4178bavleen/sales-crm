@@ -52,10 +52,15 @@ export async function listAuditLogs(query: {
   const skip = (page - 1) * limit
 
   const where: any = {}
-  if (query.entityType) {
-    where.entityType = {
-      equals: query.entityType.trim(),
-      mode: 'insensitive',
+  if (query.entityType && query.entityType.toUpperCase() !== 'ALL') {
+    const et = query.entityType.trim().toUpperCase()
+    if (et === 'FOLLOWUP' || et === 'ACTIVITY') {
+      where.entityType = { in: ['ACTIVITY', 'FOLLOWUP'] }
+    } else {
+      where.entityType = {
+        equals: query.entityType.trim(),
+        mode: 'insensitive',
+      }
     }
   }
   if (query.entityId) {
@@ -71,7 +76,7 @@ export async function listAuditLogs(query: {
     }
   }
 
-  const [total, logs] = await Promise.all([
+  const [total, logs, entityGroups, allCount] = await Promise.all([
     prisma.auditLog.count({ where }),
     prisma.auditLog.findMany({
       where,
@@ -89,7 +94,17 @@ export async function listAuditLogs(query: {
       skip,
       take: limit,
     }),
+    prisma.auditLog.groupBy({
+      by: ['entityType'],
+      _count: { _all: true },
+    }),
+    prisma.auditLog.count(),
   ])
+
+  const countsByType: Record<string, number> = {}
+  for (const g of entityGroups) {
+    countsByType[g.entityType.toUpperCase()] = g._count._all
+  }
 
   // Convert BigInt id to string for JSON serialization
   const items = logs.map((log) => ({
@@ -111,7 +126,14 @@ export async function listAuditLogs(query: {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    stats: {
+      total: allCount,
+      leads: countsByType['LEAD'] || 0,
+      deals: countsByType['DEAL'] || 0,
+      customers: countsByType['CUSTOMER'] || 0,
+      users: (countsByType['USER'] || 0) + (countsByType['AUTH'] || 0),
     },
   }
 }

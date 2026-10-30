@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
 import { createInAppNotification } from '../notifications/notification.service.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateMeetingInput,
   ListMeetingsQuery,
@@ -235,6 +236,19 @@ export async function createMeeting(data: CreateMeetingInput, actorId: number) {
     }
   }
 
+  void logAudit({
+    actorId,
+    action: 'CREATE',
+    entityType: 'MEETING',
+    entityId: meeting.id,
+    after: {
+      title: meeting.title,
+      startsAt: meeting.startsAt?.toISOString(),
+      durationMinutes: meeting.durationMinutes,
+      location: meeting.location,
+    },
+  })
+
   return getMeetingById(meeting.id)
 }
 
@@ -390,6 +404,23 @@ export async function updateMeeting(
     console.error('Failed to dispatch meeting update notification(s):', notifErr)
   }
 
+  void logAudit({
+    actorId,
+    action: data.status ? (data.status === 'COMPLETED' ? 'COMPLETE' : data.status === 'CANCELLED' ? 'CANCEL' : 'STATUS_CHANGE') : 'UPDATE',
+    entityType: 'MEETING',
+    entityId: id,
+    before: {
+      status: existing.status,
+      startsAt: existing.startsAt?.toISOString(),
+    },
+    after: {
+      status: updated.status,
+      title: updated.title,
+      startsAt: updated.startsAt?.toISOString(),
+      location: updated.location,
+    },
+  })
+
   return updated
 }
 
@@ -398,6 +429,16 @@ export async function deleteMeeting(id: number) {
   if (!existing) {
     throw new MeetingServiceError('Meeting not found', 404)
   }
+
+  void logAudit({
+    action: 'DELETE',
+    entityType: 'MEETING',
+    entityId: id,
+    before: {
+      title: existing.title,
+      startsAt: existing.startsAt?.toISOString(),
+    },
+  })
 
   await prisma.meeting.delete({
     where: { id },

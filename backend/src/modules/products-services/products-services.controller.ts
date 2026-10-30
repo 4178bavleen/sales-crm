@@ -53,7 +53,7 @@ export async function createProductService(
     }
 
     const input = createProductServiceSchema.parse(req.body)
-    const item = await productService.createProductService(input)
+    const item = await productService.createProductService(input, req.user.id)
 
     res.status(201).json({
       success: true,
@@ -135,7 +135,7 @@ export async function editProductService(
 
     const id = productServiceIdSchema.parse(req.params.id)
     const input = updateProductServiceSchema.parse(req.body)
-    const item = await productService.updateProductService(id, input)
+    const item = await productService.updateProductService(id, input, req.user.id)
 
     res.status(200).json({
       success: true,
@@ -162,7 +162,7 @@ export async function removeProductService(
     }
 
     const id = productServiceIdSchema.parse(req.params.id)
-    const result = await productService.deleteProductService(id)
+    const result = await productService.deleteProductService(id, req.user.id)
 
     res.status(200).json({
       success: true,

@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import type { ActivityType } from '../../generated/prisma/client.js'
+import { logAudit } from '../audit/audit.service.js'
 
 type ActivityInput = Record<string, unknown>
 
@@ -76,6 +77,23 @@ export async function createActivity(data: ActivityInput, actorId: number) {
       await prisma.lead.update({ where: { id: activity.leadId }, data: { nextFollowUpAt: task.dueAt } })
     }
   }
+
+  void logAudit({
+    actorId,
+    action: 'LOG_ACTIVITY',
+    entityType: 'ACTIVITY',
+    entityId: activity.id,
+    after: {
+      type: activity.type,
+      outcome: activity.outcome,
+      notes: activity.notes,
+      leadId: activity.leadId,
+      dealId: activity.dealId,
+      customerId: activity.customerId,
+      taskId: activity.taskId,
+      occurredAt: activity.occurredAt,
+    },
+  })
 
   return activity
 }

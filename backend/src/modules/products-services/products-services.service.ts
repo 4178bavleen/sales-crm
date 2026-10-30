@@ -1,6 +1,7 @@
 
 import { Prisma } from '../../generated/prisma/client.js'
 import { prisma } from '../../config/database.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateProductServiceInput,
   UpdateProductServiceInput,
@@ -39,13 +40,14 @@ async function ensureUniqueName(name: string, excludeId?: number) {
 
 export async function createProductService(
   input: CreateProductServiceInput,
+  actorId?: number,
 ) {
   const name = input.name.trim()
 
   await ensureUniqueName(name)
 
   try {
-    return await prisma.productService.create({
+    const item = await prisma.productService.create({
       data: {
         name,
         description: input.description ?? null,
@@ -53,6 +55,21 @@ export async function createProductService(
         isActive: input.isActive,
       },
     })
+
+    void logAudit({
+      actorId: actorId ?? null,
+      action: 'CREATE',
+      entityType: 'PRODUCT_SERVICE',
+      entityId: item.id,
+      after: {
+        name: item.name,
+        type: item.type,
+        isActive: item.isActive,
+        description: item.description,
+      },
+    })
+
+    return item
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -124,10 +141,17 @@ export async function getProductServiceById(id: number) {
 export async function updateProductService(
   id: number,
   input: UpdateProductServiceInput,
+  actorId?: number,
 ) {
   const existing = await prisma.productService.findUnique({
     where: { id },
-    select: { id: true },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      isActive: true,
+      description: true,
+    },
   })
 
   if (!existing) {
@@ -139,7 +163,7 @@ export async function updateProductService(
   }
 
   try {
-    return await prisma.productService.update({
+    const item = await prisma.productService.update({
       where: { id },
       data: {
         ...(input.name !== undefined
@@ -156,6 +180,27 @@ export async function updateProductService(
           : {}),
       },
     })
+
+    void logAudit({
+      actorId: actorId ?? null,
+      action: 'UPDATE',
+      entityType: 'PRODUCT_SERVICE',
+      entityId: id,
+      before: {
+        name: existing.name,
+        type: existing.type,
+        isActive: existing.isActive,
+        description: existing.description,
+      },
+      after: {
+        name: item.name,
+        type: item.type,
+        isActive: item.isActive,
+        description: item.description,
+      },
+    })
+
+    return item
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -171,11 +216,13 @@ export async function updateProductService(
   }
 }
 
-export async function deleteProductService(id: number) {
+export async function deleteProductService(id: number, actorId?: number) {
   const existing = await prisma.productService.findUnique({
     where: { id },
     select: {
       id: true,
+      name: true,
+      type: true,
       _count: {
         select: {
           leads: true,
@@ -197,6 +244,17 @@ export async function deleteProductService(id: number) {
   }
 
   await prisma.productService.delete({ where: { id } })
+
+  void logAudit({
+    actorId: actorId ?? null,
+    action: 'DELETE',
+    entityType: 'PRODUCT_SERVICE',
+    entityId: id,
+    before: {
+      name: existing.name,
+      type: existing.type,
+    },
+  })
 
   return { id, deleted: true }
 }

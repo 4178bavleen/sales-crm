@@ -20,6 +20,7 @@ import {
   UserCheck,
   Shield,
   History,
+  Eye,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -36,7 +37,12 @@ import {
 import { fetchReportOverview, fetchRepPerformanceReport } from "../../lib/reports";
 import { fetchLeads, createLead } from "../../lib/leads";
 import { fetchMeetings } from "../../lib/meetings";
-import { fetchAuditLogs, type AuditLogItem } from "../../lib/auditLogs";
+import {
+  fetchAuditLogs,
+  getActionBadgeClass,
+  formatAuditSummary,
+  type AuditLogItem,
+} from "../../lib/auditLogs";
 import { request } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
@@ -51,6 +57,7 @@ import type { MeetingItem } from "../../types/meeting";
 import type { Task } from "../../types/task";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import AuditLogDetailDialog from "../../components/ui/AuditLogDetailDialog";
 
 function formatCurrency(val: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -73,59 +80,6 @@ function formatDateKey(dateStr?: string | null): string {
   } catch {
     return "";
   }
-}
-
-function getActionBadgeClass(action: string) {
-  switch (action) {
-    case "CREATE":
-      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20";
-    case "ASSIGN":
-      return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20";
-    case "STATUS_CHANGE":
-    case "STAGE_CHANGE":
-      return "bg-blue-50 text-[#1d61e7] ring-1 ring-[#1d61e7]/20";
-    case "DISQUALIFY":
-    case "DELETE":
-      return "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20";
-    case "CLOSE_WON":
-      return "bg-purple-50 text-purple-700 ring-1 ring-purple-600/20";
-    default:
-      return "bg-slate-100 text-slate-700";
-  }
-}
-
-function formatAuditSummary(log: AuditLogItem): string {
-  if (log.after && typeof log.after === "object") {
-    const after = log.after as Record<string, unknown>;
-    const before = (log.before && typeof log.before === "object" ? log.before : {}) as Record<string, unknown>;
-
-    if (log.action === "STAGE_CHANGE" || (before.stageId !== undefined && after.stageId !== undefined)) {
-      return `Stage moved from #${String(before.stageId ?? "?")} to #${String(after.stageId ?? "?")}`;
-    }
-    if (log.action === "STATUS_CHANGE" || (before.status !== undefined && after.status !== undefined)) {
-      return `Status changed: ${String(before.status)} → ${String(after.status)}`;
-    }
-    if (log.action === "ASSIGN" || after.ownerId !== undefined) {
-      return after.ownerId ? `Assigned to user #${String(after.ownerId)}` : "Unassigned";
-    }
-    if (log.action === "DISQUALIFY" || after.reason !== undefined) {
-      return `Disqualified${after.reason ? `: "${String(after.reason)}"` : ""}`;
-    }
-    if (after.title) {
-      return `"${String(after.title)}"`;
-    }
-    if (after.fullName) {
-      return `Contact: ${String(after.fullName)}`;
-    }
-    const entries = Object.entries(after).filter(([k]) => k !== "id");
-    if (entries.length > 0) {
-      return entries
-        .slice(0, 2)
-        .map(([k, v]) => `${k}: ${String(v)}`)
-        .join(", ");
-    }
-  }
-  return "State updated";
 }
 
 export default function Dashboard() {
@@ -160,6 +114,7 @@ export default function Dashboard() {
 
   // Create lead modal
   const [isCreateLeadOpen, setIsCreateLeadOpen] = useState(false);
+  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogItem | null>(null);
 
   const loadDashboardData = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true);
@@ -1357,19 +1312,28 @@ export default function Dashboard() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold tracking-wider text-slate-700 uppercase">
+                  <th className="py-2.5 px-3 w-10 text-center">#</th>
                   <th className="py-2.5 px-3">Timestamp</th>
                   <th className="py-2.5 px-3">Action</th>
                   <th className="py-2.5 px-3">Entity</th>
                   <th className="py-2.5 px-3">Performed By</th>
                   <th className="py-2.5 px-3">Event Details</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {auditLogs.map((log) => {
+                {auditLogs.map((log, index) => {
                   const actorName = log.actor?.name || (log.actorId ? `User #${log.actorId}` : "System");
                   const actorEmail = log.actor?.email;
                   return (
-                    <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr
+                      key={log.id}
+                      onClick={() => setSelectedAuditLog(log)}
+                      className="hover:bg-slate-50/60 transition-colors cursor-pointer"
+                    >
+                      <td className="py-2.5 px-3 text-center font-mono text-[11px] font-semibold text-slate-700">
+                        {index + 1}
+                      </td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-slate-700 font-mono text-[11px]">
                         {new Date(log.createdAt).toLocaleDateString("en-US", {
                           month: "short",
@@ -1416,6 +1380,19 @@ export default function Dashboard() {
                       <td className="py-2.5 px-3 text-slate-800">
                         {formatAuditSummary(log)}
                       </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAuditLog(log);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#1d61e7] shadow-2xs transition cursor-pointer"
+                        >
+                          <Eye size={12} />
+                          Details
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1430,6 +1407,14 @@ export default function Dashboard() {
         <CreateLeadModal
           onClose={() => setIsCreateLeadOpen(false)}
           onCreate={handleLeadCreated}
+        />
+      )}
+
+      {/* AUDIT LOG DETAIL DIALOG */}
+      {selectedAuditLog && (
+        <AuditLogDetailDialog
+          log={selectedAuditLog}
+          onClose={() => setSelectedAuditLog(null)}
         />
       )}
     </div>

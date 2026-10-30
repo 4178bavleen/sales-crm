@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateTargetInput,
   ListTargetsQuery,
@@ -689,6 +690,19 @@ export async function createTarget(input: CreateTargetInput, actorId: number) {
     },
   })
 
+  void logAudit({
+    actorId,
+    action: 'CREATE',
+    entityType: 'TARGET',
+    entityId: target.id,
+    after: {
+      amount: Number(target.amount),
+      periodType: target.periodType,
+      userId: target.userId,
+      teamId: target.teamId,
+    },
+  })
+
   return {
     ...target,
     amount: Number(target.amount),
@@ -746,6 +760,15 @@ export async function updateTarget(id: number, input: UpdateTargetInput, actorId
           reason: input.reason || 'Quota adjustment',
         },
       })
+
+      void logAudit({
+        actorId,
+        action: 'UPDATE',
+        entityType: 'TARGET',
+        entityId: existing.id,
+        before: { amount: Number(existing.amount) },
+        after: { amount: Number(input.amount), reason: input.reason || 'Quota adjustment' },
+      })
     }
   }
 
@@ -774,12 +797,19 @@ export async function updateTarget(id: number, input: UpdateTargetInput, actorId
 export async function deleteTarget(id: number) {
   const existing = await prisma.revenueTarget.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, amount: true, periodType: true },
   })
 
   if (!existing) {
     throw new TargetServiceError('Sales target not found', 404)
   }
+
+  void logAudit({
+    action: 'DELETE',
+    entityType: 'TARGET',
+    entityId: id,
+    before: { amount: Number(existing.amount), periodType: existing.periodType },
+  })
 
   // TargetChange relations will cascade delete
   await prisma.revenueTarget.delete({

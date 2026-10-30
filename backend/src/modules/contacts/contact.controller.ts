@@ -54,7 +54,7 @@ export async function createContact(
     }
 
     const input = createContactSchema.parse(req.body)
-    const contact = await contactService.createContact(input)
+    const contact = await contactService.createContact(input, req.user.id)
 
     res.status(201).json({
       success: true,
@@ -136,7 +136,7 @@ export async function editContact(
 
     const id = contactIdSchema.parse(req.params.id)
     const input = updateContactSchema.parse(req.body)
-    const contact = await contactService.updateContact(id, input)
+    const contact = await contactService.updateContact(id, input, req.user.id)
 
     res.status(200).json({
       success: true,
@@ -163,7 +163,7 @@ export async function removeContact(
     }
 
     const id = contactIdSchema.parse(req.params.id)
-    const result = await contactService.deleteContact(id)
+    const result = await contactService.deleteContact(id, req.user.id)
 
     res.status(200).json({
       success: true,
