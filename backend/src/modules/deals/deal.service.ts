@@ -323,7 +323,7 @@ export async function updateDeal(
 
         if (existing.status !== DealStatus.OPEN) {
             throw new DealValidationError(
-                "Closed deals cannot be edited through this endpoint",
+                "Closed deals cannot be edited.",
             );
         }
 

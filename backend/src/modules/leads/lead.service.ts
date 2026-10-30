@@ -538,34 +538,14 @@ export async function updateLeadStatus(
     throw new LeadServiceError('Lead not found', 404)
   }
 
-  if (input.status === 'DISQUALIFIED' && input.disqualifyReasonId != null) {
-    const reason = await prisma.reason.findFirst({
-      where: {
-        id: input.disqualifyReasonId,
-        isActive: true,
-      },
-      select: { id: true },
-    })
-
-    if (!reason) {
-      throw new LeadServiceError(
-        'Disqualification reason not found or inactive',
-        400,
-      )
-    }
-  }
-
   const now = new Date()
 
   const data = {
     status: input.status,
-    disqualifyReasonId:
-      input.status === 'DISQUALIFIED'
-        ? input.disqualifyReasonId ?? null
-        : null,
+    disqualifyReasonId: null,
     disqualifyNote:
       input.status === 'DISQUALIFIED'
-        ? input.disqualifyNote?.trim() || null
+        ? input.disqualifyReason?.trim() || null
         : null,
     disqualifiedAt:
       input.status === 'DISQUALIFIED'

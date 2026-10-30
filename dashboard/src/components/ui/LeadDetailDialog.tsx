@@ -82,6 +82,18 @@ export default function LeadDetailDialog({
             </div>
           </div>
 
+          {lead.status === "DISQUALIFIED" && lead.disqualifyReason && (
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50/70 p-3.5 text-xs">
+              <p className="font-semibold text-rose-800">Disqualification Reason</p>
+              <p className="mt-1 text-rose-700 whitespace-pre-wrap">{lead.disqualifyReason}</p>
+              {lead.disqualifiedAt && (
+                <p className="mt-2 text-[10px] text-rose-500">
+                  Disqualified on {formatDate(lead.disqualifiedAt)}
+                </p>
+              )}
+            </div>
+          )}
+
           <h3 className="mb-4 mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Contact information
           </h3>
