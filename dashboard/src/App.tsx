@@ -20,6 +20,7 @@ import Profile from "./pages/profile/Profile";
 import Users from "./pages/users/Users";
 import RolesAndPermissions from "./pages/permissions/RolesAndPermissions";
 import Notifications from "./pages/notifications/Notifications";
+import AuditLogs from "./pages/audit-logs/AuditLogs";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 import "./App.css";
@@ -56,6 +57,7 @@ function AppShell() {
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
             <Route path="/users" element={<Users />} />
             <Route path="/user-management" element={<Users />} />
             <Route path="/permissions" element={<RolesAndPermissions />} />

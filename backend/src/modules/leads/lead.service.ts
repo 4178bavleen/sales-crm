@@ -11,6 +11,7 @@ import type {
 
 import type { UpdateLeadStatusInput } from './lead.validation.js'
 import { createInAppNotification } from '../notifications/notification.service.js'
+import { logAudit } from '../audit/audit.service.js'
 export class LeadServiceError extends Error {
   constructor(
     message: string,
@@ -143,7 +144,7 @@ export async function createLead(
   const email = normalizeEmail(input.email)
   const phone = normalizePhone(input.phone)
 
-  return prisma.lead.create({
+  const createdLead = await prisma.lead.create({
     data: {
       contactName: input.contactName,
       companyName: input.companyName || null,
@@ -164,6 +165,21 @@ export async function createLead(
     },
     select: leadSelect,
   })
+
+  void logAudit({
+    actorId,
+    action: 'CREATE',
+    entityType: 'LEAD',
+    entityId: createdLead.id,
+    after: {
+      contactName: createdLead.contactName,
+      companyName: createdLead.companyName,
+      status: createdLead.status,
+      ownerId: createdLead.ownerId,
+    },
+  })
+
+  return createdLead
 }
 
 export async function getLeads(input: ListLeadsInput) {
@@ -488,6 +504,15 @@ export async function assignLead(
 
   const updatedLead = await getLeadById(leadId)
 
+  void logAudit({
+    actorId: assignedById,
+    action: 'ASSIGN',
+    entityType: 'LEAD',
+    entityId: leadId,
+    before: { ownerId: lead.ownerId },
+    after: { ownerId, note },
+  })
+
   // Notify the new owner after the assignment succeeds.
   if (ownerId !== null && ownerId !== assignedById) {
     try {
@@ -554,11 +579,25 @@ export async function updateLeadStatus(
   }
 
   if (input.status !== 'CONVERTED' || existing.convertedCustomerId != null) {
-    return prisma.lead.update({
+    const updated = await prisma.lead.update({
       where: { id },
       data,
       select: leadSelect,
     })
+
+    void logAudit({
+      actorId,
+      action: input.status === 'DISQUALIFIED' ? 'DISQUALIFY' : 'STATUS_CHANGE',
+      entityType: 'LEAD',
+      entityId: id,
+      before: { status: existing.status },
+      after: {
+        status: input.status,
+        disqualifyReason: input.disqualifyReason,
+      },
+    })
+
+    return updated
   }
 
   const conversion = input as any

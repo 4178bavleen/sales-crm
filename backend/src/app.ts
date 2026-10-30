@@ -21,6 +21,7 @@ import productServiceRoutes from './modules/products-services/products-services.
 import notificationRoutes from './modules/notifications/notification.routes.js'
 import customerRoutes from './modules/customers/customer.routes.js'
 import activityRoutes from './modules/activities/activity.routes.js'
+import auditRoutes from './modules/audit/audit.routes.js'
 
 
 const app = express()
@@ -60,6 +61,7 @@ app.use('/api/v1/products-services', productServiceRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
 app.use('/api/v1/customers', customerRoutes)
 app.use('/api/v1/activities', activityRoutes)
+app.use('/api/v1/audit-logs', auditRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
