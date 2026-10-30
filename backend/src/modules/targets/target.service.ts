@@ -167,10 +167,105 @@ export async function listTargets(query: ListTargetsQuery) {
     orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
   })
 
+  // Collect all contributing user IDs and min/max date boundaries across targets to query deals in bulk
+  const allContributingUserIds = new Set<number>()
+  let minPeriodStart: Date | null = null
+  let maxPeriodEnd: Date | null = null
+
+  for (const t of rawTargets) {
+    if (t.userId) {
+      allContributingUserIds.add(t.userId)
+    } else if (t.team?.members) {
+      for (const m of t.team.members) {
+        allContributingUserIds.add(m.id)
+      }
+    }
+
+    if (!minPeriodStart || t.periodStart < minPeriodStart) {
+      minPeriodStart = t.periodStart
+    }
+    if (!maxPeriodEnd || t.periodEnd > maxPeriodEnd) {
+      maxPeriodEnd = t.periodEnd
+    }
+  }
+
+  const contributingUserIdsList = Array.from(allContributingUserIds)
+
+  // Fetch all relevant WON deals and OPEN deals in single bulk queries
+  const [allWonDeals, allOpenDeals] = await Promise.all([
+    contributingUserIdsList.length > 0 && minPeriodStart && maxPeriodEnd
+      ? prisma.deal.findMany({
+          where: {
+            ownerId: { in: contributingUserIdsList },
+            status: 'WON',
+            deletedAt: null,
+            OR: [
+              {
+                closedAt: {
+                  gte: minPeriodStart,
+                  lte: maxPeriodEnd,
+                },
+              },
+              {
+                closedAt: null,
+                expectedCloseDate: {
+                  gte: minPeriodStart,
+                  lte: maxPeriodEnd,
+                },
+              },
+            ],
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            closedRevenue: true,
+            estimatedValue: true,
+            closedAt: true,
+            expectedCloseDate: true,
+          },
+        })
+      : Promise.resolve([]),
+    contributingUserIdsList.length > 0
+      ? prisma.deal.findMany({
+          where: {
+            ownerId: { in: contributingUserIdsList },
+            status: 'OPEN',
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            estimatedValue: true,
+            expectedCloseDate: true,
+          },
+        })
+      : Promise.resolve([]),
+  ])
+
+  // Pre-index open deals by ownerId for O(1) in-memory lookup
+  const openDealsByOwner = new Map<number, typeof allOpenDeals>()
+  for (const deal of allOpenDeals) {
+    if (deal.ownerId) {
+      const list = openDealsByOwner.get(deal.ownerId) || []
+      list.push(deal)
+      openDealsByOwner.set(deal.ownerId, list)
+    }
+  }
+
+  // Pre-index won deals by ownerId for fast matching
+  const wonDealsByOwner = new Map<number, typeof allWonDeals>()
+  for (const deal of allWonDeals) {
+    if (deal.ownerId) {
+      const list = wonDealsByOwner.get(deal.ownerId) || []
+      list.push(deal)
+      wonDealsByOwner.set(deal.ownerId, list)
+    }
+  }
+
   // Compute progress for each target
   const items: TargetProgressItem[] = []
   let totalQuota = 0
-  let totalAchieved = 0
+  const distinctWonDealsMap = new Map<number, number>()
   let achievedCount = 0
   let onTrackCount = 0
   let atRiskCount = 0
@@ -195,57 +290,41 @@ export async function listTargets(query: ListTargetsQuery) {
     let openDealsCount = 0
 
     if (contributingUserIds.length > 0) {
-      // Won deals within period
-      const wonDeals = await prisma.deal.findMany({
-        where: {
-          ownerId: { in: contributingUserIds },
-          status: 'WON',
-          deletedAt: null,
-          OR: [
-            {
-              closedAt: {
-                gte: t.periodStart,
-                lte: t.periodEnd,
-              },
-            },
-            {
-              closedAt: null,
-              expectedCloseDate: {
-                gte: t.periodStart,
-                lte: t.periodEnd,
-              },
-            },
-          ],
-        },
-        select: {
-          closedRevenue: true,
-          estimatedValue: true,
-        },
-      })
+      const targetStartTime = t.periodStart.getTime()
+      const targetEndTime = t.periodEnd.getTime()
 
-      wonDealsCount = wonDeals.length
-      achievedRevenue = wonDeals.reduce((sum, d) => {
-        const val = d.closedRevenue !== null ? Number(d.closedRevenue) : Number(d.estimatedValue || 0)
-        return sum + val
-      }, 0)
+      for (const uId of contributingUserIds) {
+        // Matching won deals for user within target period
+        const userWonDeals = wonDealsByOwner.get(uId) || []
+        for (const d of userWonDeals) {
+          const dealDate = d.closedAt || d.expectedCloseDate
+          if (dealDate) {
+            const time = dealDate.getTime()
+            if (time >= targetStartTime && time <= targetEndTime) {
+              const val = d.closedRevenue !== null ? Number(d.closedRevenue) : Number(d.estimatedValue || 0)
+              achievedRevenue += val
+              wonDealsCount++
+              distinctWonDealsMap.set(d.id, val)
+            }
+          }
+        }
 
-      // Open pipeline
-      const openDeals = await prisma.deal.findMany({
-        where: {
-          ownerId: { in: contributingUserIds },
-          status: 'OPEN',
-          deletedAt: null,
-        },
-        select: {
-          estimatedValue: true,
-        },
-      })
-
-      openDealsCount = openDeals.length
-      pipelineRevenue = openDeals.reduce((sum, d) => sum + Number(d.estimatedValue || 0), 0)
+        // Matching open deals for user pipeline within period (or without specified date)
+        const userOpenDeals = openDealsByOwner.get(uId) || []
+        for (const d of userOpenDeals) {
+          if (!d.expectedCloseDate) {
+            pipelineRevenue += Number(d.estimatedValue || 0)
+            openDealsCount++
+          } else {
+            const time = d.expectedCloseDate.getTime()
+            if (time >= targetStartTime && time <= targetEndTime) {
+              pipelineRevenue += Number(d.estimatedValue || 0)
+              openDealsCount++
+            }
+          }
+        }
+      }
     }
-
-    totalAchieved += achievedRevenue
 
     const progress = targetAmount > 0 ? (achievedRevenue / targetAmount) * 100 : 0
     const roundedProgress = Math.round(progress * 10) / 10
@@ -303,6 +382,11 @@ export async function listTargets(query: ListTargetsQuery) {
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
     })
+  }
+
+  let totalAchieved = 0
+  for (const val of distinctWonDealsMap.values()) {
+    totalAchieved += val
   }
 
   const overallAttainment =
