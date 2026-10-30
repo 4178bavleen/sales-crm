@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
 
 const targetColumnOptions: TableSettingsColumn[] = [
@@ -379,106 +379,53 @@ export default function Targets() {
 
       {/* KPI Cards Row (4 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Target Quota */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-              <Target size={17} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-slate-500">Total Quota Target</p>
-              <p className="text-xl font-bold text-slate-900 leading-tight">
-                {formatCurrency(summary.totalQuota)}
-              </p>
-              <p className="mt-0.5 text-[10px] font-semibold text-blue-600 flex items-center gap-0.5">
-                <span>↑</span> {summary.totalTargets} targets allocated
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={summary.trends?.quota || targets.map((t) => t.amount)}
-            color="blue"
-            gradientId="target-stat-dynamic-quota"
-          />
-        </div>
-
-        {/* Closed Won Revenue */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <TrendingUp size={17} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-slate-500">Closed Won Revenue</p>
-              <p className="text-xl font-bold text-slate-900 leading-tight">
-                {formatCurrency(summary.totalAchieved)}
-              </p>
-              <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 flex items-center gap-0.5">
-                <span>↑</span> {summary.achievedCount} reached 100%+ goal
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={summary.trends?.revenue || targets.map((t) => t.achievedRevenue)}
-            color="emerald"
-            gradientId="target-stat-dynamic-revenue"
-          />
-        </div>
-
-        {/* Overall Attainment */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
-              <Award size={17} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-slate-500">Overall Attainment</p>
-              <p className="text-xl font-bold text-slate-900 leading-tight">
-                {summary.overallAttainment}%
-              </p>
-              <p className="mt-0.5 text-[10px] font-semibold text-purple-600 flex items-center gap-0.5">
-                <span>↑</span> {summary.onTrackCount} on track, {summary.atRiskCount} at risk
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={summary.trends?.attainment || targets.map((t) => t.progressPercentage)}
-            color="purple"
-            gradientId="target-stat-dynamic-attainment"
-          />
-        </div>
-
-        {/* Top Performer */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <Sparkles size={17} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-slate-500">Top Performer</p>
-              <p className="truncate text-lg font-bold text-slate-900 leading-tight">
-                {summary.topPerformer ? summary.topPerformer.name : "In Progress"}
-              </p>
-              <p className="mt-0.5 text-[10px] font-semibold text-amber-600 flex items-center gap-0.5">
-                {summary.topPerformer ? (
-                  <>
-                    <span>★</span> {summary.topPerformer.attainment}% ({formatCurrency(summary.topPerformer.achieved)})
-                  </>
-                ) : (
-                  "Tracking performance"
-                )}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={
-              summary.trends?.performance ||
-              [...targets].map((t) => t.progressPercentage).sort((a, b) => a - b)
-            }
-            color="amber"
-            gradientId="target-stat-dynamic-performer"
-          />
-        </div>
+        <StatCard
+          label="Total Quota Target"
+          value={formatCurrency(summary.totalQuota)}
+          subtext={`↑ ${summary.totalTargets} targets allocated`}
+          icon={Target}
+          color="blue"
+          sparklineData={summary.trends?.quota || targets.map((t) => t.amount)}
+          sparklineId="target-stat-dynamic-quota"
+        />
+        <StatCard
+          label="Closed Won Revenue"
+          value={formatCurrency(summary.totalAchieved)}
+          subtext={`↑ ${summary.achievedCount} reached 100%+ goal`}
+          icon={TrendingUp}
+          color="emerald"
+          sparklineData={summary.trends?.revenue || targets.map((t) => t.achievedRevenue)}
+          sparklineId="target-stat-dynamic-revenue"
+        />
+        <StatCard
+          label="Overall Attainment"
+          value={`${summary.overallAttainment}%`}
+          subtext={`↑ ${summary.onTrackCount} on track, ${summary.atRiskCount} at risk`}
+          icon={Award}
+          color="purple"
+          sparklineData={summary.trends?.attainment || targets.map((t) => t.progressPercentage)}
+          sparklineId="target-stat-dynamic-attainment"
+        />
+        <StatCard
+          label="Top Performer"
+          value={summary.topPerformer ? summary.topPerformer.name : "In Progress"}
+          subtext={
+            summary.topPerformer ? (
+              <>
+                <span>★</span> {summary.topPerformer.attainment}% ({formatCurrency(summary.topPerformer.achieved)})
+              </>
+            ) : (
+              "Tracking performance"
+            )
+          }
+          icon={Sparkles}
+          color="amber"
+          sparklineData={
+            summary.trends?.performance ||
+            [...targets].map((t) => t.progressPercentage).sort((a, b) => a - b)
+          }
+          sparklineId="target-stat-dynamic-performer"
+        />
       </div>
 
       {/* Filter and Search Bar */}

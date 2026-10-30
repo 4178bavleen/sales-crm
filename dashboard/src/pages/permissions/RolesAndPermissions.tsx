@@ -51,6 +51,7 @@ import {
 import { roleLabel } from "../../lib/users";
 import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
+import StatCard from "../../components/ui/StatCard";
 
 const CATEGORY_ICONS: Record<string, typeof Shield> = {
   dashboard: LayoutDashboard,
@@ -716,90 +717,35 @@ export default function RolesAndPermissions() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Roles */}
-        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Configured Roles</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Layers size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {roles.length}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">defined</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <ShieldCheck size={12} className="text-blue-500" />
-            <span>1 System Root, {Math.max(0, roles.length - 1)} Configurable</span>
-          </div>
-        </div>
-
-        {/* Assigned Users */}
-        <div className="rounded-2xl border border-indigo-500 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Assigned Team</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Users size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {totalAssignedUsers}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">members</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <UserCheck size={12} className="text-indigo-500" />
-            <span>Mapped across {roles.length} access levels</span>
-          </div>
-        </div>
-
-        {/* Active Role Capabilities */}
-        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">
-              {selectedRole ? roleLabel(selectedRole.name) : "Active Role"} Coverage
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <Activity size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {selectedRoleCoverage}%
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">
-              ({assignedCodes.length}/{allPermissions.length} perms)
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span>Fine-grained matrix active</span>
-          </div>
-        </div>
-
-        {/* Total Permission Capabilities */}
-        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-xs hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Security Bounds</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-              <KeyRound size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {allPermissions.length}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">capabilities</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <Lock size={12} className="text-purple-500" />
-            <span>Across {categoriesList.length} functional modules</span>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Configured Roles"
+          value={roles.length}
+          subtext={`1 Root, ${Math.max(0, roles.length - 1)} Configurable`}
+          icon={Layers}
+          color="blue"
+        />
+        <StatCard
+          label="Assigned Team"
+          value={totalAssignedUsers}
+          subtext={`Mapped across ${roles.length} roles`}
+          icon={Users}
+          color="indigo"
+        />
+        <StatCard
+          label={`${selectedRole ? roleLabel(selectedRole.name) : "Active Role"} Coverage`}
+          value={`${selectedRoleCoverage}%`}
+          subtext={`${assignedCodes.length}/${allPermissions.length} permissions`}
+          icon={Activity}
+          color="emerald"
+        />
+        <StatCard
+          label="Security Bounds"
+          value={allPermissions.length}
+          subtext={`Across ${categoriesList.length} modules`}
+          icon={KeyRound}
+          color="purple"
+        />
       </div>
 
       {/* Error Alert */}

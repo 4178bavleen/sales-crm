@@ -43,7 +43,7 @@ import type {
 import { getSession } from "../../lib/auth";
 import { ApiError } from "../../lib/api";
 import { useNotifications } from "../../context/NotificationContext";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
 
 const meetingColumnOptions: TableSettingsColumn[] = [
@@ -592,97 +592,42 @@ export default function MeetingsPage() {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-              <CalendarDays size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Total Consultations</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {stats.total}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
-                <span>↑</span> Client sessions
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.total}
-            color="blue"
-            gradientId="meeting-stat-dyn-total"
-          />
-        </div>
-
-        {/* Planned Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-indigo-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-indigo-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-              <Clock size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Upcoming / Planned</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {stats.planned}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-indigo-600 flex items-center gap-0.5">
-                <span>↑</span> Scheduled
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.planned}
-            color="indigo"
-            gradientId="meeting-stat-dyn-planned"
-          />
-        </div>
-
-        {/* Completed Meetings */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Completed Sessions</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {stats.completed}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
-                <span>↑</span> Conducted
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.completed}
-            color="emerald"
-            gradientId="meeting-stat-dyn-completed"
-          />
-        </div>
-
-        {/* Cancelled / Rescheduled */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <Calendar size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Rescheduled / Cancelled</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {stats.cancelled}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
-                <span>↑</span> Updated
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.cancelled}
-            color="amber"
-            gradientId="meeting-stat-dyn-cancelled"
-          />
-        </div>
+        <StatCard
+          label="Total Consultations"
+          value={stats.total}
+          subtext="↑ Client sessions"
+          icon={CalendarDays}
+          color="blue"
+          sparklineData={sparklineTrends.total}
+          sparklineId="meeting-stat-dyn-total"
+        />
+        <StatCard
+          label="Upcoming / Planned"
+          value={stats.planned}
+          subtext="↑ Scheduled"
+          icon={Clock}
+          color="indigo"
+          sparklineData={sparklineTrends.planned}
+          sparklineId="meeting-stat-dyn-planned"
+        />
+        <StatCard
+          label="Completed Sessions"
+          value={stats.completed}
+          subtext="↑ Conducted"
+          icon={CheckCircle2}
+          color="emerald"
+          sparklineData={sparklineTrends.completed}
+          sparklineId="meeting-stat-dyn-completed"
+        />
+        <StatCard
+          label="Rescheduled / Cancelled"
+          value={stats.cancelled}
+          subtext="↑ Updated"
+          icon={Calendar}
+          color="amber"
+          sparklineData={sparklineTrends.cancelled}
+          sparklineId="meeting-stat-dyn-cancelled"
+        />
       </div>
 
       {/* Error Alert */}

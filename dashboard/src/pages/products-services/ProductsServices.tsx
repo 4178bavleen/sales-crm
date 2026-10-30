@@ -13,6 +13,7 @@ import {
   Layers,
 } from "lucide-react";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
+import StatCard from "../../components/ui/StatCard";
 import {
   fetchProductServices,
   createProductService,
@@ -279,49 +280,34 @@ export default function ProductsServices() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Total Offerings</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1d61e7]">
-              <Layers size={16} />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{stats.total}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Total catalog entries</p>
-        </div>
-
-        <div className="rounded-2xl border border-indigo-500 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Products</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-              <Package size={16} />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{stats.products}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Physical & digital goods</p>
-        </div>
-
-        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Services</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
-              <Wrench size={16} />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{stats.services}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Consulting & operations</p>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Active Offerings</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={16} />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-emerald-600">{stats.active}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Available for leads & deals</p>
-        </div>
+        <StatCard
+          label="Total Offerings"
+          value={stats.total}
+          subtext="Total catalog entries"
+          icon={Layers}
+          color="blue"
+        />
+        <StatCard
+          label="Products"
+          value={stats.products}
+          subtext="Physical & digital goods"
+          icon={Package}
+          color="indigo"
+        />
+        <StatCard
+          label="Services"
+          value={stats.services}
+          subtext="Consulting & operations"
+          icon={Wrench}
+          color="purple"
+        />
+        <StatCard
+          label="Active Offerings"
+          value={stats.active}
+          subtext="Available for leads & deals"
+          icon={CheckCircle2}
+          color="emerald"
+        />
       </div>
 
       {/* Filter and Search Bar */}
