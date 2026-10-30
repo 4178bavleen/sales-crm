@@ -3,7 +3,6 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
-
 import { env } from './config/env.js'
 import { requestLogger } from './common/middleware/logger.middleware.js'
 import { notFoundMiddleware } from './common/middleware/not-found.middleware.js'
