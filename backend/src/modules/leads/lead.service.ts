@@ -450,64 +450,62 @@ export async function assignLead(
     }
   }
 
-  if (lead.ownerId === ownerId) {
-    const updatedLead = await getLeadById(leadId)
+  if (lead.ownerId !== ownerId) {
+    await prisma.$transaction(async (tx) => {
+      const activeAssignment = await tx.leadAssignment.findFirst({
+        where: {
+          leadId,
+          unassignedAt: null,
+        },
+        orderBy: { assignedAt: 'desc' },
+        select: { id: true },
+      })
 
-    // Notify the new owner after the assignment succeeds.
-    if (ownerId !== null && ownerId !== assignedById) {
-      try {
-        await createInAppNotification({
-          userId: ownerId,
-          type: 'LEAD_ASSIGNED',
-          title: 'New lead assigned to you',
-          body: `You have been assigned the lead: ${updatedLead.contactName}`,
-          entityType: 'lead',
-          entityId: updatedLead.id,
+      if (activeAssignment) {
+        await tx.leadAssignment.update({
+          where: { id: activeAssignment.id },
+          data: { unassignedAt: new Date() },
         })
-      } catch (error) {
-        // Assignment should remain successful if notification creation fails.
-        console.error('Failed to create lead assignment notification:', error)
       }
-    }
 
-    return updatedLead
+      await tx.lead.update({
+        where: { id: leadId },
+        data: { ownerId },
+      })
+
+      if (ownerId !== null) {
+        await tx.leadAssignment.create({
+          data: {
+            leadId,
+            assignedToId: ownerId,
+            assignedById,
+            note: note || null,
+          },
+        })
+      }
+    })
   }
 
-  await prisma.$transaction(async (tx) => {
-    const activeAssignment = await tx.leadAssignment.findFirst({
-      where: {
-        leadId,
-        unassignedAt: null,
-      },
-      orderBy: { assignedAt: 'desc' },
-      select: { id: true },
-    })
+  const updatedLead = await getLeadById(leadId)
 
-    if (activeAssignment) {
-      await tx.leadAssignment.update({
-        where: { id: activeAssignment.id },
-        data: { unassignedAt: new Date() },
+  // Notify the new owner after the assignment succeeds.
+  if (ownerId !== null && ownerId !== assignedById) {
+    try {
+      await createInAppNotification({
+        userId: ownerId,
+        type: 'LEAD_ASSIGNED',
+        title: 'New lead assigned to you',
+        body: `You have been assigned the lead: ${updatedLead.contactName}`,
+        entityType: 'lead',
+        entityId: updatedLead.id,
       })
+    } catch (error) {
+      // Assignment should remain successful if notification creation fails.
+      console.error('Failed to create lead assignment notification:', error)
     }
+  }
 
-    await tx.lead.update({
-      where: { id: leadId },
-      data: { ownerId },
-    })
-
-    if (ownerId !== null) {
-      await tx.leadAssignment.create({
-        data: {
-          leadId,
-          assignedToId: ownerId,
-          assignedById,
-          note: note || null,
-        },
-      })
-    }
-  })
-
-  return getLeadById(leadId)
+  return updatedLead
 }
 export async function updateLeadStatus(
   id: number,
