@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import type { FollowUp, LogActivityValues } from "./types";
 
+type ActivityType = "CALL" | "MESSAGE" | "EMAIL" | "REMINDER" | "OTHER";
+
 type LogActivityModalProps = {
   isOpen: boolean;
   followUp: FollowUp | null;
@@ -20,6 +22,10 @@ type LogActivityModalProps = {
   onSave: (values: LogActivityValues) => Promise<void>;
   leads?: { id: number; contactName: string; companyName?: string | null }[];
   deals?: { id: number; name: string }[];
+  defaultType?: ActivityType;
+  lockType?: boolean;
+  title?: string;
+  subtitle?: string;
 };
 
 const activityTypes = [
@@ -51,8 +57,12 @@ export default function LogActivityModal({
   onSave,
   leads = [],
   deals = [],
+  defaultType = "CALL",
+  lockType = false,
+  title = "Log Activity",
+  subtitle = "Record a call, message, email, or client touchpoint",
 }: LogActivityModalProps) {
-  const [type, setType] = useState<"CALL" | "MESSAGE" | "EMAIL" | "REMINDER" | "OTHER">("CALL");
+  const [type, setType] = useState<ActivityType>(defaultType);
   const [outcome, setOutcome] = useState("");
   const [notes, setNotes] = useState("");
   const [occurredAt, setOccurredAt] = useState(formatIsoNow());
@@ -64,8 +74,8 @@ export default function LogActivityModal({
 
   useEffect(() => {
     if (isOpen) {
-      setType("CALL");
-      setOutcome(quickOutcomes.CALL[0]);
+      setType(defaultType);
+      setOutcome(quickOutcomes[defaultType]?.[0] || "");
       setNotes("");
       setOccurredAt(formatIsoNow());
       setError(null);
@@ -83,12 +93,20 @@ export default function LogActivityModal({
         }
         setMarkTaskCompleted(followUp.status !== "COMPLETED");
       } else {
-        setEntityType(leads && leads.length > 0 ? "lead" : "none");
-        setEntityId(leads?.[0]?.id ?? null);
+        if (leads && leads.length > 0) {
+          setEntityType("lead");
+          setEntityId(leads[0].id);
+        } else if (deals && deals.length > 0) {
+          setEntityType("deal");
+          setEntityId(deals[0].id);
+        } else {
+          setEntityType("none");
+          setEntityId(null);
+        }
         setMarkTaskCompleted(false);
       }
     }
-  }, [isOpen, followUp, leads, deals]);
+  }, [isOpen, followUp, leads, deals, defaultType]);
 
   if (!isOpen) return null;
 
@@ -97,6 +115,10 @@ export default function LogActivityModal({
     try {
       setLoading(true);
       setError(null);
+
+      if (!followUp && !entityId) {
+        throw new Error("Select a lead or deal to attach this activity to.");
+      }
 
       // Validate date safely
       const parsedDate = occurredAt && !isNaN(new Date(occurredAt).getTime())
@@ -136,11 +158,11 @@ export default function LogActivityModal({
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-5 py-3.5 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#1d61e7]">
-              <ActivityIcon size={18} />
+              {lockType ? <Phone size={18} /> : <ActivityIcon size={18} />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Log Activity</h2>
-              <p className="text-xs text-slate-500">Record a call, message, email, or client touchpoint</p>
+              <h2 className="text-base font-bold text-slate-900">{title}</h2>
+              <p className="text-xs text-slate-500">{subtitle}</p>
             </div>
           </div>
           <button
@@ -171,35 +193,42 @@ export default function LogActivityModal({
             )}
 
             {/* Activity Type Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Activity Type <span className="text-rose-500">*</span>
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                {activityTypes.map(item => {
-                  const Icon = item.icon;
-                  const active = type === item.type;
-                  return (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => {
-                        setType(item.type);
-                        setOutcome(quickOutcomes[item.type]?.[0] || "");
-                      }}
-                      className={`flex flex-col items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold transition cursor-pointer ${
-                        active
-                          ? "border-[#1d61e7] bg-blue-50 text-[#1d61e7] shadow-xs"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <Icon size={16} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
+            {lockType ? (
+              <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-semibold text-[#1d61e7]">
+                <Phone size={15} />
+                <span>{activityTypes.find(item => item.type === type)?.label ?? "Call"} activity</span>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Activity Type <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {activityTypes.map(item => {
+                    const Icon = item.icon;
+                    const active = type === item.type;
+                    return (
+                      <button
+                        key={item.type}
+                        type="button"
+                        onClick={() => {
+                          setType(item.type);
+                          setOutcome(quickOutcomes[item.type]?.[0] || "");
+                        }}
+                        className={`flex flex-col items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold transition cursor-pointer ${
+                          active
+                            ? "border-[#1d61e7] bg-blue-50 text-[#1d61e7] shadow-xs"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Icon size={16} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Outcome with Quick Pills */}
             <div>
@@ -280,20 +309,22 @@ export default function LogActivityModal({
                     <Building2 size={12} />
                     Deal
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEntityType("none");
-                      setEntityId(null);
-                    }}
-                    className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold border transition cursor-pointer ${
-                      entityType === "none"
-                        ? "border-slate-400 bg-slate-100 text-slate-800"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    None
-                  </button>
+                  {followUp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntityType("none");
+                        setEntityId(null);
+                      }}
+                      className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold border transition cursor-pointer ${
+                        entityType === "none"
+                          ? "border-slate-400 bg-slate-100 text-slate-800"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      None
+                    </button>
+                  )}
                 </div>
 
                 {entityType === "lead" && (
@@ -370,7 +401,7 @@ export default function LogActivityModal({
               disabled={loading}
               className="rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
             >
-              {loading ? "Saving..." : "Log Activity"}
+              {loading ? "Saving..." : lockType && type === "CALL" ? "Log Call" : "Log Activity"}
             </button>
           </div>
         </form>

@@ -70,14 +70,32 @@ export function parseCreateActivityInput(body: Record<string, unknown>) {
   return data
 }
 
+function optionalDate(value: unknown, field: string): Date | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' && !(value instanceof Date)) {
+    throw new ActivityValidationError(`${field} must be a valid date`)
+  }
+  const date = new Date(value as string | Date)
+  if (Number.isNaN(date.getTime())) {
+    throw new ActivityValidationError(`${field} must be a valid date`)
+  }
+  return date
+}
+
 export function parseActivityListQuery(query: Record<string, unknown>) {
   const page = query.page === undefined ? 1 : parseActivityId(query.page, 'page')
   const limit = query.limit === undefined ? 20 : parseActivityId(query.limit, 'limit')
-  if (limit > 100) throw new ActivityValidationError('limit cannot exceed 100')
+  if (limit > 500) throw new ActivityValidationError('limit cannot exceed 500')
 
   const type = query.type === undefined ? undefined : parseActivityType(query.type)
   const leadId = query.leadId === undefined ? undefined : parseActivityId(query.leadId, 'leadId')
   const taskId = query.taskId === undefined ? undefined : parseActivityId(query.taskId, 'taskId')
+  const performedById = query.performedById === undefined ? undefined : parseActivityId(query.performedById, 'performedById')
+  const dateFrom = optionalDate(query.dateFrom, 'dateFrom')
+  const dateTo = optionalDate(query.dateTo, 'dateTo')
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    throw new ActivityValidationError('dateFrom cannot be after dateTo')
+  }
 
-  return { page, limit, type, leadId, taskId }
+  return { page, limit, type, leadId, taskId, performedById, dateFrom, dateTo }
 }

@@ -13,11 +13,32 @@ export class ActivityServiceError extends Error {
 }
 
 const activityInclude = {
-  performedBy: { select: { id: true, name: true, email: true } },
-  lead: { select: { id: true, contactName: true, companyName: true, status: true } },
-  deal: { select: { id: true, name: true, status: true } },
-  customer: { select: { id: true, companyId: true, primaryContactId: true } },
-  company: { select: { id: true, name: true } },
+  performedBy: { select: { id: true, name: true, email: true, phone: true } },
+  lead: { select: { id: true, contactName: true, companyName: true, status: true, phone: true } },
+  deal: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      lead: { select: { phone: true, contactName: true } },
+      customer: {
+        select: {
+          company: { select: { phone: true, name: true } },
+          primaryContact: { select: { phone: true, fullName: true } },
+        },
+      },
+    },
+  },
+  customer: {
+    select: {
+      id: true,
+      companyId: true,
+      primaryContactId: true,
+      company: { select: { id: true, name: true, phone: true } },
+      primaryContact: { select: { id: true, fullName: true, phone: true } },
+    },
+  },
+  company: { select: { id: true, name: true, phone: true } },
   task: { select: { id: true, title: true, status: true, dueAt: true, assignedToId: true } },
 } as const
 
@@ -87,12 +108,22 @@ export async function listActivities(query: {
   leadId?: number
   taskId?: number
   performedById?: number
+  dateFrom?: Date
+  dateTo?: Date
 }) {
+  const occurredAt =
+    query.dateFrom || query.dateTo
+      ? {
+          ...(query.dateFrom ? { gte: query.dateFrom } : {}),
+          ...(query.dateTo ? { lte: query.dateTo } : {}),
+        }
+      : undefined
   const where = {
     ...(query.type ? { type: query.type } : {}),
     ...(query.leadId ? { leadId: query.leadId } : {}),
     ...(query.taskId ? { taskId: query.taskId } : {}),
     ...(query.performedById ? { performedById: query.performedById } : {}),
+    ...(occurredAt ? { occurredAt } : {}),
   }
   const [items, total] = await prisma.$transaction([
     prisma.activity.findMany({

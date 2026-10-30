@@ -7,6 +7,7 @@ import {
   CheckSquare,
   CalendarClock,
   CalendarDays,
+  PhoneCall,
   Calendar,
   GitFork,
   Target,
@@ -32,6 +33,7 @@ const primaryNav = [
 
 const salesNav = [
   { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock },
+  { name: "Daily Calls", path: "/daily-calls", icon: PhoneCall },
   { name: "Tasks", path: "/tasks", icon: CheckSquare },
   { name: "Meetings", path: "/meetings", icon: CalendarDays },
   { name: "Deals & Pipeline", path: "/deals", icon: GitFork },
