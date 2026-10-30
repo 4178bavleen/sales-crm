@@ -188,7 +188,7 @@ export default function Notifications() {
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Real-time alerts for task assignments, updates, and CRM activities.
           </p>
         </div>

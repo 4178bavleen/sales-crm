@@ -3,7 +3,6 @@ import {
   Home,
   Users,
   Contact,
-  Building2,
   UserRound,
   CheckSquare,
   CalendarClock,
@@ -47,7 +46,6 @@ const salesNav = [
 // NEW CRM SECTION
 const crmNav = [
   { name: "Contacts", path: "/contacts", icon: Contact },
-  { name: "Companies", path: "/companies", icon: Building2 },
   { name: "Customers", path: "/customers", icon: UserRound },
 ];
 

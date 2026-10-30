@@ -558,7 +558,7 @@ export default function MeetingsPage() {
               {meetings.length} Scheduled
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Schedule client consultations, sales discovery demos, and collaborate with involved employees.
           </p>
         </div>

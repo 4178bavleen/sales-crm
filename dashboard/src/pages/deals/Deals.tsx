@@ -636,7 +636,7 @@ export default function Deals() {
           {/* Title & Stats */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 Deals &amp; Pipeline
               </h1>
               <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-600">

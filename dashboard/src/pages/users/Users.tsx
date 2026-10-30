@@ -357,7 +357,7 @@ export default function UsersPage() {
               {users.length} {users.length === 1 ? "Member" : "Members"}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Administer team member accounts, assign system roles, and configure
             CRM workspace permissions.
           </p>

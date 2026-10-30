@@ -61,7 +61,7 @@ import LeadDetailDialog from "../../components/ui/LeadDetailDialog";
 import ImportPreviewModal from "../../components/ui/ImportPreviewModal";
 import ImportModal from "../../components/ui/ImportModal";
 import LeadDeleteDialog from "../../components/ui/LeadDeleteDialog";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import { useSession } from "../../lib/useSession";
 
 // Filter state
@@ -836,10 +836,10 @@ export default function Leads() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Leads
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Manage and track all your leads in one place
           </p>
         </div>
@@ -937,122 +937,57 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* KPI Cards Row (5 Cards) */}
+      {/* KPI Cards Row (5 Cards - using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {/* Total Leads */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-              <Users size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Total Leads</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.total}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
-                All active
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.total}
-            color="blue"
-            gradientId="stat-dyn-total"
-          />
-        </div>
+        <StatCard
+          label="Total Leads"
+          value={metrics.total}
+          subtext="All active"
+          icon={Users}
+          color="blue"
+          sparklineData={sparklineTrends.total}
+          sparklineId="stat-dyn-total"
+        />
 
-        {/* New Leads */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <TrendingUp size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">New Leads</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.newLeads}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> {metrics.newPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.new}
-            color="emerald"
-            gradientId="stat-dyn-new"
-          />
-        </div>
+        <StatCard
+          label="New Leads"
+          value={metrics.newLeads}
+          subtext={<span>↑ {metrics.newPercent}</span>}
+          icon={TrendingUp}
+          color="emerald"
+          sparklineData={sparklineTrends.new}
+          sparklineId="stat-dyn-new"
+        />
 
-        {/* Contacted */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
-              <Phone size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Contacted</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.contacted}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-purple-600 flex items-center gap-0.5">
-                <span>↑</span> {metrics.contactedPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.contacted}
-            color="purple"
-            gradientId="stat-dyn-contacted"
-          />
-        </div>
+        <StatCard
+          label="Contacted"
+          value={metrics.contacted}
+          subtext={<span>↑ {metrics.contactedPercent}</span>}
+          icon={Phone}
+          color="purple"
+          sparklineData={sparklineTrends.contacted}
+          sparklineId="stat-dyn-contacted"
+        />
 
-        {/* Qualified */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
-              <Award size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Qualified</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.qualified}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-amber-500 flex items-center gap-0.5">
-                <span>↑</span> {metrics.qualifiedPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.qualified}
-            color="amber"
-            gradientId="stat-dyn-qualified"
-          />
-        </div>
+        <StatCard
+          label="Qualified"
+          value={metrics.qualified}
+          subtext={<span>↑ {metrics.qualifiedPercent}</span>}
+          icon={Award}
+          color="amber"
+          sparklineData={sparklineTrends.qualified}
+          sparklineId="stat-dyn-qualified"
+        />
 
-        {/* Converted */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <Trophy size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Converted</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.converted}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> {metrics.convertedPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.converted}
-            color="emerald"
-            gradientId="stat-dyn-converted"
-          />
-        </div>
+        <StatCard
+          label="Converted"
+          value={metrics.converted}
+          subtext={<span>↑ {metrics.convertedPercent}</span>}
+          icon={Trophy}
+          color="emerald"
+          sparklineData={sparklineTrends.converted}
+          sparklineId="stat-dyn-converted"
+        />
       </div>
 
       {/* Search and Filters Bar */}
