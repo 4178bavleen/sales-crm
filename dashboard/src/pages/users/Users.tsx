@@ -19,8 +19,6 @@ import {
   CheckCircle2,
   ShieldAlert,
   Loader2,
-  Sparkles,
-  TrendingUp,
   SlidersHorizontal,
   ChevronDown,
   Check,
@@ -42,6 +40,7 @@ import {
 import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
+import StatCard from "../../components/ui/StatCard";
 
 const userColumnOptions: TableSettingsColumn[] = [
   { key: "member", label: "Team Member" },
@@ -405,101 +404,35 @@ export default function UsersPage() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Users */}
-        <div className="rounded-2xl border border-blue-500 bg-white p-4 shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">
-              Total Accounts
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Users size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.total}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">
-              registered
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <TrendingUp size={12} className="text-emerald-500" />
-            <span>CRM workspace accounts</span>
-          </div>
-        </div>
-
-        {/* Active Accounts */}
-        <div className="rounded-2xl border border-emerald-500 bg-white p-4 shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">
-              Active Accounts
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.active}
-            </span>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-              {stats.activePercentage}% active
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span>Currently permitted to sign in</span>
-          </div>
-        </div>
-
-        {/* Leadership / Admin */}
-        <div className="rounded-2xl border border-purple-500 bg-white p-4 shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">
-              Leadership & Admins
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-              <ShieldCheck size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.adminsAndManagers}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">
-              managers & admins
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <Sparkles size={12} className="text-purple-500" />
-            <span>Elevated permissions</span>
-          </div>
-        </div>
-
-        {/* Sales Reps */}
-        <div className="rounded-2xl border border-sky-500 bg-white p-4 shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">
-              Frontline Reps
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-              <UserCheck size={16} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              {stats.salesTeam}
-            </span>
-            <span className="text-[11px] font-medium text-slate-400">
-              reps & viewers
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span>Leads, tasks, & pipeline</span>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Accounts"
+          value={stats.total}
+          subtext="CRM workspace accounts"
+          icon={Users}
+          color="blue"
+        />
+        <StatCard
+          label="Active Accounts"
+          value={stats.active}
+          subtext={`${stats.activePercentage}% active`}
+          icon={CheckCircle2}
+          color="emerald"
+        />
+        <StatCard
+          label="Leadership & Admins"
+          value={stats.adminsAndManagers}
+          subtext="Elevated permissions"
+          icon={ShieldCheck}
+          color="purple"
+        />
+        <StatCard
+          label="Frontline Reps"
+          value={stats.salesTeam}
+          subtext="Leads, tasks, & pipeline"
+          icon={UserCheck}
+          color="sky"
+        />
       </div>
 
       {/* Main Container: Filters & Table / Grid */}

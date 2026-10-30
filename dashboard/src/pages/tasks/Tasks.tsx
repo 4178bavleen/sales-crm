@@ -41,7 +41,7 @@ import TaskForm from "../../components/ui/TaskForm";
 import DataTable, { TablePagination } from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";
 import TaskDetailDialog from "../../components/ui/TaskDetailDialog";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
@@ -719,122 +719,57 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* KPI Cards Row (5 Cards) */}
+      {/* KPI Cards Row (5 Cards - using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {/* Total Tasks */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-              <CheckSquare size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Total Tasks</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.total}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
-                All active
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.total}
-            color="blue"
-            gradientId="task-stat-dyn-total"
-          />
-        </div>
+        <StatCard
+          label="Total Tasks"
+          value={metrics.total}
+          subtext="All active"
+          icon={CheckSquare}
+          color="blue"
+          sparklineData={sparklineTrends.total}
+          sparklineId="task-stat-dyn-total"
+        />
 
-        {/* Open Tasks */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-sky-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-              <Circle size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Open Tasks</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.openTasks}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-sky-600 flex items-center gap-0.5">
-                <span>↑</span> {metrics.openPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.open}
-            color="sky"
-            gradientId="task-stat-dyn-open"
-          />
-        </div>
+        <StatCard
+          label="Open Tasks"
+          value={metrics.openTasks}
+          subtext={<span>↑ {metrics.openPercent}</span>}
+          icon={Circle}
+          color="sky"
+          sparklineData={sparklineTrends.open}
+          sparklineId="task-stat-dyn-open"
+        />
 
-        {/* In Progress */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <RotateCcw size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">In Progress</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.inProgress}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
-                <span>↑</span> {metrics.inProgressPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.inProgress}
-            color="amber"
-            gradientId="task-stat-dyn-progress"
-          />
-        </div>
+        <StatCard
+          label="In Progress"
+          value={metrics.inProgress}
+          subtext={<span>↑ {metrics.inProgressPercent}</span>}
+          icon={RotateCcw}
+          color="amber"
+          sparklineData={sparklineTrends.inProgress}
+          sparklineId="task-stat-dyn-progress"
+        />
 
-        {/* Completed */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Completed</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.completed}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-500 flex items-center gap-0.5">
-                <span>↑</span> {metrics.completedPercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.completed}
-            color="emerald"
-            gradientId="task-stat-dyn-completed"
-          />
-        </div>
+        <StatCard
+          label="Completed"
+          value={metrics.completed}
+          subtext={<span>↑ {metrics.completedPercent}</span>}
+          icon={CheckCircle2}
+          color="emerald"
+          sparklineData={sparklineTrends.completed}
+          sparklineId="task-stat-dyn-completed"
+        />
 
-        {/* Overdue */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-rose-500 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Overdue</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
-                {metrics.overdue}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-rose-500 flex items-center gap-0.5">
-                <span>↑</span> {metrics.overduePercent}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.overdue}
-            color="rose"
-            gradientId="task-stat-dyn-overdue"
-          />
-        </div>
+        <StatCard
+          label="Overdue"
+          value={metrics.overdue}
+          subtext={<span>↑ {metrics.overduePercent}</span>}
+          icon={AlertTriangle}
+          color="rose"
+          sparklineData={sparklineTrends.overdue}
+          sparklineId="task-stat-dyn-overdue"
+        />
       </div>
 
       {/* Search and Filters Bar */}
