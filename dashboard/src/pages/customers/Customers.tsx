@@ -37,7 +37,7 @@ import CustomerForm from "../../components/ui/CustomerForm";
 import DataTable, { TablePagination } from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";
 import CustomerDetailDialog from "../../components/ui/CustomerDetailDialog";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import { useSession } from "../../lib/useSession";
 import {
   fetchCustomers,
@@ -617,102 +617,47 @@ export default function Customers() {
         </div>
       )}
 
-      {/* KPI Cards Row (4 Cards) */}
+      {/* KPI Cards Row (4 Cards - using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Customers */}
-        <div className="flex items-center justify-between rounded-xl border border-blue-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1]">
-              <Users size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Total Customers</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.total}
-              </p>
-              <p className="text-[11px] font-bold text-[#154fc1] mt-0.5">
-                Active accounts
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.total}
-            color="blue"
-            gradientId="stat-cust-total"
-          />
-        </div>
+        <StatCard
+          label="Total Customers"
+          value={metrics.total}
+          subtext="Active accounts"
+          icon={Users}
+          color="blue"
+          sparklineData={sparklineTrends.total}
+          sparklineId="stat-cust-total"
+        />
 
-        {/* Associated Pipeline */}
-        <div className="flex items-center justify-between rounded-xl border border-emerald-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <CircleDollarSign size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Pipeline Value</p>
-              <p className="text-xl font-bold text-slate-950 leading-tight">
-                {formatCurrency(metrics.totalPipeline)}
-              </p>
-              <p className="text-[11px] font-bold text-emerald-700 mt-0.5">
-                From attached deals
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.pipeline}
-            color="emerald"
-            gradientId="stat-cust-pipe"
-          />
-        </div>
+        <StatCard
+          label="Pipeline Value"
+          value={formatCurrency(metrics.totalPipeline)}
+          subtext="From attached deals"
+          icon={CircleDollarSign}
+          color="emerald"
+          sparklineData={sparklineTrends.pipeline}
+          sparklineId="stat-cust-pipe"
+        />
 
-        {/* Related Deals */}
-        <div className="flex items-center justify-between rounded-xl border border-purple-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
-              <Layers size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Active Deals</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.totalDeals}
-              </p>
-              <p className="text-[11px] font-bold text-purple-700 mt-0.5">
-                In progress
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.deals}
-            color="purple"
-            gradientId="stat-cust-deals"
-          />
-        </div>
+        <StatCard
+          label="Active Deals"
+          value={metrics.totalDeals}
+          subtext="In progress"
+          icon={Layers}
+          color="purple"
+          sparklineData={sparklineTrends.deals}
+          sparklineId="stat-cust-deals"
+        />
 
-        {/* Primary Contacts Assigned */}
-        <div className="flex items-center justify-between rounded-xl border border-amber-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-              <Building2 size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Primary Contact</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.withContacts}
-              </p>
-              <p className="text-[11px] font-bold text-amber-800 mt-0.5">
-                {metrics.total > 0
-                  ? Math.round((metrics.withContacts / metrics.total) * 100)
-                  : 0}
-                % linked
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparklineTrends.contacts}
-            color="amber"
-            gradientId="stat-cust-contacts"
-          />
-        </div>
+        <StatCard
+          label="Primary Contact"
+          value={metrics.withContacts}
+          subtext={`${metrics.total > 0 ? Math.round((metrics.withContacts / metrics.total) * 100) : 0}% linked`}
+          icon={Building2}
+          color="amber"
+          sparklineData={sparklineTrends.contacts}
+          sparklineId="stat-cust-contacts"
+        />
       </div>
 
       {/* Filter & Search Bar */}

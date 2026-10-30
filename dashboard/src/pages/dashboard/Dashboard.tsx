@@ -56,8 +56,8 @@ import type { Lead } from "../../types/lead";
 import type { MeetingItem } from "../../types/meeting";
 import type { Task } from "../../types/task";
 import CreateLeadModal from "../../components/ui/Createlead";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
 import AuditLogDetailDialog from "../../components/ui/AuditLogDetailDialog";
+import StatCard from "../../components/ui/StatCard";
 
 function formatCurrency(val: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -528,122 +528,57 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 1. PERSISTENT 5 STAT CARDS GRID MATCHING LEADS, CUSTOMERS, REPORTS & CONTACTS */}
+      {/* 1. PERSISTENT 5 STAT CARDS GRID (using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {/* Card 1: Pipeline Value */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1]">
-              <DollarSign size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500">Pipeline Value</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
-                {formatCurrency(stats.pipelineValue)}
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold text-[#154fc1] flex items-center gap-0.5">
-                <span>↑</span> {stats.openDeals > 0 ? `${stats.openDeals} open deals` : `${stats.totalDeals} deals`}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparkTrends.pipeline}
-            color="blue"
-            gradientId="dash-stat-dyn-pipeline"
-          />
-        </div>
+        <StatCard
+          label="Pipeline Value"
+          value={formatCurrency(stats.pipelineValue)}
+          subtext={<span>↑ {stats.openDeals > 0 ? `${stats.openDeals} open deals` : `${stats.totalDeals} deals`}</span>}
+          icon={DollarSign}
+          color="blue"
+          sparklineData={sparkTrends.pipeline}
+          sparklineId="dash-stat-dyn-pipeline"
+        />
 
-        {/* Card 2: Won Revenue */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <TrendingUp size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500">Won Revenue</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
-                {formatCurrency(stats.wonRevenue)}
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold text-emerald-700 flex items-center gap-0.5">
-                <span>↑</span> {stats.wonDeals > 0 ? `${stats.wonDeals} won deals` : "Active revenue"}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparkTrends.revenue}
-            color="emerald"
-            gradientId="dash-stat-dyn-revenue"
-          />
-        </div>
+        <StatCard
+          label="Won Revenue"
+          value={formatCurrency(stats.wonRevenue)}
+          subtext={<span>↑ {stats.wonDeals > 0 ? `${stats.wonDeals} won deals` : "Active revenue"}</span>}
+          icon={TrendingUp}
+          color="emerald"
+          sparklineData={sparkTrends.revenue}
+          sparklineId="dash-stat-dyn-revenue"
+        />
 
-        {/* Card 3: Total Leads */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
-              <Users size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500">Total Leads</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
-                {formatNumber(stats.totalLeads)}
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold text-purple-700 flex items-center gap-0.5">
-                <span>↑</span> {stats.conversionRate > 0 ? `${stats.conversionRate}% conv.` : "Tracking"}
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparkTrends.leads}
-            color="purple"
-            gradientId="dash-stat-dyn-leads"
-          />
-        </div>
+        <StatCard
+          label="Total Leads"
+          value={formatNumber(stats.totalLeads)}
+          subtext={<span>↑ {stats.conversionRate > 0 ? `${stats.conversionRate}% conv.` : "Tracking"}</span>}
+          icon={Users}
+          color="purple"
+          sparklineData={sparkTrends.leads}
+          sparklineId="dash-stat-dyn-leads"
+        />
 
-        {/* Card 4: Win Rate */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-              <Target size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500">Win Rate</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
-                {stats.winRate > 0 ? `${stats.winRate}%` : "0%"}
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold text-amber-800 flex items-center gap-0.5">
-                <span>↑</span> {stats.wonDeals}W / {Math.max(0, stats.totalDeals - stats.wonDeals)}L
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparkTrends.winRate}
-            color="amber"
-            gradientId="dash-stat-dyn-winrate"
-          />
-        </div>
+        <StatCard
+          label="Win Rate"
+          value={stats.winRate > 0 ? `${stats.winRate}%` : "0%"}
+          subtext={<span>↑ {stats.wonDeals}W / {Math.max(0, stats.totalDeals - stats.wonDeals)}L</span>}
+          icon={Target}
+          color="amber"
+          sparklineData={sparkTrends.winRate}
+          sparklineId="dash-stat-dyn-winrate"
+        />
 
-        {/* Card 5: Avg Deal Size */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-rose-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-rose-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
-              <Award size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500">Avg Deal Size</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-950 leading-tight">
-                {formatCurrency(stats.averageDealSize || (stats.wonDeals > 0 ? Math.round(stats.wonRevenue / stats.wonDeals) : 0))}
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold text-rose-700 flex items-center gap-0.5">
-                <span>↑</span> Realized avg
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline
-            data={sparkTrends.avgDeal}
-            color="rose"
-            gradientId="dash-stat-dyn-avgdeal"
-          />
-        </div>
+        <StatCard
+          label="Avg Deal Size"
+          value={formatCurrency(stats.averageDealSize || (stats.wonDeals > 0 ? Math.round(stats.wonRevenue / stats.wonDeals) : 0))}
+          subtext={<span>↑ Realized avg</span>}
+          icon={Award}
+          color="rose"
+          sparklineData={sparkTrends.avgDeal}
+          sparklineId="dash-stat-dyn-avgdeal"
+        />
       </div>
 
       {/* 2. MIDDLE GRID: WORKSPACE (CHARTS + DEALS & PIPELINE) & CALENDAR/MEETINGS DECK */}

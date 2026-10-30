@@ -34,7 +34,7 @@ import DataTable from "../../components/ui/DataTable";
 import TableSettings from "../../components/ui/TableSettings";
 import ContactDetailDialog from "../../components/ui/ContactDetailDialog";
 import ContactDeleteDialog from "../../components/ui/ContactDeleteDialog";
-import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import StatCard from "../../components/ui/StatCard";
 import Avatar from "../../components/ui/Avatar";
 import {
   fetchContacts,
@@ -533,83 +533,47 @@ export default function Contacts() {
         </div>
       </div>
 
-      {/* KPI Cards Row (4 Cards) */}
+      {/* KPI Cards Row (4 Cards - using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Contacts */}
-        <div className="flex items-center justify-between rounded-xl border border-blue-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#154fc1]">
-              <Users size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Total Contacts</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.total}
-              </p>
-              <p className="text-[11px] font-bold text-[#154fc1] mt-0.5">
-                Active records
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline data={sparklineTrends.total} color="blue" gradientId="stat-contacts-total" />
-        </div>
+        <StatCard
+          label="Total Contacts"
+          value={metrics.total}
+          subtext="Active records"
+          icon={Users}
+          color="blue"
+          sparklineData={sparklineTrends.total}
+          sparklineId="stat-contacts-total"
+        />
 
-        {/* Organizations / Companies */}
-        <div className="flex items-center justify-between rounded-xl border border-emerald-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <Building2 size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">With Company</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.withCompany}
-              </p>
-              <p className="text-[11px] font-bold text-emerald-700 mt-0.5">
-                {metrics.total > 0 ? Math.round((metrics.withCompany / metrics.total) * 100) : 0}% linked
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline data={sparklineTrends.company} color="emerald" gradientId="stat-contacts-company" />
-        </div>
+        <StatCard
+          label="With Company"
+          value={metrics.withCompany}
+          subtext={`${metrics.total > 0 ? Math.round((metrics.withCompany / metrics.total) * 100) : 0}% linked`}
+          icon={Building2}
+          color="emerald"
+          sparklineData={sparklineTrends.company}
+          sparklineId="stat-contacts-company"
+        />
 
-        {/* Reachable by Email */}
-        <div className="flex items-center justify-between rounded-xl border border-purple-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
-              <Mail size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Email Address</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.withEmail}
-              </p>
-              <p className="text-[11px] font-bold text-purple-700 mt-0.5">
-                {metrics.total > 0 ? Math.round((metrics.withEmail / metrics.total) * 100) : 0}% reachable
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline data={sparklineTrends.email} color="purple" gradientId="stat-contacts-email" />
-        </div>
+        <StatCard
+          label="Email Address"
+          value={metrics.withEmail}
+          subtext={`${metrics.total > 0 ? Math.round((metrics.withEmail / metrics.total) * 100) : 0}% reachable`}
+          icon={Mail}
+          color="purple"
+          sparklineData={sparklineTrends.email}
+          sparklineId="stat-contacts-email"
+        />
 
-        {/* Reachable by Phone */}
-        <div className="flex items-center justify-between rounded-xl border border-amber-500 bg-white p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-              <Phone size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Phone Available</p>
-              <p className="text-2xl font-bold text-slate-950 leading-tight">
-                {metrics.withPhone}
-              </p>
-              <p className="text-[11px] font-bold text-amber-800 mt-0.5">
-                {metrics.total > 0 ? Math.round((metrics.withPhone / metrics.total) * 100) : 0}% callable
-              </p>
-            </div>
-          </div>
-          <DynamicSparkline data={sparklineTrends.phone} color="amber" gradientId="stat-contacts-phone" />
-        </div>
+        <StatCard
+          label="Phone Available"
+          value={metrics.withPhone}
+          subtext={`${metrics.total > 0 ? Math.round((metrics.withPhone / metrics.total) * 100) : 0}% callable`}
+          icon={Phone}
+          color="amber"
+          sparklineData={sparklineTrends.phone}
+          sparklineId="stat-contacts-phone"
+        />
       </div>
 
       {/* Filter & Search Bar */}

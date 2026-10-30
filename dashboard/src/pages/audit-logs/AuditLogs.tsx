@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { fetchAuditLogs, getActionBadgeClass, formatAuditSummary, type AuditLogItem } from "../../lib/auditLogs";
 import AuditLogDetailDialog from "../../components/ui/AuditLogDetailDialog";
+import StatCard from "../../components/ui/StatCard";
 
 export default function AuditLogs() {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -107,112 +108,57 @@ export default function AuditLogs() {
         </button>
       </div>
 
-      {/* Top KPI Cards Row (5 Cards - without graphs) */}
+      {/* Top KPI Cards Row (5 Cards - using Global StatCard) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {/* Total Events */}
-        <div
+        <StatCard
+          label="Total Events"
+          value={stats.total}
+          subtext="All logs"
+          icon={Shield}
+          color="blue"
+          isActive={entityFilter === "ALL"}
           onClick={() => setEntityFilter("ALL")}
-          className={`group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-blue-500 bg-white p-4 shadow-2xs min-w-0 cursor-pointer transition hover:shadow-xs ${
-            entityFilter === "ALL" ? "ring-2 ring-blue-500/20 border-blue-600 bg-blue-50/20" : ""
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-            <Shield size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-700">Total Events</p>
-            <p className="text-2xl font-bold text-slate-900 leading-tight">
-              {stats.total}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
-              All logs
-            </p>
-          </div>
-        </div>
+        />
 
-        {/* Lead Activities */}
-        <div
+        <StatCard
+          label="Lead Activities"
+          value={stats.leads}
+          subtext={<span>↑ Leads</span>}
+          icon={Users}
+          color="emerald"
+          isActive={entityFilter === "LEAD"}
           onClick={() => setEntityFilter("LEAD")}
-          className={`group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-emerald-500 bg-white p-4 shadow-2xs min-w-0 cursor-pointer transition hover:shadow-xs ${
-            entityFilter === "LEAD" ? "ring-2 ring-emerald-500/20 border-emerald-600 bg-emerald-50/20" : ""
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-            <Users size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-700">Lead Activities</p>
-            <p className="text-2xl font-bold text-slate-900 leading-tight">
-              {stats.leads}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
-              <span>↑</span> Leads
-            </p>
-          </div>
-        </div>
+        />
 
-        {/* Deal Events */}
-        <div
+        <StatCard
+          label="Deal Mutations"
+          value={stats.deals}
+          subtext={<span>↑ Deals</span>}
+          icon={TrendingUp}
+          color="purple"
+          isActive={entityFilter === "DEAL"}
           onClick={() => setEntityFilter("DEAL")}
-          className={`group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-purple-500 bg-white p-4 shadow-2xs min-w-0 cursor-pointer transition hover:shadow-xs ${
-            entityFilter === "DEAL" ? "ring-2 ring-purple-500/20 border-purple-600 bg-purple-50/20" : ""
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
-            <TrendingUp size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-700">Deal Mutations</p>
-            <p className="text-2xl font-bold text-slate-900 leading-tight">
-              {stats.deals}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-purple-600 flex items-center gap-0.5">
-              <span>↑</span> Deals
-            </p>
-          </div>
-        </div>
+        />
 
-        {/* Customer Events */}
-        <div
+        <StatCard
+          label="Customer Logs"
+          value={stats.customers}
+          subtext="Accounts"
+          icon={Building2}
+          color="indigo"
+          isActive={entityFilter === "CUSTOMER"}
           onClick={() => setEntityFilter("CUSTOMER")}
-          className={`group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-indigo-500 bg-white p-4 shadow-2xs min-w-0 cursor-pointer transition hover:shadow-xs ${
-            entityFilter === "CUSTOMER" ? "ring-2 ring-indigo-500/20 border-indigo-600 bg-indigo-50/20" : ""
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-            <Building2 size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-700">Customer Logs</p>
-            <p className="text-2xl font-bold text-slate-900 leading-tight">
-              {stats.customers}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-indigo-600 flex items-center gap-0.5">
-              Accounts
-            </p>
-          </div>
-        </div>
+        />
 
-        {/* User Logs */}
-        <div
+        <StatCard
+          label="User & Auth"
+          value={stats.users}
+          subtext="Reps & Admins"
+          icon={UserCheck}
+          color="amber"
+          isActive={entityFilter === "USER"}
           onClick={() => setEntityFilter("USER")}
-          className={`group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-amber-500 bg-white p-4 shadow-2xs min-w-0 cursor-pointer transition hover:shadow-xs ${
-            entityFilter === "USER" ? "ring-2 ring-amber-500/20 border-amber-600 bg-amber-50/20" : ""
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-            <UserCheck size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-700">User &amp; Auth</p>
-            <p className="text-2xl font-bold text-slate-900 leading-tight">
-              {stats.users}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
-              Reps &amp; Admins
-            </p>
-          </div>
-        </div>
+        />
       </div>
 
       {/* Filter Toolbar */}
