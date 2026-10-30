@@ -458,7 +458,7 @@ export default function Dashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Executive Sales Overview
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20">
@@ -466,7 +466,7 @@ export default function Dashboard() {
               Live Sync
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Real-time pipeline velocity, meetings, tasks, conversion rates &amp; team performance.
           </p>
         </div>
@@ -720,13 +720,6 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Link
-                  to="/companies"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#1d61e7]"
-                >
-                  Companies
-                </Link>
-                <span className="text-slate-300">•</span>
                 <Link
                   to="/customers"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#1d61e7] hover:underline"

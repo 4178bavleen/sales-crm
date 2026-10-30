@@ -45,6 +45,22 @@
   }
 }
 
+/* Standardized Page Typography Hierarchy */
+.page-heading {
+  font-size: 1.5rem; /* text-2xl (24px) */
+  line-height: 2rem;
+  font-weight: 700; /* font-bold */
+  letter-spacing: -0.025em; /* tracking-tight */
+  color: #0f172a; /* text-slate-900 */
+}
+
+.page-subheading {
+  margin-top: 0.25rem; /* mt-1 */
+  font-size: 0.75rem; /* text-xs */
+  line-height: 1rem;
+  color: #475569; /* text-slate-600 */
+}
+
 /* Login page surfaces: an ambient radial tint and the frosted panels the
    sign-in console is built from. Light theme. */
 .login-glow-conic {

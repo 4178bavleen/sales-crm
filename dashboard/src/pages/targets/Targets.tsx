@@ -345,19 +345,12 @@ export default function Targets() {
       {/* Header Banner */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#1d61e7] ring-8 ring-blue-50/50">
-              <Target className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Sales Targets & Quotas
-              </h1>
-              <p className="text-sm text-slate-500">
-                Track revenue performance, team quotas, and attainment progress across sales cycles
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Sales Targets & Quotas
+          </h1>
+          <p className="mt-1 text-xs text-slate-600">
+            Track revenue performance, team quotas, and attainment progress across sales cycles
+          </p>
         </div>
 
         {/* Header Action Buttons */}

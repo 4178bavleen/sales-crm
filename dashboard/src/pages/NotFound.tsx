@@ -13,7 +13,7 @@ const quickLinks = [
   { name: "Dashboard", path: "/", Icon: LayoutDashboard },
   { name: "Leads", path: "/leads", Icon: Users },
   { name: "Contacts", path: "/contacts", Icon: ContactIcon },
-  { name: "Companies", path: "/companies", Icon: Building2 },
+  { name: "Customers", path: "/customers", Icon: Building2 },
 ];
 
 /**

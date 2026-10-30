@@ -6,7 +6,6 @@ import { NotificationProvider } from "./context/NotificationContext";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Leads from "./pages/leads/Leads";
 import Contacts from "./pages/contacts/Contacts";
-import Companies from "./pages/companies/Companies";
 import Customers from "./pages/customers/Customers";
 import Deals from "./pages/deals/Deals";
 import ProductsServices from "./pages/products-services/ProductsServices";
@@ -39,7 +38,6 @@ function AppShell() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/contacts" element={<Contacts />} />
-            <Route path="/companies" element={<Companies />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/deals" element={<Deals />} />
             <Route path="/products-services" element={<ProductsServices />} />

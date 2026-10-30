@@ -89,11 +89,10 @@ export default function AuditLogs() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-            <Shield className="h-6 w-6 text-[#1d61e7]" />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Audit Logs &amp; System Activity
           </h1>
-          <p className="mt-1 text-xs text-slate-700">
+          <p className="mt-1 text-xs text-slate-600">
             Immutable tracking of state changes, assignments, and sensitive entity mutations.
           </p>
         </div>

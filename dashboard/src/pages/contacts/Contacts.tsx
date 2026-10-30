@@ -426,14 +426,14 @@ export default function Contacts() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-950">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Contacts
             </h1>
             <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-[#154fc1]">
               {totalCount} Total
             </span>
           </div>
-          <p className="text-xs font-semibold text-slate-600 mt-0.5">
+          <p className="mt-1 text-xs text-slate-600">
             Manage your organization's business contacts, key executives, and leads
           </p>
         </div>
@@ -740,7 +740,6 @@ export default function Contacts() {
             rows={pageContacts}
             getRowId={contact => contact.id}
             onRowClick={contact => setDetailContact(contact)}
-            selectable
             selectedIds={selectedIds}
             onSelectionChange={ids => setSelectedIds(ids as number[])}
             getRowLabel={contact => contact.fullName}

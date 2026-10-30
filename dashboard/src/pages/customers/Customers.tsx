@@ -505,14 +505,14 @@ export default function Customers() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Customers
             </h1>
             <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-[#154fc1]">
               {metrics.total} Total
             </span>
           </div>
-          <p className="text-xs font-semibold text-slate-600 mt-0.5">
+          <p className="mt-1 text-xs text-slate-600">
             Manage your organization's converted customer accounts, corporate clients &amp; relationships
           </p>
         </div>

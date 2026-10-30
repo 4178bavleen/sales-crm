@@ -161,17 +161,10 @@ export default function Reports() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <BarChart3 size={22} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Sales & CRM Analytics</h1>
-              <p className="text-xs text-slate-500 sm:text-sm">
-                Executive reports on leads, sales velocity, pipeline health, and team quotas.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sales & CRM Analytics</h1>
+          <p className="mt-1 text-xs text-slate-600">
+            Executive reports on leads, sales velocity, pipeline health, and team quotas.
+          </p>
         </div>
 
         {/* Global Actions */}

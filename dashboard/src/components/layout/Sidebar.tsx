@@ -2,7 +2,6 @@ import {
   Home,
   Users,
   Contact,
-  Building2,
   UserRound,
   CheckSquare,
   CalendarClock,
@@ -27,7 +26,6 @@ const primaryNav = [
   { name: "Calendar", path: "/calendar", icon: Calendar },
   { name: "Leads", path: "/leads", icon: Users },
   { name: "Contacts", path: "/contacts", icon: Contact },
-  { name: "Companies", path: "/companies", icon: Building2 },
   { name: "Customers", path: "/customers", icon: UserRound },
 ];
 
@@ -103,7 +101,7 @@ export default function Sidebar() {
                 `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
                   isActive
                     ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
-                    : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Companies" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
+                    : "text-slate-300 hover:bg-white/5 hover:text-white"
                 }`
               }
             >

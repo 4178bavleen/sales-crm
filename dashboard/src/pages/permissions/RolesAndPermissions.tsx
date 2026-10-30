@@ -680,7 +680,7 @@ export default function RolesAndPermissions() {
               {roles.length} Active Roles
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Configure access controls, define role privileges, and enforce granular security across CRM modules.
           </p>
         </div>

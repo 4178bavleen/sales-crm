@@ -836,10 +836,10 @@ export default function Leads() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Leads
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Manage and track all your leads in one place
           </p>
         </div>

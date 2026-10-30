@@ -454,11 +454,11 @@ export default function Calendar() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Calendar
             </h1>
           </div>
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <p className="mt-1 text-xs text-slate-600">
             Coordinate appointments, client meetings, and track task delivery in a unified visual timeline.
           </p>
         </div>

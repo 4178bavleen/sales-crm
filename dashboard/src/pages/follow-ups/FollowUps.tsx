@@ -606,11 +606,10 @@ export default function FollowUps() {
       {/* Page Title & Global Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <CalendarClock className="text-[#1d61e7]" size={26} />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Follow-ups
           </h1>
-          <p className="mt-0.5 sm:mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Track, reschedule, and complete client touchpoints and activities
           </p>
         </div>
