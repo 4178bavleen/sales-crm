@@ -113,3 +113,15 @@ export async function deleteRole(
     token: authToken(),
   });
 }
+
+export type MyPermissions = {
+  role: string;
+  permissions: string[];
+};
+
+export async function fetchMyPermissions(): Promise<MyPermissions> {
+  const res = await request<{ data: MyPermissions }>(ENDPOINTS.permissions.me, {
+    token: authToken(),
+  });
+  return res.data;
+}

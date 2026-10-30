@@ -33,6 +33,8 @@ export type Lead = {
   createdAt: string;
   // Prisma-aligned optional fields (stored on Lead / its linked Company)
   notes?: string;
+  disqualifyReason?: string | null;
+  disqualifiedAt?: string | null;
   nextFollowUpAt?: string; // Lead.nextFollowUpAt
   noFollowUp?: boolean; // -> Lead.noFollowUpNote on the backend
   noFollowUpNote?: string | null;

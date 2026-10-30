@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.js'
 import { Priority, TaskStatus } from '../../generated/prisma/client.js'
 import { createInAppNotification } from '../notifications/notification.service.js'
+import { logAudit } from '../audit/audit.service.js'
 
 type TaskInput = Record<string, unknown>
 
@@ -158,6 +159,20 @@ export async function createTask(data: TaskInput, actorId: number) {
             console.error('Failed to create task assignment notification:', error)
         }
     }
+
+    void logAudit({
+        actorId,
+        action: 'CREATE',
+        entityType: 'TASK',
+        entityId: task.id,
+        after: {
+            title: task.title,
+            priority: task.priority,
+            status: task.status,
+            dueAt: task.dueAt?.toISOString(),
+            assignedToId: task.assignedToId,
+        },
+    })
 
     return task
 }
@@ -361,6 +376,24 @@ export async function updateTask(id: number, data: TaskInput, actorId?: number) 
         }
     }
 
+    void logAudit({
+        actorId: actorId ?? null,
+        action: dueDateChanged ? 'RESCHEDULE' : 'UPDATE',
+        entityType: 'TASK',
+        entityId: updated.id,
+        before: {
+            status: existing.status,
+            dueAt: existing.dueAt?.toISOString(),
+            assignedToId: existing.assignedToId,
+        },
+        after: {
+            status: updated.status,
+            dueAt: updated.dueAt?.toISOString(),
+            assignedToId: updated.assignedToId,
+            title: updated.title,
+        },
+    })
+
     return updated
 }
 
@@ -390,7 +423,7 @@ export async function updateTaskStatus(
         resolvedCancelReasonId = found.id;
     }
 
-    return prisma.task.update({
+    const updated = await prisma.task.update({
         where: { id },
         data: {
             status,
@@ -403,6 +436,22 @@ export async function updateTaskStatus(
         },
         include: taskInclude,
     })
+
+    void logAudit({
+        actorId,
+        action: status === 'COMPLETED' ? 'COMPLETE' : status === 'CANCELLED' ? 'CANCEL' : 'STATUS_CHANGE',
+        entityType: 'TASK',
+        entityId: id,
+        before: { status: existing.status },
+        after: {
+            status,
+            title: updated.title,
+            completionNote: status === 'COMPLETED' ? completionNote : undefined,
+            cancelReason: status === 'CANCELLED' ? cancelReason : undefined,
+        },
+    })
+
+    return updated
 }
 
 export async function deleteTask(id: number) {
@@ -413,6 +462,13 @@ export async function deleteTask(id: number) {
     if (task.status === 'COMPLETED') {
         throw new TaskServiceError('Completed tasks cannot be deleted', 409)
     }
+
+    void logAudit({
+        action: 'DELETE',
+        entityType: 'TASK',
+        entityId: id,
+        before: { title: task.title, status: task.status },
+    })
 
     return prisma.task.delete({ where: { id } })
 }

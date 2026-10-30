@@ -170,6 +170,8 @@ export default function Leads() {
     }
   }
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  const [disqualifyLead, setDisqualifyLead] = useState<Lead | null>(null);
+  const [disqualifyReasonText, setDisqualifyReasonText] = useState("");
   const [convertForm, setConvertForm] = useState({
     dealName: "",
     ownerId: "",
@@ -553,6 +555,15 @@ export default function Leads() {
   }
 
   async function updateLeadStatus(id: number, status: LeadStatus, extra?: any) {
+    if (status === "DISQUALIFIED") {
+      const lead = leads.find(l => l.id === id) || detailLead;
+      if (lead) {
+        setDisqualifyLead(lead);
+        setDisqualifyReasonText(lead.disqualifyReason || "");
+        setDetailLead(null);
+        return;
+      }
+    }
     if (status === "CONVERTED") {
       const lead = leads.find(l => l.id === id) || detailLead;
       if (lead) {
@@ -580,7 +591,7 @@ export default function Leads() {
       }
     }
     try {
-      const updated = await updateLeadStatusApi(id, status as any, undefined, undefined, extra);
+      const updated = await updateLeadStatusApi(id, status as any, undefined, extra);
       setLeads(previous =>
         previous.map(lead => (lead.id === id ? updated : lead)),
       );
@@ -1658,7 +1669,7 @@ export default function Leads() {
                     if (convertForm.expectedCloseDate) extra.expectedCloseDate = convertForm.expectedCloseDate;
                     if (convertForm.productServiceId) extra.productServiceId = Number(convertForm.productServiceId);
                     if (convertForm.customerId) extra.customerId = Number(convertForm.customerId);
-                    const updated = await updateLeadStatusApi(convertLead.id, "CONVERTED" as any, undefined, undefined, extra);
+                    const updated = await updateLeadStatusApi(convertLead.id, "CONVERTED" as any, undefined, extra);
                     setLeads(previous => previous.map(l => l.id === convertLead.id ? updated : l));
                     setDetailLead(previous => previous?.id === convertLead.id ? updated : previous);
                     setConvertLead(null);
@@ -1669,6 +1680,97 @@ export default function Leads() {
                 className="rounded-lg bg-[#1d61e7] px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
               >
                 Convert to Deal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {disqualifyLead && (
+        <div
+          className="dialog-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          onClick={() => {
+            setDisqualifyLead(null);
+            setDisqualifyReasonText("");
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Disqualify Lead"
+            className="dialog-enter flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Disqualify Lead</h3>
+                <p className="text-xs text-slate-500">
+                  {disqualifyLead.firstName} {disqualifyLead.lastName}
+                  {disqualifyLead.company ? ` • ${disqualifyLead.company}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDisqualifyLead(null);
+                  setDisqualifyReasonText("");
+                }}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <label className="block text-xs font-medium text-slate-700">
+                Reason for Disqualification <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={disqualifyReasonText}
+                onChange={(e) => setDisqualifyReasonText(e.target.value)}
+                placeholder="Enter the reason why this lead is being disqualified..."
+                rows={4}
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisqualifyLead(null);
+                  setDisqualifyReasonText("");
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!disqualifyReasonText.trim()}
+                onClick={async () => {
+                  if (!disqualifyReasonText.trim()) return;
+                  try {
+                    const updated = await updateLeadStatusApi(
+                      disqualifyLead.id,
+                      "DISQUALIFIED",
+                      disqualifyReasonText.trim()
+                    );
+                    setLeads((previous) =>
+                      previous.map((l) => (l.id === disqualifyLead.id ? updated : l))
+                    );
+                    setDetailLead((previous) =>
+                      previous?.id === disqualifyLead.id ? updated : previous
+                    );
+                    setDisqualifyLead(null);
+                    setDisqualifyReasonText("");
+                  } catch (err: any) {
+                    alert(err?.message || "Failed to disqualify lead");
+                  }
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                Confirm Disqualification
               </button>
             </div>
           </div>

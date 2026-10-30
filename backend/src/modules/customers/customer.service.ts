@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateCustomerInput,
   ListCustomersInput,
@@ -221,6 +222,17 @@ export async function createCustomer(input: CreateCustomerInput) {
     include: customerInclude,
   })
 
+  void logAudit({
+    action: 'CREATE',
+    entityType: 'CUSTOMER',
+    entityId: created.id,
+    after: {
+      companyId: created.companyId,
+      primaryContactId: created.primaryContactId,
+      ownerId: created.ownerId,
+    },
+  })
+
   return formatCustomer(created)
 }
 
@@ -332,11 +344,24 @@ export async function updateCustomer(id: number, input: UpdateCustomerInput) {
     include: customerInclude,
   })
 
+  void logAudit({
+    action: 'UPDATE',
+    entityType: 'CUSTOMER',
+    entityId: id,
+    after: updateData,
+  })
+
   return formatCustomer(updated)
 }
 
 export async function deleteCustomer(id: number) {
   await getCustomerById(id)
+
+  void logAudit({
+    action: 'DELETE',
+    entityType: 'CUSTOMER',
+    entityId: id,
+  })
 
   await prisma.customer.update({
     where: { id },

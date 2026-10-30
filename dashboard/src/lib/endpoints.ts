@@ -149,6 +149,10 @@ export const ENDPOINTS = {
     delete: (id: number) => `/customers/${id}`,
   },
 
+  auditLogs: {
+    list: "/audit-logs",
+  },
+
   health: "/health",
 } as const;
 

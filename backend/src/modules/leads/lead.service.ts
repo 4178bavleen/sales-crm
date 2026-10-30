@@ -11,6 +11,7 @@ import type {
 
 import type { UpdateLeadStatusInput } from './lead.validation.js'
 import { createInAppNotification } from '../notifications/notification.service.js'
+import { logAudit } from '../audit/audit.service.js'
 export class LeadServiceError extends Error {
   constructor(
     message: string,
@@ -143,7 +144,7 @@ export async function createLead(
   const email = normalizeEmail(input.email)
   const phone = normalizePhone(input.phone)
 
-  return prisma.lead.create({
+  const createdLead = await prisma.lead.create({
     data: {
       contactName: input.contactName,
       companyName: input.companyName || null,
@@ -164,6 +165,21 @@ export async function createLead(
     },
     select: leadSelect,
   })
+
+  void logAudit({
+    actorId,
+    action: 'CREATE',
+    entityType: 'LEAD',
+    entityId: createdLead.id,
+    after: {
+      contactName: createdLead.contactName,
+      companyName: createdLead.companyName,
+      status: createdLead.status,
+      ownerId: createdLead.ownerId,
+    },
+  })
+
+  return createdLead
 }
 
 export async function getLeads(input: ListLeadsInput) {
@@ -450,64 +466,71 @@ export async function assignLead(
     }
   }
 
-  if (lead.ownerId === ownerId) {
-    const updatedLead = await getLeadById(leadId)
+  if (lead.ownerId !== ownerId) {
+    await prisma.$transaction(async (tx) => {
+      const activeAssignment = await tx.leadAssignment.findFirst({
+        where: {
+          leadId,
+          unassignedAt: null,
+        },
+        orderBy: { assignedAt: 'desc' },
+        select: { id: true },
+      })
 
-    // Notify the new owner after the assignment succeeds.
-    if (ownerId !== null && ownerId !== assignedById) {
-      try {
-        await createInAppNotification({
-          userId: ownerId,
-          type: 'LEAD_ASSIGNED',
-          title: 'New lead assigned to you',
-          body: `You have been assigned the lead: ${updatedLead.contactName}`,
-          entityType: 'lead',
-          entityId: updatedLead.id,
+      if (activeAssignment) {
+        await tx.leadAssignment.update({
+          where: { id: activeAssignment.id },
+          data: { unassignedAt: new Date() },
         })
-      } catch (error) {
-        // Assignment should remain successful if notification creation fails.
-        console.error('Failed to create lead assignment notification:', error)
       }
-    }
 
-    return updatedLead
+      await tx.lead.update({
+        where: { id: leadId },
+        data: { ownerId },
+      })
+
+      if (ownerId !== null) {
+        await tx.leadAssignment.create({
+          data: {
+            leadId,
+            assignedToId: ownerId,
+            assignedById,
+            note: note || null,
+          },
+        })
+      }
+    })
   }
 
-  await prisma.$transaction(async (tx) => {
-    const activeAssignment = await tx.leadAssignment.findFirst({
-      where: {
-        leadId,
-        unassignedAt: null,
-      },
-      orderBy: { assignedAt: 'desc' },
-      select: { id: true },
-    })
+  const updatedLead = await getLeadById(leadId)
 
-    if (activeAssignment) {
-      await tx.leadAssignment.update({
-        where: { id: activeAssignment.id },
-        data: { unassignedAt: new Date() },
-      })
-    }
-
-    await tx.lead.update({
-      where: { id: leadId },
-      data: { ownerId },
-    })
-
-    if (ownerId !== null) {
-      await tx.leadAssignment.create({
-        data: {
-          leadId,
-          assignedToId: ownerId,
-          assignedById,
-          note: note || null,
-        },
-      })
-    }
+  void logAudit({
+    actorId: assignedById,
+    action: 'ASSIGN',
+    entityType: 'LEAD',
+    entityId: leadId,
+    before: { ownerId: lead.ownerId },
+    after: { ownerId, note },
   })
 
-  return getLeadById(leadId)
+  // Notify the new owner after the assignment succeeds.
+  if (ownerId !== null && ownerId !== assignedById) {
+    try {
+      await createInAppNotification({
+        userId: ownerId,
+        type: 'LEAD_ASSIGNED',
+        title: 'New lead assigned to you',
+        body: `You have been assigned the lead: ${updatedLead.contactName}`,
+        entityType: 'lead',
+        entityId: updatedLead.id,
+      })
+    } catch (error) {
+      // Assignment should remain successful if notification creation fails.
+      console.error('Failed to create lead assignment notification:', error)
+    }
+  }
+
+  return updatedLead
 }
 export async function updateLeadStatus(
   id: number,
@@ -538,34 +561,14 @@ export async function updateLeadStatus(
     throw new LeadServiceError('Lead not found', 404)
   }
 
-  if (input.status === 'DISQUALIFIED' && input.disqualifyReasonId != null) {
-    const reason = await prisma.reason.findFirst({
-      where: {
-        id: input.disqualifyReasonId,
-        isActive: true,
-      },
-      select: { id: true },
-    })
-
-    if (!reason) {
-      throw new LeadServiceError(
-        'Disqualification reason not found or inactive',
-        400,
-      )
-    }
-  }
-
   const now = new Date()
 
   const data = {
     status: input.status,
-    disqualifyReasonId:
-      input.status === 'DISQUALIFIED'
-        ? input.disqualifyReasonId ?? null
-        : null,
+    disqualifyReasonId: null,
     disqualifyNote:
       input.status === 'DISQUALIFIED'
-        ? input.disqualifyNote?.trim() || null
+        ? input.disqualifyReason?.trim() || null
         : null,
     disqualifiedAt:
       input.status === 'DISQUALIFIED'
@@ -576,11 +579,25 @@ export async function updateLeadStatus(
   }
 
   if (input.status !== 'CONVERTED' || existing.convertedCustomerId != null) {
-    return prisma.lead.update({
+    const updated = await prisma.lead.update({
       where: { id },
       data,
       select: leadSelect,
     })
+
+    void logAudit({
+      actorId,
+      action: input.status === 'DISQUALIFIED' ? 'DISQUALIFY' : 'STATUS_CHANGE',
+      entityType: 'LEAD',
+      entityId: id,
+      before: { status: existing.status },
+      after: {
+        status: input.status,
+        disqualifyReason: input.disqualifyReason,
+      },
+    })
+
+    return updated
   }
 
   const conversion = input as any

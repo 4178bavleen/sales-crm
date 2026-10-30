@@ -1,6 +1,7 @@
 
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateContactInput,
   ListContactsInput,
@@ -58,7 +59,7 @@ const contactSelect = {
   },
 } satisfies Prisma.ContactSelect
 
-export async function createContact(input: CreateContactInput) {
+export async function createContact(input: CreateContactInput, actorId?: number) {
   await validateCompany(input.companyId);
 
   const fullName = input.fullName.trim();
@@ -82,7 +83,7 @@ export async function createContact(input: CreateContactInput) {
   const email = normalizeEmail(input.email);
   const phone = input.phone?.trim() || null;
 
-  return prisma.contact.create({
+  const contact = await prisma.contact.create({
     data: {
       fullName,
       companyId: input.companyId ?? null,
@@ -95,6 +96,22 @@ export async function createContact(input: CreateContactInput) {
     },
     select: contactSelect,
   });
+
+  void logAudit({
+    actorId: actorId ?? null,
+    action: 'CREATE',
+    entityType: 'CONTACT',
+    entityId: contact.id,
+    after: {
+      fullName: contact.fullName,
+      email: contact.email,
+      phone: contact.phone,
+      jobTitle: contact.jobTitle,
+      companyId: contact.companyId,
+    },
+  });
+
+  return contact;
 }
 
 export async function getContacts(input: ListContactsInput) {
@@ -161,10 +178,18 @@ export async function getContactById(id: number) {
 export async function updateContact(
   id: number,
   input: UpdateContactInput,
+  actorId?: number,
 ) {
   const existing = await prisma.contact.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: {
+      id: true,
+      fullName: true,
+      companyId: true,
+      jobTitle: true,
+      email: true,
+      phone: true,
+    },
   })
 
   if (!existing) {
@@ -195,17 +220,40 @@ export async function updateContact(
   }
   if (input.notes !== undefined) data.notes = input.notes
 
-  return prisma.contact.update({
+  const updated = await prisma.contact.update({
     where: { id },
     data,
     select: contactSelect,
   })
+
+  void logAudit({
+    actorId: actorId ?? null,
+    action: 'UPDATE',
+    entityType: 'CONTACT',
+    entityId: id,
+    before: {
+      fullName: existing.fullName,
+      companyId: existing.companyId,
+      jobTitle: existing.jobTitle,
+      email: existing.email,
+      phone: existing.phone,
+    },
+    after: {
+      fullName: updated.fullName,
+      companyId: updated.companyId,
+      jobTitle: updated.jobTitle,
+      email: updated.email,
+      phone: updated.phone,
+    },
+  })
+
+  return updated
 }
 
-export async function deleteContact(id: number) {
+export async function deleteContact(id: number, actorId?: number) {
   const existing = await prisma.contact.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, fullName: true },
   })
 
   if (!existing) {
@@ -215,6 +263,14 @@ export async function deleteContact(id: number) {
   await prisma.contact.update({
     where: { id },
     data: { deletedAt: new Date() },
+  })
+
+  void logAudit({
+    actorId: actorId ?? null,
+    action: 'DELETE',
+    entityType: 'CONTACT',
+    entityId: id,
+    before: { fullName: existing.fullName },
   })
 
   return { id, deleted: true }

@@ -18,6 +18,9 @@ import {
   ExternalLink,
   ShieldCheck,
   UserCheck,
+  Shield,
+  History,
+  Eye,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -31,12 +34,15 @@ import {
   Tooltip,
 } from "recharts";
 
-import {
-  fetchReportOverview,
-  fetchRepPerformanceReport,
-} from "../../lib/reports";
+import { fetchReportOverview, fetchRepPerformanceReport } from "../../lib/reports";
 import { fetchLeads, createLead } from "../../lib/leads";
 import { fetchMeetings } from "../../lib/meetings";
+import {
+  fetchAuditLogs,
+  getActionBadgeClass,
+  formatAuditSummary,
+  type AuditLogItem,
+} from "../../lib/auditLogs";
 import { request } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
 import { getSession } from "../../lib/auth";
@@ -51,6 +57,7 @@ import type { MeetingItem } from "../../types/meeting";
 import type { Task } from "../../types/task";
 import CreateLeadModal from "../../components/ui/Createlead";
 import DynamicSparkline from "../../components/ui/DynamicSparkline";
+import AuditLogDetailDialog from "../../components/ui/AuditLogDetailDialog";
 
 function formatCurrency(val: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -86,6 +93,7 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [meetings, setMeetings] = useState<MeetingItem[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [customerAccounts, setCustomerAccounts] = useState<
     Array<{
       id: number;
@@ -106,6 +114,7 @@ export default function Dashboard() {
 
   // Create lead modal
   const [isCreateLeadOpen, setIsCreateLeadOpen] = useState(false);
+  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogItem | null>(null);
 
   const loadDashboardData = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true);
@@ -114,7 +123,7 @@ export default function Dashboard() {
     const token = getSession()?.token;
 
     try {
-      const [overviewRes, repsRes, leadsRes, meetingsRes, tasksRes, dealOptionsRes] =
+      const [overviewRes, repsRes, leadsRes, meetingsRes, tasksRes, dealOptionsRes, auditLogsRes] =
         await Promise.allSettled([
           fetchReportOverview({ period }),
           fetchRepPerformanceReport({ period }),
@@ -134,6 +143,7 @@ export default function Dashboard() {
             method: "GET",
             token,
           }),
+          fetchAuditLogs({ limit: 8 }),
         ]);
 
       if (overviewRes.status === "fulfilled") {
@@ -150,6 +160,9 @@ export default function Dashboard() {
       }
       if (tasksRes.status === "fulfilled") {
         setTasks(tasksRes.value.items || []);
+      }
+      if (auditLogsRes.status === "fulfilled") {
+        setAuditLogs(auditLogsRes.value.items || []);
       }
       if (dealOptionsRes.status === "fulfilled" && dealOptionsRes.value.customers) {
         const rawCusts = dealOptionsRes.value.customers;
@@ -1266,11 +1279,142 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 3. FULL WIDTH AUDIT LOGS & SYSTEM ACTIVITY */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-[#1d61e7]" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Recent Audit &amp; System Activity
+              </h3>
+              <p className="text-xs text-slate-700">
+                Immutable event tracking for lead and deal state modifications, assignments, and disqualifications
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/audit-logs"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#1d61e7] hover:underline"
+          >
+            View All Audit Logs
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-xs text-slate-700">
+            <History className="mx-auto h-6 w-6 text-slate-400 mb-1.5" />
+            No system activity recorded yet
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold tracking-wider text-slate-700 uppercase">
+                  <th className="py-2.5 px-3 w-10 text-center">#</th>
+                  <th className="py-2.5 px-3">Timestamp</th>
+                  <th className="py-2.5 px-3">Action</th>
+                  <th className="py-2.5 px-3">Entity</th>
+                  <th className="py-2.5 px-3">Performed By</th>
+                  <th className="py-2.5 px-3">Event Details</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {auditLogs.map((log, index) => {
+                  const actorName = log.actor?.name || (log.actorId ? `User #${log.actorId}` : "System");
+                  const actorEmail = log.actor?.email;
+                  return (
+                    <tr
+                      key={log.id}
+                      onClick={() => setSelectedAuditLog(log)}
+                      className="hover:bg-slate-50/60 transition-colors cursor-pointer"
+                    >
+                      <td className="py-2.5 px-3 text-center font-mono text-[11px] font-semibold text-slate-700">
+                        {index + 1}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-700 font-mono text-[11px]">
+                        {new Date(log.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}{" "}
+                        <span className="text-slate-600">
+                          {new Date(log.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getActionBadgeClass(
+                            log.action
+                          )}`}
+                        >
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">
+                        {log.entityType}{" "}
+                        <span className="font-normal text-slate-600 text-[11px]">#{log.entityId}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                            {actorName.charAt(0).toUpperCase()}
+                          </span>
+                          <div>
+                            <span className="truncate max-w-[140px] font-medium text-slate-900 block">
+                              {actorName}
+                            </span>
+                            {actorEmail && (
+                              <span className="text-[10px] text-slate-600 block -mt-0.5">
+                                {actorEmail}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-800">
+                        {formatAuditSummary(log)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAuditLog(log);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#1d61e7] shadow-2xs transition cursor-pointer"
+                        >
+                          <Eye size={12} />
+                          Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* CREATE LEAD MODAL */}
       {isCreateLeadOpen && (
         <CreateLeadModal
           onClose={() => setIsCreateLeadOpen(false)}
           onCreate={handleLeadCreated}
+        />
+      )}
+
+      {/* AUDIT LOG DETAIL DIALOG */}
+      {selectedAuditLog && (
+        <AuditLogDetailDialog
+          log={selectedAuditLog}
+          onClose={() => setSelectedAuditLog(null)}
         />
       )}
     </div>

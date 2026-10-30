@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Package,
   Bell,
+  Shield,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
@@ -44,6 +45,7 @@ const salesNav = [
 const managementNav = [
   { name: "User Management", path: "/users", icon: UserCog },
   { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck },
+  { name: "Audit Logs", path: "/audit-logs", icon: Shield },
   { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Documents", path: "/documents", icon: FileText },
   { name: "Notifications", path: "/notifications", icon: Bell },
@@ -142,14 +144,9 @@ export default function Sidebar() {
                   `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
                     isActive
                       ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
-                      : `text-slate-300 hover:bg-white/5 hover:text-white${name === "Sales Targets" ? " pointer-events-none opacity-50 cursor-not-allowed" : ""}`
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`
                 }
-                onClick={e => {
-                  if (name === "Sales Targets") {
-                    e.preventDefault();
-                  }
-                }}
               >
                 {({ isActive }) => (
                   <>

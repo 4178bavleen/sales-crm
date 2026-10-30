@@ -62,6 +62,8 @@ export function toLead(backendLead: BackendLead): Lead {
     priority: backendLead.priority,
     createdAt: backendLead.createdAt ? backendLead.createdAt.slice(0, 10) : "",
     notes: backendLead.notes || undefined,
+    disqualifyReason: backendLead.disqualifyNote ?? null,
+    disqualifiedAt: backendLead.disqualifiedAt ?? null,
     nextFollowUpAt: backendLead.nextFollowUpAt || undefined,
     noFollowUp: !backendLead.nextFollowUpAt || Boolean(backendLead.noFollowUpNote),
     noFollowUpNote: backendLead.noFollowUpNote ?? null,
@@ -294,8 +296,7 @@ export async function assignLead(
 export async function updateLeadStatus(
   id: number,
   status: LeadStatus,
-  disqualifyReasonId?: number,
-  disqualifyNote?: string,
+  disqualifyReason?: string,
   extra?: Record<string, unknown>,
 ): Promise<Lead> {
   const session = getSession();
@@ -303,8 +304,9 @@ export async function updateLeadStatus(
 
   const body: Record<string, unknown> = { status, ...(extra || {}) };
   if (status === "DISQUALIFIED") {
-    if (body.disqualifyReasonId === undefined) body.disqualifyReasonId = disqualifyReasonId ?? 1;
-    if (body.disqualifyNote === undefined) body.disqualifyNote = disqualifyNote ?? "Disqualified";
+    if (body.disqualifyReason === undefined) {
+      body.disqualifyReason = disqualifyReason || "Disqualified";
+    }
   }
 
   const res = await request<{ lead: BackendLead }>(ENDPOINTS.leads.status(id), {

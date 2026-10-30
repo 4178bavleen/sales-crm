@@ -134,8 +134,7 @@ export const updateLeadStatusSchema = z.object({
     'DISQUALIFIED',
     'CONVERTED',
   ]),
-  disqualifyReasonId: z.number().int().positive().nullable().optional(),
-  disqualifyNote: z.string().trim().max(2000).nullable().optional(),
+  disqualifyReason: z.string().trim().max(2000).optional(),
   // Conversion details (used when converting lead to deal)
   dealName: z.string().trim().min(1).max(200).optional(),
   ownerId: z.number().int().positive().optional(),
@@ -145,15 +144,11 @@ export const updateLeadStatusSchema = z.object({
   productServiceId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
 }).superRefine((data, ctx) => {
-  if (
-    data.status === 'DISQUALIFIED' &&
-    data.disqualifyReasonId == null &&
-    !data.disqualifyNote?.trim()
-  ) {
+  if (data.status === 'DISQUALIFIED' && !data.disqualifyReason?.trim()) {
     ctx.addIssue({
       code: 'custom',
-      path: ['disqualifyReasonId'],
-      message: 'Provide a disqualification reason or note',
+      path: ['disqualifyReason'],
+      message: 'Disqualification reason is required',
     })
   }
 })
