@@ -17,12 +17,11 @@ export async function runReminderChecks() {
     const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0))
     const endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
 
-    // 1. Task Reminders: Active tasks due today
+    // 1. Task Reminders: Active tasks due today or overdue
     const dueTasks = await prisma.task.findMany({
       where: {
         status: { in: ['OPEN', 'IN_PROGRESS'] },
         dueAt: {
-          gte: startOfDay,
           lte: endOfDay,
         },
       },
@@ -34,12 +33,20 @@ export async function runReminderChecks() {
       },
     })
 
+    let tasksNotified = 0
     for (const task of dueTasks) {
+      const isOverdue = task.dueAt < startOfDay
+      const notifType = isOverdue ? 'TASK_OVERDUE' : 'TASK_DUE_TODAY'
+      const notifTitle = isOverdue ? 'Task is overdue' : 'Task due today'
+      const notifBody = isOverdue
+        ? `Reminder: Task "${task.title}" is overdue.`
+        : `Reminder: Task "${task.title}" is due today.`
+
       // Check if a reminder notification was already sent today for this task
       const existingNotification = await prisma.notification.findFirst({
         where: {
           userId: task.assignedToId,
-          type: 'TASK_DUE_TODAY',
+          type: { in: ['TASK_DUE_TODAY', 'TASK_OVERDUE'] },
           entityType: 'task',
           entityId: task.id,
           createdAt: { gte: startOfDay },
@@ -49,17 +56,20 @@ export async function runReminderChecks() {
       if (!existingNotification) {
         await createInAppNotification({
           userId: task.assignedToId,
-          type: 'TASK_DUE_TODAY',
-          title: 'Task due today',
-          body: `Reminder: Task "${task.title}" is due today.`,
+          type: notifType,
+          title: notifTitle,
+          body: notifBody,
           entityType: 'task',
           entityId: task.id,
         })
+        tasksNotified++
+        console.log(`[ReminderScheduler] Dispatched ${notifType} for Task #${task.id} to User #${task.assignedToId}`)
       }
     }
 
-    // 2. Meeting Reminders: Meetings starting within the next 30 minutes
-    const windowStart = now
+    // 2. Meeting Reminders: Meetings starting within next 30 minutes
+    // Includes a 10-minute backward grace window so short-notice meetings aren't missed between 5-min intervals
+    const windowStart = new Date(now.getTime() - 10 * 60 * 1000)
     const windowEnd = new Date(now.getTime() + 30 * 60 * 1000)
 
     const upcomingMeetings = await prisma.meeting.findMany({
@@ -75,6 +85,7 @@ export async function runReminderChecks() {
       },
     })
 
+    let meetingsNotified = 0
     for (const meeting of upcomingMeetings) {
       const recipientIds = new Set<number>()
       if (meeting.organizerId) recipientIds.add(meeting.organizerId)
@@ -94,17 +105,24 @@ export async function runReminderChecks() {
         })
 
         if (!existingNotification) {
-          const minutesRemaining = Math.max(1, Math.round((meeting.startsAt.getTime() - now.getTime()) / 60000))
+          const diffMinutes = Math.round((meeting.startsAt.getTime() - now.getTime()) / 60000)
+          const timeText = diffMinutes <= 0 ? 'starting now' : `begins in ~${diffMinutes} minutes`
           await createInAppNotification({
             userId,
             type: 'MEETING_UPCOMING_REMINDER',
             title: 'Upcoming meeting reminder',
-            body: `Your meeting "${meeting.title}" begins in ~${minutesRemaining} minutes.`,
+            body: `Your meeting "${meeting.title}" ${timeText}.`,
             entityType: 'meeting',
             entityId: meeting.id,
           })
+          meetingsNotified++
+          console.log(`[ReminderScheduler] Dispatched MEETING_UPCOMING_REMINDER for Meeting #${meeting.id} to User #${userId}`)
         }
       }
+    }
+
+    if (tasksNotified > 0 || meetingsNotified > 0) {
+      console.log(`[ReminderScheduler] Sent ${tasksNotified} task reminders and ${meetingsNotified} meeting reminders.`)
     }
   } catch (err) {
     console.error('Error running automated reminder check:', err)
@@ -117,6 +135,7 @@ export async function runReminderChecks() {
  * Initializes a background reminder timer running every 5 minutes.
  */
 export function initReminderScheduler() {
+  console.log('[ReminderScheduler] Initialized background scheduler (interval: 5m, initial check in 10s)')
   // Run first check 10 seconds after server start
   setTimeout(() => {
     void runReminderChecks()

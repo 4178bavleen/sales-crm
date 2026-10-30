@@ -8,6 +8,7 @@ import {
   markNotificationRead,
   NotificationServiceError,
 } from '../notifications/notification.service.js'
+import { runReminderChecks } from '../../common/services/reminder-scheduler.service.js'
 
 function actorId(req: AuthenticatedRequest): number {
   const id = Number(req.user?.id)
@@ -76,5 +77,13 @@ export async function deleteNotificationController(req: AuthenticatedRequest, re
   try {
     await deleteNotification(actorId(req), parsePositiveInt(req.params.id, 'id'))
     res.json({ success: true, message: 'Notification deleted successfully' })
+  } catch (error) { handleError(error, res, next) }
+}
+
+export async function runRemindersController(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    actorId(req)
+    await runReminderChecks()
+    res.json({ success: true, message: 'Reminders checked successfully' })
   } catch (error) { handleError(error, res, next) }
 }
