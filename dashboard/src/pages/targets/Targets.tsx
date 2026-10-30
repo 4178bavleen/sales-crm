@@ -57,6 +57,7 @@ import type {
 } from "../../types/target";
 import { getSession } from "../../lib/auth";
 import { ApiError } from "../../lib/api";
+import { fetchMyPermissions } from "../../lib/permissions";
 
 const MONTH_NAMES = [
   "January",
@@ -129,7 +130,14 @@ const STATUS_CONFIG: Record<
 export default function Targets() {
   const session = getSession();
   const userRole = session?.user?.role || "";
-  const canManage = ["ADMIN", "SALES_MANAGER"].includes(userRole);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+
+  const isRoleAdminOrManager = ["ADMIN", "SALES_MANAGER"].includes(userRole);
+  const canManage =
+    isRoleAdminOrManager ||
+    userPermissions.some((p) =>
+      ["targets.create", "targets.edit", "targets.delete"].includes(p),
+    );
 
   // Data states
   const [targets, setTargets] = useState<TargetItem[]>([]);
@@ -223,10 +231,18 @@ export default function Targets() {
   useEffect(() => {
     async function loadOpts() {
       try {
-        const opts = await fetchTargetOptions();
-        setOptions(opts);
+        const [opts, myPerms] = await Promise.allSettled([
+          fetchTargetOptions(),
+          fetchMyPermissions(),
+        ]);
+        if (opts.status === "fulfilled") {
+          setOptions(opts.value);
+        }
+        if (myPerms.status === "fulfilled" && Array.isArray(myPerms.value?.permissions)) {
+          setUserPermissions(myPerms.value.permissions);
+        }
       } catch (e) {
-        console.error("Failed to load target options:", e);
+        console.error("Failed to load target options or permissions:", e);
       }
     }
     loadOpts();
@@ -371,17 +387,17 @@ export default function Targets() {
       {/* KPI Cards Row (4 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Target Quota */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
-              <Target size={20} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-blue-500 bg-white p-3 shadow-2xs transition hover:border-blue-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d61e7]">
+              <Target size={17} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Total Quota Target</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
+              <p className="text-[11px] font-medium text-slate-500">Total Quota Target</p>
+              <p className="text-xl font-bold text-slate-900 leading-tight">
                 {formatCurrency(summary.totalQuota)}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
+              <p className="mt-0.5 text-[10px] font-semibold text-blue-600 flex items-center gap-0.5">
                 <span>↑</span> {summary.totalTargets} targets allocated
               </p>
             </div>
@@ -394,17 +410,17 @@ export default function Targets() {
         </div>
 
         {/* Closed Won Revenue */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <TrendingUp size={20} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-emerald-500 bg-white p-3 shadow-2xs transition hover:border-emerald-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <TrendingUp size={17} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Closed Won Revenue</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
+              <p className="text-[11px] font-medium text-slate-500">Closed Won Revenue</p>
+              <p className="text-xl font-bold text-slate-900 leading-tight">
                 {formatCurrency(summary.totalAchieved)}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
+              <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 flex items-center gap-0.5">
                 <span>↑</span> {summary.achievedCount} reached 100%+ goal
               </p>
             </div>
@@ -417,17 +433,17 @@ export default function Targets() {
         </div>
 
         {/* Overall Attainment */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
-              <Award size={20} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-purple-500 bg-white p-3 shadow-2xs transition hover:border-purple-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+              <Award size={17} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Overall Attainment</p>
-              <p className="text-2xl font-bold text-slate-900 leading-tight">
+              <p className="text-[11px] font-medium text-slate-500">Overall Attainment</p>
+              <p className="text-xl font-bold text-slate-900 leading-tight">
                 {summary.overallAttainment}%
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-purple-600 flex items-center gap-0.5">
+              <p className="mt-0.5 text-[10px] font-semibold text-purple-600 flex items-center gap-0.5">
                 <span>↑</span> {summary.onTrackCount} on track, {summary.atRiskCount} at risk
               </p>
             </div>
@@ -440,17 +456,17 @@ export default function Targets() {
         </div>
 
         {/* Top Performer */}
-        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <Sparkles size={20} />
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-amber-500 bg-white p-3 shadow-2xs transition hover:border-amber-600 hover:shadow-xs min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+              <Sparkles size={17} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Top Performer</p>
-              <p className="truncate text-xl font-bold text-slate-900 leading-tight">
+              <p className="text-[11px] font-medium text-slate-500">Top Performer</p>
+              <p className="truncate text-lg font-bold text-slate-900 leading-tight">
                 {summary.topPerformer ? summary.topPerformer.name : "In Progress"}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
+              <p className="mt-0.5 text-[10px] font-semibold text-amber-600 flex items-center gap-0.5">
                 {summary.topPerformer ? (
                   <>
                     <span>★</span> {summary.topPerformer.attainment}% ({formatCurrency(summary.topPerformer.achieved)})
@@ -623,7 +639,7 @@ export default function Targets() {
         </div>
       ) : viewMode === "grid" ? (
         /* GRID VIEW */
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [zoom:1.05]">
           {targets.map((target) => {
             const statusStyle = STATUS_CONFIG[target.status];
             const isTeam = !!target.teamId;
@@ -637,41 +653,41 @@ export default function Targets() {
             return (
               <div
                 key={target.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition hover:border-slate-300 hover:shadow-xs"
               >
                 <div>
                   {/* Top Bar: Assignee & Status */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-bold text-white shadow-sm ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-medium text-white shadow-2xs text-[11px] ${
                           isTeam
                             ? "bg-gradient-to-tr from-purple-600 to-indigo-500"
                             : "bg-gradient-to-tr from-[#1d61e7] to-sky-400"
                         }`}
                       >
                         {isTeam ? (
-                          <Building2 className="h-5 w-5 text-white" />
+                          <Building2 className="h-4 w-4 text-white" />
                         ) : (
                           assigneeName.slice(0, 2).toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h4 className="truncate font-semibold text-slate-900">{assigneeName}</h4>
+                          <h4 className="truncate text-xs font-semibold text-slate-900">{assigneeName}</h4>
                           {isTeam && (
-                            <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-purple-700">
+                            <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-purple-800">
                               Team
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-xs text-slate-500">{roleOrTeam}</p>
+                        <p className="truncate text-[10px] text-slate-700">{roleOrTeam}</p>
                       </div>
                     </div>
 
                     {/* Status Badge */}
                     <div
-                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
                     >
                       <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
                       <span>{statusStyle.label}</span>
@@ -679,49 +695,49 @@ export default function Targets() {
                   </div>
 
                   {/* Period Badge & Dates */}
-                  <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="font-semibold text-slate-700">
+                  <div className="mt-2.5 flex items-center justify-between rounded-lg bg-slate-100/90 px-2 py-1 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <Calendar className="h-3 w-3 text-slate-600" />
+                      <span className="font-medium text-slate-800">
                         {formatPeriodDisplay(target)}
                       </span>
                     </div>
-                    <span className="font-medium text-slate-400">
+                    <span className="text-slate-600">
                       {target.periodType === "MONTHLY" ? "Monthly Target" : "Quarterly Target"}
                     </span>
                   </div>
 
                   {/* Revenue Quota vs Achieved */}
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
-                      <span className="text-[11px] font-medium text-slate-500">Target Quota</span>
-                      <div className="mt-0.5 text-base font-bold text-slate-900">
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-1.5">
+                      <span className="text-[10px] text-slate-700">Target Quota</span>
+                      <div className="mt-0.5 text-[13px] font-bold text-slate-900">
                         {formatCurrency(target.amount)}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
-                      <span className="text-[11px] font-medium text-slate-500">Achieved Won</span>
-                      <div className="mt-0.5 text-base font-bold text-emerald-600">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-1.5">
+                      <span className="text-[10px] text-slate-700">Achieved Won</span>
+                      <div className="mt-0.5 text-[13px] font-bold text-emerald-700">
                         {formatCurrency(target.achievedRevenue)}
                       </div>
                     </div>
                   </div>
 
                   {/* Progress Bar & Attainment */}
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-600">Attainment Progress</span>
-                      <span className="font-bold text-slate-900">
+                  <div className="mt-2.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-700">Attainment Progress</span>
+                      <span className="font-semibold text-slate-900">
                         {target.progressPercentage}%
                       </span>
                     </div>
-                    <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${statusStyle.progressBg}`}
                         style={{ width: `${Math.min(100, target.progressPercentage)}%` }}
                       />
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-600">
                       <span>{target.wonDealsCount} won deal(s)</span>
                       <span>
                         {target.achievedRevenue >= target.amount
@@ -732,37 +748,37 @@ export default function Targets() {
                   </div>
 
                   {/* Open Pipeline indicator */}
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-1.5 text-[10px] text-slate-700">
+                    <span className="flex items-center gap-1 text-slate-700">
+                      <Briefcase className="h-3 w-3 text-slate-600" />
                       <span>Pipeline:</span>
                     </span>
-                    <span className="font-semibold text-slate-700">
+                    <span className="font-semibold text-slate-800">
                       {formatCurrency(target.pipelineRevenue)} ({target.openDealsCount} open)
                     </span>
                   </div>
                 </div>
 
                 {/* Card Footer Actions */}
-                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                  <div className="flex items-center gap-1 text-slate-400">
+                <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-1.5 text-[10px]">
+                  <div className="flex items-center gap-1 text-slate-600">
                     <button
                       onClick={() => handleOpenHistory(target.id)}
-                      className="flex items-center gap-1 rounded-md px-1.5 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
                       title="View Revision History"
                     >
-                      <History className="h-3.5 w-3.5" />
-                      <span>{target.changesCount} revisions</span>
+                      <History className="h-3 w-3" />
+                      <span>{target.changesCount} revs</span>
                     </button>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenDeals(target.id)}
-                      className="flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-[#1d61e7] transition hover:bg-blue-50"
+                      className="flex items-center gap-1 rounded-md px-2 py-0.5 font-medium text-[#1d61e7] transition hover:bg-blue-50"
                       title="View Won Deals"
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3 w-3" />
                       <span>Deals</span>
                     </button>
 
@@ -770,17 +786,17 @@ export default function Targets() {
                       <>
                         <button
                           onClick={() => setEditTargetItem(target)}
-                          className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          className="rounded-md p-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                           title="Edit Target Quota"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => setDeleteTargetItem(target)}
-                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-md p-1 text-slate-600 transition hover:bg-rose-50 hover:text-rose-700"
                           title="Delete Target"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </>
                     )}
@@ -1084,8 +1100,12 @@ function CreateTargetModal({
   onSuccess: () => void;
 }) {
   const [targetType, setTargetType] = useState<"USER" | "TEAM">("USER");
-  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
-  const [selectedTeamId, setSelectedTeamId] = useState<number | "">("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">(
+    () => options?.users?.[0]?.id ?? "",
+  );
+  const [selectedTeamId, setSelectedTeamId] = useState<number | "">(
+    () => options?.teams?.[0]?.id ?? "",
+  );
   const [periodType, setPeriodType] = useState<TargetPeriod>("MONTHLY");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
@@ -1095,15 +1115,18 @@ function CreateTargetModal({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Set defaults once options load
+  // Set defaults once options load or change
   useEffect(() => {
-    if (options?.users?.length && selectedUserId === "") {
+    if (options?.users?.length && (!selectedUserId || !options.users.some(u => u.id === selectedUserId))) {
       setSelectedUserId(options.users[0].id);
     }
-    if (options?.teams?.length && selectedTeamId === "") {
+  }, [options?.users, selectedUserId]);
+
+  useEffect(() => {
+    if (options?.teams?.length && (!selectedTeamId || !options.teams.some(t => t.id === selectedTeamId))) {
       setSelectedTeamId(options.teams[0].id);
     }
-  }, [options, selectedUserId, selectedTeamId]);
+  }, [options?.teams, selectedTeamId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1115,12 +1138,17 @@ function CreateTargetModal({
       return;
     }
 
-    if (targetType === "USER" && !selectedUserId) {
+    const effectiveUserId =
+      selectedUserId !== "" ? selectedUserId : options?.users?.[0]?.id ?? "";
+    const effectiveTeamId =
+      selectedTeamId !== "" ? selectedTeamId : options?.teams?.[0]?.id ?? "";
+
+    if (targetType === "USER" && !effectiveUserId) {
       setError("Please select a sales representative");
       return;
     }
 
-    if (targetType === "TEAM" && !selectedTeamId) {
+    if (targetType === "TEAM" && !effectiveTeamId) {
       setError("Please select a team");
       return;
     }
@@ -1143,8 +1171,8 @@ function CreateTargetModal({
     }
 
     const payload: CreateTargetPayload = {
-      userId: targetType === "USER" ? Number(selectedUserId) : null,
-      teamId: targetType === "TEAM" ? Number(selectedTeamId) : null,
+      userId: targetType === "USER" ? Number(effectiveUserId) : null,
+      teamId: targetType === "TEAM" ? Number(effectiveTeamId) : null,
       periodType,
       periodStart: startDate,
       periodEnd: endDate,
