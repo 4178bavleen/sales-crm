@@ -120,11 +120,26 @@ export function formatAuditSummary(log: AuditLogItem): string {
     if (log.action === "UPDATE") return `Contact updated: ${String(after.fullName || before.fullName || `#${log.entityId}`)}`;
     if (log.action === "DELETE") return `Contact deleted: ${String(before.fullName || `#${log.entityId}`)}`;
   }
+  if (log.entityType === "DOCUMENT") {
+    if (after.action === "NEW_VERSION") {
+      return `New version v${String(after.versionNo || "")} uploaded for document #${log.entityId}${after.fileName ? ` (${String(after.fileName)})` : ""}${after.note ? ` • "${String(after.note)}"` : ""}`;
+    }
+    if (log.action === "CREATE") {
+      return `Uploaded document "${String(after.name || `#${log.entityId}`)}"${after.category ? ` [${String(after.category)}]` : ""}${after.fileName ? ` • ${String(after.fileName)}` : ""}`;
+    }
+    if (log.action === "UPDATE") {
+      return `Updated document "${String(after.name || before.name || `#${log.entityId}`)}"`;
+    }
+    if (log.action === "DELETE") {
+      return `Deleted document "${String(before.name || `#${log.entityId}`)}"`;
+    }
+  }
   if (log.entityType === "ACTIVITY" || log.entityType === "FOLLOWUP") {
-    const actType = after.type ? String(after.type) : "activity";
+    const actType = after.type ? String(after.type).toUpperCase() : "ACTIVITY";
+    const label = actType === "CALL" ? "Daily Call" : actType === "MESSAGE" ? "Message" : actType === "EMAIL" ? "Email" : actType.toLowerCase();
     const outcome = after.outcome ? ` • Outcome: ${String(after.outcome)}` : "";
     const notes = after.notes ? ` • "${String(after.notes)}"` : "";
-    return `Logged follow-up ${actType}${outcome}${notes}`;
+    return `Logged ${label}${outcome}${notes}`;
   }
   if (log.entityType === "PRODUCT_SERVICE") {
     if (log.action === "CREATE") return `${after.type || "Product/Service"} created: "${String(after.name)}"`;

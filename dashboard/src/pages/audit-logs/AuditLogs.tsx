@@ -152,11 +152,11 @@ export default function AuditLogs() {
         <StatCard
           label="User & Auth"
           value={stats.users}
-          subtext="Reps & Admins"
+          subtext="Logins & Users"
           icon={UserCheck}
           color="amber"
-          isActive={entityFilter === "USER"}
-          onClick={() => setEntityFilter("USER")}
+          isActive={entityFilter === "USER" || entityFilter === "AUTH"}
+          onClick={() => setEntityFilter(entityFilter === "USER" || entityFilter === "AUTH" ? "ALL" : "USER")}
         />
       </div>
 
@@ -188,10 +188,11 @@ export default function AuditLogs() {
           >
             <option value="ALL">All Entities</option>
             <option value="AUTH">Authentication (Login / Logout)</option>
+            <option value="ACTIVITY">Daily Calls &amp; Follow-ups</option>
+            <option value="DOCUMENT">Documents &amp; Files</option>
             <option value="LEAD">Leads</option>
             <option value="DEAL">Deals</option>
             <option value="TASK">Tasks</option>
-            <option value="ACTIVITY">Follow-ups &amp; Activities</option>
             <option value="CONTACT">Contacts</option>
             <option value="PRODUCT_SERVICE">Products &amp; Services</option>
             <option value="MEETING">Meetings</option>

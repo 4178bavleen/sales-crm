@@ -56,6 +56,8 @@ export async function listAuditLogs(query: {
     const et = query.entityType.trim().toUpperCase()
     if (et === 'FOLLOWUP' || et === 'ACTIVITY') {
       where.entityType = { in: ['ACTIVITY', 'FOLLOWUP'] }
+    } else if (et === 'USER') {
+      where.entityType = { in: ['USER', 'AUTH'] }
     } else {
       where.entityType = {
         equals: query.entityType.trim(),
@@ -70,9 +72,17 @@ export async function listAuditLogs(query: {
     where.actorId = query.actorId
   }
   if (query.action) {
-    where.action = {
-      contains: query.action.trim(),
-      mode: 'insensitive',
+    const term = query.action.trim()
+    if (term.toUpperCase() === 'CALL') {
+      where.OR = [
+        { action: { contains: term, mode: 'insensitive' } },
+        { entityType: { in: ['ACTIVITY', 'FOLLOWUP'] } },
+      ]
+    } else {
+      where.action = {
+        contains: term,
+        mode: 'insensitive',
+      }
     }
   }
 
