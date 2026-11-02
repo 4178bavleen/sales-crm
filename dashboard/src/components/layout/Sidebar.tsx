@@ -18,6 +18,7 @@ import {
   Package,
   Bell,
   Shield,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
@@ -60,6 +61,7 @@ const managementNav = [
   { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Documents", path: "/documents", icon: FileText },
   { name: "Notifications", path: "/notifications", icon: Bell },
+  { name: "Settings", path: "/settings", icon: SettingsIcon },
 ];
 
 export default function Sidebar() {

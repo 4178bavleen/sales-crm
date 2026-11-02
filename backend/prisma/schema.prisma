@@ -842,3 +842,23 @@ model TaskRescheduleHistory {
   @@index([taskId, createdAt])
   @@map("task_reschedule_history")
 }
+
+model EmailSetting {
+  id              Int      @id @default(autoincrement())
+  smtpHost        String   @default("")
+  smtpPort        Int      @default(587)
+  smtpSecure      Boolean  @default(false)
+  smtpUser        String   @default("")
+  smtpPass        String   @default("")
+  fromEmail       String   @default("")
+  fromName        String   @default("Sales CRM")
+  isEnabled       Boolean  @default(false)
+  notifyDeals     Boolean  @default(true)
+  notifyDocuments Boolean  @default(true)
+  notifyTargets   Boolean  @default(true)
+  notifyFollowUps Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@map("email_settings")
+}

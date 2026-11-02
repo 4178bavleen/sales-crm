@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.js'
+import { sendNotificationEmail } from '../email/email.service.js'
 
 export class NotificationServiceError extends Error {
   statusCode: number
@@ -35,7 +36,7 @@ export async function createInAppNotification(input: CreateNotificationInput) {
     throw new NotificationServiceError('Notification recipient was not found or is inactive', 404)
   }
 
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId: input.userId,
       type: input.type.trim(),
@@ -45,6 +46,18 @@ export async function createInAppNotification(input: CreateNotificationInput) {
       entityId: input.entityId ?? null,
     },
   })
+
+  // Dispatches email alert asynchronously if dynamic SMTP is enabled in settings
+  void sendNotificationEmail({
+    recipientUserId: input.userId,
+    type: input.type.trim(),
+    title: input.title.trim(),
+    body: input.body?.trim() || null,
+    entityType: input.entityType?.trim() || null,
+    entityId: input.entityId ?? null,
+  })
+
+  return notification
 }
 
 export async function listNotifications(input: {

@@ -17,6 +17,7 @@ import {
   Shield,
   Package,
   Bell,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { request } from "./api";
 import { ENDPOINTS } from "./endpoints";
@@ -55,6 +56,7 @@ export const SYSTEM_PAGES: SystemPageItem[] = [
   { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck, tags: ["permissions", "roles", "access", "security", "privileges", "rbac", "authorization"] },
   { name: "Audit Logs", path: "/audit-logs", icon: Shield, tags: ["audit logs", "audit", "system activity", "logs", "security logs", "compliance", "history", "actions", "events"] },
   { name: "Notifications", path: "/notifications", icon: Bell, tags: ["notifications", "alerts", "inbox", "reminders", "unread notifications", "activity feed"] },
+  { name: "Settings", path: "/settings", icon: SettingsIcon, tags: ["settings", "smtp", "email", "mail", "configuration", "email alerts", "admin settings", "server"] },
   { name: "Profile", path: "/profile", icon: UserRound, tags: ["profile", "settings", "account", "my profile", "user settings", "password", "preferences"] },
 ];
 

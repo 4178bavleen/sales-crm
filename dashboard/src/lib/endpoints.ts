@@ -165,6 +165,11 @@ export const ENDPOINTS = {
     downloadVersion: (id: number, versionNo: number) => `/documents/${id}/versions/${versionNo}/download`,
   },
 
+  settings: {
+    email: "/settings/email",
+    testEmail: "/settings/email/test",
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */
