@@ -15,6 +15,9 @@ import {
   Users,
   GitFork,
   CalendarDays,
+  FileText,
+  Package,
+  Target,
   Trash2,
   RotateCw,
   ExternalLink,
@@ -36,6 +39,10 @@ import type {
   SearchDealResult,
   SearchTaskResult,
   SearchMeetingResult,
+  SearchDocumentResult,
+  SearchProductResult,
+  SearchUserResult,
+  SearchTargetResult,
 } from "../../types/search";
 import type { NotificationItem } from "../../types/notification";
 import SalesCrmLogo from "../ui/SalesCrmLogo";
@@ -72,6 +79,10 @@ export default function Topbar() {
   const [dealResults, setDealResults] = useState<SearchDealResult[]>([]);
   const [taskResults, setTaskResults] = useState<SearchTaskResult[]>([]);
   const [meetingResults, setMeetingResults] = useState<SearchMeetingResult[]>([]);
+  const [documentResults, setDocumentResults] = useState<SearchDocumentResult[]>([]);
+  const [productResults, setProductResults] = useState<SearchProductResult[]>([]);
+  const [userResults, setUserResults] = useState<SearchUserResult[]>([]);
+  const [targetResults, setTargetResults] = useState<SearchTargetResult[]>([]);
 
   // Dropdown states
   const [showNotifications, setShowNotifications] = useState(false);
@@ -147,6 +158,10 @@ export default function Topbar() {
       setDealResults([]);
       setTaskResults([]);
       setMeetingResults([]);
+      setDocumentResults([]);
+      setProductResults([]);
+      setUserResults([]);
+      setTargetResults([]);
       setIsSearching(false);
       return;
     }
@@ -160,6 +175,10 @@ export default function Topbar() {
       setDealResults(results.deals);
       setTaskResults(results.tasks);
       setMeetingResults(results.meetings);
+      setDocumentResults(results.documents);
+      setProductResults(results.products);
+      setUserResults(results.users);
+      setTargetResults(results.targets);
     } catch {
       setLeadResults([]);
       setCustomerResults([]);
@@ -167,6 +186,10 @@ export default function Topbar() {
       setDealResults([]);
       setTaskResults([]);
       setMeetingResults([]);
+      setDocumentResults([]);
+      setProductResults([]);
+      setUserResults([]);
+      setTargetResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -181,6 +204,10 @@ export default function Topbar() {
       setDealResults([]);
       setTaskResults([]);
       setMeetingResults([]);
+      setDocumentResults([]);
+      setProductResults([]);
+      setUserResults([]);
+      setTargetResults([]);
       setShowSearchResults(false);
       setHighlightedIndex(-1);
       return;
@@ -202,6 +229,10 @@ export default function Topbar() {
     contactResults.length +
     taskResults.length +
     meetingResults.length +
+    documentResults.length +
+    productResults.length +
+    userResults.length +
+    targetResults.length +
     matchedPages.length;
 
   // Flatten active items for keyboard arrow navigation
@@ -267,6 +298,42 @@ export default function Topbar() {
         })
       );
     }
+    if (activeCategory === "ALL" || activeCategory === "DOCUMENTS") {
+      documentResults.forEach((doc) =>
+        list.push({
+          url: `/documents?search=${encodeURIComponent(doc.name)}`,
+          label: `${doc.name} (Document)`,
+          kind: "Document",
+        })
+      );
+    }
+    if (activeCategory === "ALL" || activeCategory === "PRODUCTS") {
+      productResults.forEach((p) =>
+        list.push({
+          url: `/products-services?search=${encodeURIComponent(p.name)}`,
+          label: `${p.name} (Product/Service)`,
+          kind: "Product",
+        })
+      );
+    }
+    if (activeCategory === "ALL" || activeCategory === "USERS") {
+      userResults.forEach((u) =>
+        list.push({
+          url: `/users?search=${encodeURIComponent(u.name)}`,
+          label: `${u.name} (User)`,
+          kind: "User",
+        })
+      );
+    }
+    if (activeCategory === "ALL" || activeCategory === "TARGETS") {
+      targetResults.forEach((t) =>
+        list.push({
+          url: `/targets`,
+          label: `Target ₹${t.amount} (${t.periodType})`,
+          kind: "Target",
+        })
+      );
+    }
 
     return list;
   }, [
@@ -278,6 +345,10 @@ export default function Topbar() {
     contactResults,
     taskResults,
     meetingResults,
+    documentResults,
+    productResults,
+    userResults,
+    targetResults,
   ]);
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -304,10 +375,18 @@ export default function Topbar() {
       navigate(`/deals?search=${encodeURIComponent(query)}`);
     } else if (contactResults.length > 0 && leadResults.length === 0) {
       navigate(`/contacts?search=${encodeURIComponent(query)}`);
+    } else if (documentResults.length > 0 && leadResults.length === 0) {
+      navigate(`/documents?search=${encodeURIComponent(query)}`);
+    } else if (productResults.length > 0 && leadResults.length === 0) {
+      navigate(`/products-services?search=${encodeURIComponent(query)}`);
     } else if (taskResults.length > 0 && leadResults.length === 0) {
       navigate(`/tasks?search=${encodeURIComponent(query)}`);
     } else if (meetingResults.length > 0 && leadResults.length === 0) {
       navigate(`/meetings?search=${encodeURIComponent(query)}`);
+    } else if (targetResults.length > 0 && leadResults.length === 0) {
+      navigate(`/targets`);
+    } else if (userResults.length > 0 && leadResults.length === 0) {
+      navigate(`/users?search=${encodeURIComponent(query)}`);
     } else {
       navigate(`/leads?search=${encodeURIComponent(query)}`);
     }
@@ -419,7 +498,7 @@ export default function Topbar() {
                     if (search.trim()) setShowSearchResults(true);
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Global search (leads, deals, contacts, tasks, meetings)..."
+                  placeholder="Global search across all pages, records, and content..."
                   aria-label="Global search across CRM"
                   className="w-full bg-transparent text-xs sm:text-sm text-slate-700 outline-none placeholder:text-slate-400"
                 />
@@ -451,13 +530,17 @@ export default function Topbar() {
                   {(
                     [
                       { id: "ALL", label: `All (${totalResultsCount})` },
-                      { id: "CUSTOMERS", label: `Customers (${customerResults.length})` },
+                      { id: "PAGES", label: `Pages (${matchedPages.length})` },
                       { id: "LEADS", label: `Leads (${leadResults.length})` },
+                      { id: "CUSTOMERS", label: `Customers (${customerResults.length})` },
                       { id: "DEALS", label: `Deals (${dealResults.length})` },
                       { id: "CONTACTS", label: `Contacts (${contactResults.length})` },
+                      { id: "DOCUMENTS", label: `Docs (${documentResults.length})` },
+                      { id: "PRODUCTS", label: `Products (${productResults.length})` },
                       { id: "TASKS", label: `Tasks (${taskResults.length})` },
                       { id: "MEETINGS", label: `Meetings (${meetingResults.length})` },
-                      { id: "PAGES", label: `Pages (${matchedPages.length})` },
+                      { id: "TARGETS", label: `Targets (${targetResults.length})` },
+                      { id: "USERS", label: `Users (${userResults.length})` },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -760,21 +843,160 @@ export default function Topbar() {
                             ))}
                           </div>
                         )}
+
+                      {/* DOCUMENTS SECTION */}
+                      {(activeCategory === "ALL" || activeCategory === "DOCUMENTS") &&
+                        documentResults.length > 0 && (
+                          <div className="p-2">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              <span>Documents ({documentResults.length})</span>
+                              <span className="text-blue-600">Files & Contracts</span>
+                            </div>
+                            {documentResults.map((doc) => (
+                              <button
+                                key={`doc-${doc.id}`}
+                                type="button"
+                                onClick={() => handleSelectResult(`/documents?search=${encodeURIComponent(doc.name)}`)}
+                                className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                    <FileText size={14} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      {doc.name}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      v{doc.currentVersion} &bull; {doc.category}
+                                      {doc.lead?.contactName ? ` &bull; Lead: ${doc.lead.contactName}` : ""}
+                                      {doc.deal?.name ? ` &bull; Deal: ${doc.deal.name}` : ""}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                  {doc.category}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* PRODUCTS & SERVICES SECTION */}
+                      {(activeCategory === "ALL" || activeCategory === "PRODUCTS") &&
+                        productResults.length > 0 && (
+                          <div className="p-2">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              <span>Products & Services ({productResults.length})</span>
+                              <span className="text-emerald-600">Catalog</span>
+                            </div>
+                            {productResults.map((p) => (
+                              <button
+                                key={`prod-${p.id}`}
+                                type="button"
+                                onClick={() => handleSelectResult(`/products-services?search=${encodeURIComponent(p.name)}`)}
+                                className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                    <Package size={14} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      {p.name}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      {p.type} &bull; ₹{Number(p.unitPrice).toLocaleString('en-IN')} {p.sku ? `&bull; SKU: ${p.sku}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  {p.type}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* SALES TARGETS SECTION */}
+                      {(activeCategory === "ALL" || activeCategory === "TARGETS") &&
+                        targetResults.length > 0 && (
+                          <div className="p-2">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              <span>Sales Targets ({targetResults.length})</span>
+                              <span className="text-rose-600">Goals & Quotas</span>
+                            </div>
+                            {targetResults.map((tgt) => (
+                              <button
+                                key={`target-${tgt.id}`}
+                                type="button"
+                                onClick={() => handleSelectResult(`/targets`)}
+                                className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                                    <Target size={14} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      ₹{Number(tgt.amount).toLocaleString('en-IN')} ({tgt.periodType})
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      {tgt.employee?.name || tgt.team?.name || "Target"} &bull; {tgt.progressPercentage}% Achieved
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                                  {tgt.status}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* USERS SECTION */}
+                      {(activeCategory === "ALL" || activeCategory === "USERS") &&
+                        userResults.length > 0 && (
+                          <div className="p-2">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              <span>Users & Team ({userResults.length})</span>
+                              <span className="text-sky-600">Staff</span>
+                            </div>
+                            {userResults.map((user) => (
+                              <button
+                                key={`user-${user.id}`}
+                                type="button"
+                                onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(user.name)}`)}
+                                className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                                    <UserCog size={14} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      {user.name}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      {user.email} &bull; {user.role?.name || "Staff"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                                  {user.role?.name || "User"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                     </>
                   )}
                 </div>
 
                 {/* Dropdown Quick Module Search Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 text-xs">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] font-bold text-slate-400">Search in:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
-                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
-                    >
-                      Customers
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleSelectResult(`/leads?search=${encodeURIComponent(search)}`)}
@@ -791,10 +1013,31 @@ export default function Topbar() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
+                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
+                    >
+                      Customers
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleSelectResult(`/contacts?search=${encodeURIComponent(search)}`)}
                       className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
                     >
                       Contacts
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectResult(`/documents?search=${encodeURIComponent(search)}`)}
+                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
+                    >
+                      Documents
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectResult(`/products-services?search=${encodeURIComponent(search)}`)}
+                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
+                    >
+                      Products
                     </button>
                     <button
                       type="button"
@@ -809,6 +1052,13 @@ export default function Topbar() {
                       className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
                     >
                       Meetings
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(search)}`)}
+                      className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
+                    >
+                      Users
                     </button>
                   </div>
 
@@ -1321,17 +1571,66 @@ export default function Topbar() {
                       <span className="text-[10px] font-bold text-purple-600">Meeting</span>
                     </button>
                   ))}
+                  {documentResults.map((doc) => (
+                    <button
+                      key={`m-doc-${doc.id}`}
+                      type="button"
+                      onClick={() => handleSelectResult(`/documents?search=${encodeURIComponent(doc.name)}`)}
+                      className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{doc.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{doc.category} &bull; v{doc.currentVersion}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-blue-600">Document</span>
+                    </button>
+                  ))}
+                  {productResults.map((p) => (
+                    <button
+                      key={`m-prod-${p.id}`}
+                      type="button"
+                      onClick={() => handleSelectResult(`/products-services?search=${encodeURIComponent(p.name)}`)}
+                      className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{p.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{p.type} &bull; ₹{Number(p.unitPrice).toLocaleString('en-IN')}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600">Product</span>
+                    </button>
+                  ))}
+                  {targetResults.map((tgt) => (
+                    <button
+                      key={`m-target-${tgt.id}`}
+                      type="button"
+                      onClick={() => handleSelectResult(`/targets`)}
+                      className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">₹{Number(tgt.amount).toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{tgt.employee?.name || tgt.team?.name || 'Target'} &bull; {tgt.progressPercentage}%</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-rose-600">Target</span>
+                    </button>
+                  ))}
+                  {userResults.map((u) => (
+                    <button
+                      key={`m-user-${u.id}`}
+                      type="button"
+                      onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(u.name)}`)}
+                      className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{u.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{u.email} &bull; {u.role?.name || "Staff"}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-sky-600">User</span>
+                    </button>
+                  ))}
                 </div>
               )}
 
               <div className="flex flex-wrap justify-around border-t border-slate-100 bg-slate-50 p-2 text-center text-xs gap-1 font-semibold text-blue-600">
-                <button
-                  type="button"
-                  onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
-                >
-                  Customers
-                </button>
-                <span>&bull;</span>
                 <button
                   type="button"
                   onClick={() => handleSelectResult(`/leads?search=${encodeURIComponent(search)}`)}
@@ -1348,16 +1647,23 @@ export default function Topbar() {
                 <span>&bull;</span>
                 <button
                   type="button"
-                  onClick={() => handleSelectResult(`/contacts?search=${encodeURIComponent(search)}`)}
+                  onClick={() => handleSelectResult(`/customers?search=${encodeURIComponent(search)}`)}
                 >
-                  Contacts
+                  Customers
                 </button>
                 <span>&bull;</span>
                 <button
                   type="button"
-                  onClick={() => handleSelectResult(`/tasks?search=${encodeURIComponent(search)}`)}
+                  onClick={() => handleSelectResult(`/documents?search=${encodeURIComponent(search)}`)}
                 >
-                  Tasks
+                  Docs
+                </button>
+                <span>&bull;</span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectResult(`/products-services?search=${encodeURIComponent(search)}`)}
+                >
+                  Products
                 </button>
               </div>
             </div>

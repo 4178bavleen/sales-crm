@@ -153,7 +153,18 @@ export const ENDPOINTS = {
     list: "/audit-logs",
   },
 
-  health: "/health",
+  documents: {
+    list: "/documents",
+    options: "/documents/options",
+    byId: (id: number) => `/documents/${id}`,
+    create: "/documents",
+    update: (id: number) => `/documents/${id}`,
+    delete: (id: number) => `/documents/${id}`,
+    addVersion: (id: number) => `/documents/${id}/versions`,
+    download: (id: number) => `/documents/${id}/download`,
+    downloadVersion: (id: number, versionNo: number) => `/documents/${id}/versions/${versionNo}/download`,
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */

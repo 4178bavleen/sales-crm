@@ -8,6 +8,10 @@ export type SearchCategory =
   | "CONTACTS"
   | "TASKS"
   | "MEETINGS"
+  | "DOCUMENTS"
+  | "PRODUCTS"
+  | "USERS"
+  | "TARGETS"
   | "PAGES";
 
 export interface SearchLeadResult {
@@ -66,6 +70,49 @@ export interface SearchMeetingResult {
   lead?: { contactName?: string | null; companyName?: string | null } | null;
 }
 
+export interface SearchDocumentResult {
+  id: number;
+  name: string;
+  category: string;
+  currentVersion: number;
+  latestVersion?: {
+    originalFileName?: string;
+    sizeBytes?: number;
+    fileType?: string;
+  };
+  lead?: { contactName?: string } | null;
+  deal?: { name?: string } | null;
+  customer?: { company?: { name: string } | null } | null;
+}
+
+export interface SearchProductResult {
+  id: number;
+  name: string;
+  sku?: string | null;
+  type: string;
+  unitPrice: number | string;
+  currency: string;
+  isActive: boolean;
+}
+
+export interface SearchUserResult {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role?: { name: string } | null;
+}
+
+export interface SearchTargetResult {
+  id: number;
+  amount: number;
+  periodType: string;
+  progressPercentage: number;
+  status: string;
+  employee?: { name: string; email: string } | null;
+  team?: { name: string } | null;
+}
+
 export interface SystemPageItem {
   name: string;
   path: string;
@@ -80,5 +127,9 @@ export interface GlobalSearchResults {
   contacts: SearchContactResult[];
   tasks: SearchTaskResult[];
   meetings: SearchMeetingResult[];
+  documents: SearchDocumentResult[];
+  products: SearchProductResult[];
+  users: SearchUserResult[];
+  targets: SearchTargetResult[];
   pages: SystemPageItem[];
 }
