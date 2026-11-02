@@ -18,6 +18,7 @@ export type TablePaginationProps = {
   onPageSizeChange: (pageSize: number) => void;
   pageSizeOptions?: number[];
   selectedCount?: number;
+  itemLabel?: string;
 };
 
 export type DataTableProps<T> = {

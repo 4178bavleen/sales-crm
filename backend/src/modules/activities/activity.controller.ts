@@ -37,7 +37,7 @@ export async function listActivitiesController(req: AuthenticatedRequest, res: R
     const isAdminOrManager = req.user?.role === 'ADMIN' || req.user?.role === 'SALES_MANAGER'
     const result = await listActivities({
       ...query,
-      performedById: isAdminOrManager ? undefined : userId,
+      performedById: isAdminOrManager ? query.performedById : userId,
     })
     res.json({ success: true, data: result })
   } catch (error) {

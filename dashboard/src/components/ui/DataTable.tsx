@@ -36,6 +36,7 @@ export function TablePagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = [10, 20, 50],
+  itemLabel = "leads",
 }: TablePaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -62,7 +63,7 @@ export function TablePagination({
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-3.5">
       <div className="text-xs text-slate-700 font-medium">
         Showing <span className="font-bold text-slate-950">{startIndex}–{endIndex}</span> of{" "}
-        <span className="font-bold text-slate-950">{total}</span> leads
+        <span className="font-bold text-slate-950">{total}</span> {itemLabel}
       </div>
 
       <div className="flex items-center gap-2">
