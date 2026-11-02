@@ -305,12 +305,12 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+    <div className="space-y-6">
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Documents & Contracts
+            Documents
           </h1>
           <p className="mt-1 text-xs text-slate-600">
             Store, organize, and manage versioned sales proposals, signed contracts, and customer attachments.

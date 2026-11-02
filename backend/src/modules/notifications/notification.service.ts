@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import { sendNotificationEmail } from '../email/email.service.js'
+import { sendNotificationWhatsApp } from '../whatsapp/whatsapp.service.js'
 
 export class NotificationServiceError extends Error {
   statusCode: number
@@ -49,6 +50,16 @@ export async function createInAppNotification(input: CreateNotificationInput) {
 
   // Dispatches email alert asynchronously if dynamic SMTP is enabled in settings
   void sendNotificationEmail({
+    recipientUserId: input.userId,
+    type: input.type.trim(),
+    title: input.title.trim(),
+    body: input.body?.trim() || null,
+    entityType: input.entityType?.trim() || null,
+    entityId: input.entityId ?? null,
+  })
+
+  // Dispatches WhatsApp alert asynchronously if Meta Cloud API is enabled in settings
+  void sendNotificationWhatsApp({
     recipientUserId: input.userId,
     type: input.type.trim(),
     title: input.title.trim(),

@@ -1389,30 +1389,6 @@ export default function Topbar() {
                   My Profile
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfile(false);
-                    navigate("/notifications");
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Bell size={15} />
-                  Notifications
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfile(false);
-                    navigate("/users");
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  <UserCog size={15} />
-                  User Management
-                </button>
-
                 <div className="my-1 border-t border-slate-100" />
 
                 <button

@@ -168,6 +168,8 @@ export const ENDPOINTS = {
   settings: {
     email: "/settings/email",
     testEmail: "/settings/email/test",
+    whatsapp: "/settings/whatsapp",
+    testWhatsapp: "/settings/whatsapp/test",
   },
 
 } as const;

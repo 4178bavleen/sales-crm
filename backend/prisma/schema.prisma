@@ -862,3 +862,21 @@ model EmailSetting {
 
   @@map("email_settings")
 }
+
+model WhatsAppSetting {
+  id               Int      @id @default(autoincrement())
+  phoneNumberId    String   @default("")
+  wabaId           String   @default("")
+  accessToken      String   @default("")
+  templateName     String   @default("crm_alert_notification")
+  templateLanguage String   @default("en_US")
+  isEnabled        Boolean  @default(false)
+  notifyDeals      Boolean  @default(true)
+  notifyDocuments  Boolean  @default(true)
+  notifyTargets    Boolean  @default(true)
+  notifyFollowUps  Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  @@map("whatsapp_settings")
+}
