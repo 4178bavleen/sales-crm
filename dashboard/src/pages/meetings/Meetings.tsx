@@ -81,32 +81,32 @@ function getStatusBadge(status: MeetingStatus) {
     case "PLANNED":
       return {
         label: "Scheduled",
-        bg: "bg-blue-100 text-blue-950 border-blue-300 font-bold",
-        dot: "bg-blue-600",
+        bg: "bg-blue-50 text-blue-700 border-blue-200",
+        dot: "bg-blue-500",
       };
     case "COMPLETED":
       return {
         label: "Completed",
-        bg: "bg-emerald-100 text-emerald-950 border-emerald-300 font-bold",
-        dot: "bg-emerald-600",
+        bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        dot: "bg-emerald-500",
       };
     case "RESCHEDULED":
       return {
         label: "Rescheduled",
-        bg: "bg-amber-100 text-amber-950 border-amber-300 font-bold",
-        dot: "bg-amber-600",
+        bg: "bg-amber-50 text-amber-700 border-amber-200",
+        dot: "bg-amber-500",
       };
     case "CANCELLED":
       return {
         label: "Cancelled",
-        bg: "bg-rose-100 text-rose-950 border-rose-300 font-bold",
-        dot: "bg-rose-600",
+        bg: "bg-rose-50 text-rose-700 border-rose-200",
+        dot: "bg-rose-500",
       };
     default:
       return {
         label: status,
-        bg: "bg-slate-100 text-slate-900 border-slate-300 font-bold",
-        dot: "bg-slate-600",
+        bg: "bg-slate-50 text-slate-700 border-slate-200",
+        dot: "bg-slate-500",
       };
   }
 }
@@ -793,7 +793,7 @@ export default function MeetingsPage() {
           </div>
         ) : viewMode === "grid" ? (
           /* Cards View */
-          <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredMeetings.map((m) => {
               const dt = formatDateTime(m.startsAt);
               const badge = getStatusBadge(m.status);
@@ -803,28 +803,28 @@ export default function MeetingsPage() {
                 <div
                   key={m.id}
                   onClick={() => handleOpenDetail(m)}
-                  className="group relative flex flex-col justify-between rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
+                  className="relative flex flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-xl cursor-pointer"
                 >
                   <div>
                     {/* Card Top: Date badge + Status Pill + Actions */}
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      {/* Date Block */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200/90 bg-slate-50 px-2 py-0.5 text-center min-w-[38px] shadow-2xs">
-                          <span className="text-[11px] font-bold text-blue-700 tracking-wider">
+                    <div className="flex items-start justify-between gap-2">
+                      {/* Date Block & Status */}
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-1 text-center min-w-[42px] shadow-xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
                             {dt.month}
                           </span>
-                          <span className="text-base font-extrabold text-slate-950 leading-none">
+                          <span className="text-base font-extrabold text-slate-900 leading-tight">
                             {dt.day}
                           </span>
                         </div>
                         <div>
-                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${badge.bg}`}>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${badge.bg}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
                             {badge.label}
                           </span>
-                          <p className="mt-0.5 text-xs font-bold text-slate-800 flex items-center gap-1">
-                            <Clock size={12} className="text-slate-600 shrink-0" />
+                          <p className="mt-1 text-xs text-slate-500 flex items-center gap-1 font-medium">
+                            <Clock size={12} className="text-slate-400 shrink-0" />
                             <span>{dt.time} ({m.durationMinutes}m)</span>
                           </p>
                         </div>
@@ -836,7 +836,7 @@ export default function MeetingsPage() {
                           type="button"
                           title="View Details"
                           onClick={() => handleOpenDetail(m)}
-                          className="rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
                         >
                           <Eye size={13} />
                         </button>
@@ -844,7 +844,7 @@ export default function MeetingsPage() {
                           type="button"
                           title="Edit Meeting"
                           onClick={(e) => handleOpenEdit(m, e)}
-                          className="rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
                         >
                           <Pencil size={13} />
                         </button>
@@ -852,7 +852,7 @@ export default function MeetingsPage() {
                           type="button"
                           title="Delete Meeting"
                           onClick={(e) => handleOpenDelete(m, e)}
-                          className="rounded-md p-1 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -860,51 +860,64 @@ export default function MeetingsPage() {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-[15px] font-bold text-slate-950 truncate group-hover:text-blue-700 transition">
+                    <h3 className="mt-3 text-sm font-semibold text-slate-900 line-clamp-1">
                       {m.title}
                     </h3>
 
+                    {/* Optional Notes preview */}
+                    {m.notes && (
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                        {m.notes}
+                      </p>
+                    )}
+
                     {/* Location or Meeting Link */}
                     {(m.meetingLink || m.location) && (
-                      <div className="mt-1 space-y-0.5 text-xs font-semibold text-slate-800">
+                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                         {m.meetingLink && (
-                          <div className="flex items-center gap-1.5 text-blue-700 font-bold truncate">
-                            <Video size={13} className="shrink-0" />
-                            <a
-                              href={m.meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="truncate hover:underline flex items-center gap-1"
-                            >
-                              <span>Join Video Call</span>
-                              <ExternalLink size={10} />
-                            </a>
-                          </div>
+                          <a
+                            href={m.meetingLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition max-w-full"
+                          >
+                            <Video size={13} className="shrink-0 text-blue-600" />
+                            <span className="truncate">Join Video Call</span>
+                            <ExternalLink size={10} className="shrink-0 text-blue-500" />
+                          </a>
                         )}
 
                         {m.location && (
-                          <div className="flex items-center gap-1.5 text-slate-800 truncate">
-                            <MapPin size={13} className="shrink-0 text-slate-600" />
-                            <span className="truncate">{m.location}</span>
+                          <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 px-2 py-1 text-xs text-slate-600 max-w-full">
+                            <MapPin size={12} className="shrink-0 text-slate-400" />
+                            <span className="truncate max-w-[160px]">{m.location}</span>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Associated Lead or Deal */}
-                    {(m.lead || m.deal) && (
-                      <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                    {/* Associated Lead, Deal, or Customer */}
+                    {(m.lead || m.deal || m.customer) && (
+                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                         {m.lead && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 border border-slate-300/80 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">
-                            <Users size={11} className="text-slate-700 shrink-0" />
+                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                            <Users size={11} className="text-slate-500 shrink-0" />
                             <span className="truncate max-w-[120px]">{m.lead.contactName}</span>
                           </span>
                         )}
                         {m.deal && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-900 border border-purple-300 px-1.5 py-0.5 text-[11px] font-bold">
-                            <FolderGit2 size={11} className="text-purple-700 shrink-0" />
+                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 text-[11px] font-medium">
+                            <FolderGit2 size={11} className="text-purple-600 shrink-0" />
                             <span className="truncate max-w-[120px]">{m.deal.name}</span>
+                          </span>
+                        )}
+                        {m.customer && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[11px] font-medium">
+                            <Users size={11} className="text-emerald-600 shrink-0" />
+                            <span className="truncate max-w-[120px]">
+                              {m.customer.company?.name || m.customer.primaryContact?.fullName || "Customer"}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -912,49 +925,65 @@ export default function MeetingsPage() {
 
                     {/* Involved Employees */}
                     {involvedEmployees.length > 0 && (
-                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                          Employees:
-                        </span>
-                        <div className="flex items-center -space-x-1 overflow-hidden">
-                          {involvedEmployees.slice(0, 3).map((p) => (
-                            <div
-                              key={p.id}
-                              title={`${p.user?.name} (${p.user?.email})`}
-                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-900 ring-2 ring-white text-[10px] font-bold"
-                            >
-                              {p.user?.name.charAt(0) || "U"}
-                            </div>
-                          ))}
+                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span className="text-[11px] font-medium text-slate-500">Attendees:</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center -space-x-1.5 overflow-hidden">
+                            {involvedEmployees.slice(0, 3).map((p) => (
+                              <div
+                                key={p.id}
+                                title={`${p.user?.name} (${p.user?.email})`}
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-2 ring-white text-[10px] font-semibold border border-slate-200"
+                              >
+                                {p.user?.name.charAt(0).toUpperCase() || "U"}
+                              </div>
+                            ))}
+                            {involvedEmployees.length > 3 && (
+                              <div
+                                title={involvedEmployees.slice(3).map((p) => p.user?.name).join(", ")}
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600 ring-2 ring-white text-[10px] font-semibold border border-slate-200"
+                              >
+                                +{involvedEmployees.length - 3}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-600 truncate max-w-[130px] font-medium">
+                            {involvedEmployees.map((p) => p.user?.name).join(", ")}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-900 truncate max-w-[150px]">
-                          {involvedEmployees.map((p) => p.user?.name).join(", ")}
-                        </span>
                       </div>
                     )}
                   </div>
 
                   {/* Card Footer: Organizer & Quick Status Changer */}
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 text-slate-900 font-bold">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-900 font-bold text-[10px]">
-                        {m.organizer.name.charAt(0)}
+                  <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-600 min-w-0">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">
+                        {m.organizer.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="truncate max-w-[100px]">{m.organizer.name}</span>
-                    </span>
+                      <span className="truncate text-slate-600 text-xs font-medium">
+                        Host: <span className="text-slate-800 font-semibold">{m.organizer.name}</span>
+                      </span>
+                    </div>
 
                     {/* Quick status actions */}
-                    {m.status === "PLANNED" && (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    {m.status === "PLANNED" ? (
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(e) => handleQuickStatusChange(m, "COMPLETED", e)}
-                          className="rounded-md bg-emerald-50 border border-emerald-300 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
                         >
-                          Complete
+                          <Check size={12} />
+                          <span>Complete</span>
                         </button>
                       </div>
-                    )}
+                    ) : m.status === "COMPLETED" ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                        <CheckCircle2 size={12} />
+                        <span>Done</span>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               );
