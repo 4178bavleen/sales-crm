@@ -18,6 +18,7 @@ import {
   FileText,
   Package,
   Target,
+  PhoneCall,
   Trash2,
   RotateCw,
   ExternalLink,
@@ -461,6 +462,12 @@ export default function Topbar() {
         return <GitFork size={16} className="text-amber-600" />;
       case "meeting":
         return <CalendarDays size={16} className="text-purple-600" />;
+      case "document":
+        return <FileText size={16} className="text-indigo-600" />;
+      case "target":
+        return <Target size={16} className="text-emerald-600" />;
+      case "followup":
+        return <PhoneCall size={16} className="text-teal-600" />;
       default:
         return <Bell size={16} className="text-slate-600" />;
     }

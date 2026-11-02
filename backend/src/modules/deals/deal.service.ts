@@ -1,5 +1,7 @@
 import { Prisma, DealStatus, StageKind ,ReasonType } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/database.js";
+import { createInAppNotification } from "../notifications/notification.service.js";
+import { checkTargetMilestones } from "../targets/target.service.js";
 import type { DealInput } from "./deal.validation.js";
 import { DealValidationError } from "./deal.validation.js";
 
@@ -314,7 +316,7 @@ export async function updateDeal(
     data: DealInput,
     actorId: number,
 ) {
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
         const existing = await tx.deal.findFirst({
             where: { id, deletedAt: null },
         });
@@ -408,6 +410,19 @@ export async function updateDeal(
         maxWait: 10000,
         timeout: 15000,
     });
+
+    if (data.stageId !== undefined && updated.ownerId) {
+        void createInAppNotification({
+            userId: updated.ownerId,
+            type: "DEAL_STAGE_CHANGED",
+            title: "Deal stage updated",
+            body: `Deal "${updated.name}" moved to ${updated.stage?.name || "new stage"}.`,
+            entityType: "deal",
+            entityId: updated.id,
+        }).catch((err) => console.error("[DealNotification] Failed to dispatch stage change alert:", err));
+    }
+
+    return updated;
 }
 
 export async function deleteDeal(id: number, actorId: number) {
@@ -446,7 +461,7 @@ export async function moveDealStage(
   actorId: number,
   note?: string,
 ) {
-  return prisma.$transaction(async (tx) => {
+  const updatedDeal = await prisma.$transaction(async (tx) => {
     const deal = await tx.deal.findFirst({
       where: { id: dealId, deletedAt: null },
       include: { stage: true },
@@ -476,7 +491,7 @@ export async function moveDealStage(
       return deal;
     }
 
-    const updatedDeal = await tx.deal.update({
+    const updated = await tx.deal.update({
       where: { id: dealId },
       data: {
         stageId: targetStage.id,
@@ -507,8 +522,22 @@ export async function moveDealStage(
       },
     });
 
-    return updatedDeal;
+    return updated;
   });
+
+  if (updatedDeal && 'ownerId' in updatedDeal && updatedDeal.ownerId) {
+    const stageName = ('stage' in updatedDeal && updatedDeal.stage && 'name' in updatedDeal.stage) ? (updatedDeal.stage as any).name : 'new stage';
+    void createInAppNotification({
+      userId: updatedDeal.ownerId,
+      type: "DEAL_STAGE_CHANGED",
+      title: "Deal stage updated",
+      body: `Deal "${updatedDeal.name}" moved to ${stageName}.`,
+      entityType: "deal",
+      entityId: updatedDeal.id,
+    }).catch((err) => console.error("[DealNotification] Failed to dispatch stage change alert:", err));
+  }
+
+  return updatedDeal;
 }
 
 export async function closeDeal(
@@ -521,7 +550,7 @@ export async function closeDeal(
     lostNote?: string | null;
   },
 ) {
-  return prisma.$transaction(async (tx) => {
+  const updatedDeal = await prisma.$transaction(async (tx) => {
     const deal = await tx.deal.findFirst({
       where: { id: dealId, deletedAt: null },
       include: { stage: true },
@@ -634,4 +663,37 @@ export async function closeDeal(
 
     return updatedDeal;
   });
+
+  if (updatedDeal.ownerId) {
+    if (input.status === DealStatus.WON) {
+      const revenueStr = updatedDeal.closedRevenue
+        ? ` ($${Number(updatedDeal.closedRevenue).toLocaleString()})`
+        : "";
+      void createInAppNotification({
+        userId: updatedDeal.ownerId,
+        type: "DEAL_WON",
+        title: "🎉 Deal WON!",
+        body: `Congratulations! Deal "${updatedDeal.name}" was marked WON${revenueStr}!`,
+        entityType: "deal",
+        entityId: updatedDeal.id,
+      }).catch((err) => console.error("[DealNotification] Failed to dispatch DEAL_WON alert:", err));
+
+      // Trigger sales quota milestone check for this rep
+      void checkTargetMilestones(updatedDeal.ownerId);
+    } else if (input.status === DealStatus.LOST) {
+      const reasonStr = updatedDeal.lostReason?.name
+        ? ` (Reason: ${updatedDeal.lostReason.name})`
+        : "";
+      void createInAppNotification({
+        userId: updatedDeal.ownerId,
+        type: "DEAL_LOST",
+        title: "Deal marked LOST",
+        body: `Deal "${updatedDeal.name}" was marked LOST${reasonStr}.`,
+        entityType: "deal",
+        entityId: updatedDeal.id,
+      }).catch((err) => console.error("[DealNotification] Failed to dispatch DEAL_LOST alert:", err));
+    }
+  }
+
+  return updatedDeal;
 }

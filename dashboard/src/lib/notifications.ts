@@ -122,7 +122,7 @@ export function formatNotificationTime(dateString: string): string {
 }
 
 export type NotificationMetadata = {
-  category: "task" | "lead" | "deal" | "meeting" | "general";
+  category: "task" | "lead" | "deal" | "meeting" | "document" | "target" | "followup" | "general";
   categoryLabel: string;
   targetUrl: string | null;
   badgeClass: string;
@@ -136,6 +136,42 @@ export type NotificationMetadata = {
 export function getNotificationMetadata(item: NotificationItem): NotificationMetadata {
   const typeUpper = (item.type || "").toUpperCase();
   const entityType = (item.entityType || "").toLowerCase();
+
+  // Follow-up reminders (leads or tasks due today)
+  if (typeUpper.includes("FOLLOW_UP") || typeUpper.includes("FOLLOWUP")) {
+    return {
+      category: "followup",
+      categoryLabel: "Follow-up",
+      targetUrl: "/follow-ups",
+      badgeClass: "bg-teal-50 text-teal-700 border-teal-200",
+      iconBgClass: "bg-teal-50",
+      iconTextClass: "text-teal-600",
+    };
+  }
+
+  // Document notifications (attached or new version)
+  if (typeUpper.includes("DOCUMENT") || entityType === "document") {
+    return {
+      category: "document",
+      categoryLabel: "Document",
+      targetUrl: "/documents",
+      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
+      iconBgClass: "bg-indigo-50",
+      iconTextClass: "text-indigo-600",
+    };
+  }
+
+  // Sales target quota milestones
+  if (typeUpper.includes("TARGET") || entityType === "target") {
+    return {
+      category: "target",
+      categoryLabel: "Target",
+      targetUrl: "/targets",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      iconBgClass: "bg-emerald-50",
+      iconTextClass: "text-emerald-600",
+    };
+  }
 
   // Task notifications (assigned, reassigned, due, etc.)
   if (typeUpper.includes("TASK") || entityType === "task") {

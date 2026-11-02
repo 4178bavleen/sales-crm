@@ -12,6 +12,9 @@ import {
   Users,
   GitFork,
   CalendarDays,
+  FileText,
+  Target,
+  PhoneCall,
   Inbox,
   Filter,
 } from "lucide-react";
@@ -164,6 +167,12 @@ export default function Notifications() {
         return <GitFork size={18} className="text-amber-600" />;
       case "meeting":
         return <CalendarDays size={18} className="text-purple-600" />;
+      case "document":
+        return <FileText size={18} className="text-indigo-600" />;
+      case "target":
+        return <Target size={18} className="text-emerald-600" />;
+      case "followup":
+        return <PhoneCall size={18} className="text-teal-600" />;
       default:
         return <Bell size={18} className="text-slate-600" />;
     }

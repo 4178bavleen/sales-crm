@@ -3,6 +3,7 @@ import path from 'path'
 import crypto from 'crypto'
 import { prisma } from '../../config/database.js'
 import { logAudit } from '../audit/audit.service.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 import type { DocumentCategory } from '../../generated/prisma/client.js'
 import type {
   CreateDocumentInput,
@@ -168,7 +169,81 @@ export async function createDocument(
     },
   })
 
+  void notifyDocumentRecipients('ATTACHED', document, input.uploadedById)
+
   return getDocumentById(document.id)
+}
+
+async function notifyDocumentRecipients(
+  action: 'ATTACHED' | 'NEW_VERSION',
+  doc: { id: number; name: string; leadId: number | null; dealId: number | null; customerId: number | null },
+  uploadedById: number,
+  versionNo?: number,
+) {
+  try {
+    const recipientIds = new Set<number>()
+    const contexts: string[] = []
+
+    if (doc.leadId) {
+      const lead = await prisma.lead.findUnique({
+        where: { id: doc.leadId },
+        select: { ownerId: true, contactName: true },
+      })
+      if (lead?.ownerId) {
+        recipientIds.add(lead.ownerId)
+        contexts.push(`Lead "${lead.contactName}"`)
+      }
+    }
+
+    if (doc.dealId) {
+      const deal = await prisma.deal.findUnique({
+        where: { id: doc.dealId },
+        select: { ownerId: true, name: true },
+      })
+      if (deal?.ownerId) {
+        recipientIds.add(deal.ownerId)
+        contexts.push(`Deal "${deal.name}"`)
+      }
+    }
+
+    if (doc.customerId) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: doc.customerId },
+        select: {
+          ownerId: true,
+          company: { select: { name: true } },
+          primaryContact: { select: { fullName: true } },
+        },
+      })
+      if (customer?.ownerId) {
+        recipientIds.add(customer.ownerId)
+        const name = customer.company?.name || customer.primaryContact?.fullName || `Customer #${doc.customerId}`
+        contexts.push(`Customer "${name}"`)
+      }
+    }
+
+    const contextStr = contexts.length > 0 ? contexts.join(', ') : 'an assigned record'
+
+    for (const userId of recipientIds) {
+      const isVersion = action === 'NEW_VERSION'
+      const title = isVersion ? 'New document version uploaded' : 'New document attached'
+      const body = isVersion
+        ? `Version ${versionNo ?? 2} of document "${doc.name}" was uploaded for ${contextStr}.`
+        : `A new document "${doc.name}" was attached to ${contextStr}.`
+
+      await createInAppNotification({
+        userId,
+        type: isVersion ? 'DOCUMENT_NEW_VERSION' : 'DOCUMENT_ATTACHED',
+        title,
+        body,
+        entityType: 'document',
+        entityId: doc.id,
+      })
+      console.log(`[DocumentNotification] Dispatched ${action} for Document #${doc.id} to User #${userId}`)
+    }
+  } catch (err) {
+    console.error('[DocumentNotification] Failed to dispatch document notification:', err)
+  }
 }
 
 export async function addDocumentVersion(
@@ -234,6 +309,8 @@ export async function addDocumentVersion(
       note: replaceNote,
     },
   })
+
+  void notifyDocumentRecipients('NEW_VERSION', existing, uploadedById, newVersionNo)
 
   return getDocumentById(documentId)
 }

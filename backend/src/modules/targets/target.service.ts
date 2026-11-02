@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
 import { logAudit } from '../audit/audit.service.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 import type {
   CreateTargetInput,
   ListTargetsQuery,
@@ -854,3 +855,102 @@ export async function getTargetOptions() {
     years,
   }
 }
+
+/**
+ * Evaluates active revenue targets and dispatches in-app milestone notifications
+ * when an employee reaches 50%, 80%, or 100% of their quota.
+ * Deduplicates notifications so each milestone is alerted once per target.
+ */
+export async function checkTargetMilestones(userId?: number) {
+  try {
+    const now = new Date()
+    const targets = await prisma.revenueTarget.findMany({
+      where: {
+        periodStart: { lte: now },
+        periodEnd: { gte: now },
+        ...(userId ? { userId } : {}),
+      },
+      include: {
+        employee: { select: { id: true, name: true } },
+      },
+    })
+
+    for (const target of targets) {
+      const repId = target.userId
+      if (!repId) continue
+
+      const targetAmount = Number(target.amount)
+      if (targetAmount <= 0) continue
+
+      const wonDeals = await prisma.deal.findMany({
+        where: {
+          ownerId: repId,
+          status: 'WON',
+          deletedAt: null,
+          OR: [
+            { closedAt: { gte: target.periodStart, lte: target.periodEnd } },
+            { closedAt: null, expectedCloseDate: { gte: target.periodStart, lte: target.periodEnd } },
+          ],
+        },
+        select: { closedRevenue: true, estimatedValue: true },
+      })
+
+      const achievedRevenue = wonDeals.reduce((sum, d) => {
+        return sum + (d.closedRevenue !== null ? Number(d.closedRevenue) : Number(d.estimatedValue || 0))
+      }, 0)
+
+      const progress = (achievedRevenue / targetAmount) * 100
+      const formattedAchieved = achievedRevenue.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+      const formattedTarget = targetAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
+      const milestones: Array<{ threshold: number; type: string; title: string; body: string }> = [
+        {
+          threshold: 50,
+          type: 'TARGET_MILESTONE_50',
+          title: '50% Revenue Quota Reached 🎯',
+          body: `You are halfway there! You have reached ${progress.toFixed(0)}% (${formattedAchieved} of ${formattedTarget}) of your revenue target.`,
+        },
+        {
+          threshold: 80,
+          type: 'TARGET_MILESTONE_80',
+          title: '80% Revenue Quota Reached 🚀',
+          body: `Great momentum! You have reached ${progress.toFixed(0)}% (${formattedAchieved} of ${formattedTarget}) of your revenue target.`,
+        },
+        {
+          threshold: 100,
+          type: 'TARGET_MILESTONE_100',
+          title: '🎉 100% Revenue Quota Achieved!',
+          body: `Outstanding work! You have achieved ${progress.toFixed(0)}% (${formattedAchieved} of ${formattedTarget}) of your revenue quota!`,
+        },
+      ]
+
+      for (const m of milestones) {
+        if (progress >= m.threshold) {
+          const alreadyNotified = await prisma.notification.findFirst({
+            where: {
+              userId: repId,
+              type: m.type,
+              entityType: 'target',
+              entityId: target.id,
+            },
+          })
+
+          if (!alreadyNotified) {
+            await createInAppNotification({
+              userId: repId,
+              type: m.type,
+              title: m.title,
+              body: m.body,
+              entityType: 'target',
+              entityId: target.id,
+            })
+            console.log(`[TargetNotification] Dispatched ${m.type} to User #${repId} for Target #${target.id}`)
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[TargetNotification] Error evaluating target milestones:', err)
+  }
+}
+
