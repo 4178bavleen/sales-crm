@@ -505,8 +505,13 @@ export default function Settings() {
                     <input
                       type="number"
                       placeholder="587 or 465"
-                      value={emailForm.smtpPort}
-                      onChange={(e) => setEmailForm((prev) => ({ ...prev, smtpPort: Number(e.target.value) }))}
+                      value={emailForm.smtpPort || ""}
+                      onChange={(e) =>
+                        setEmailForm((prev) => ({
+                          ...prev,
+                          smtpPort: Number.parseInt(e.target.value, 10) || 587,
+                        }))
+                      }
                       required={emailForm.isEnabled}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
                     />
