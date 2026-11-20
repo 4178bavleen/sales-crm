@@ -521,7 +521,19 @@ Use **Customers** to:
 - Create a customer directly (creates/links company and contact as needed).
 - Edit customer details and ownership.
 - See deal count and pipeline value per customer.
-- View the primary contact.
+- View the primary contact and jump directly to customer proposals.
+
+### Customer Proposals page
+
+Use **Proposals** (`/proposals`) to:
+
+- Manage formal commercial proposals, bids, and quotations sent to customer accounts.
+- Track proposal statuses: `DRAFT`, `SENT`, `UNDER_REVIEW`, `ACCEPTED`, `REJECTED`, `EXPIRED`.
+- Build itemized pricing structures with products/services, custom items, quantities, line-item discounts, and tax rates.
+- Automatically calculate live subtotal, overall discount (percentage or fixed amount), tax, and grand total.
+- Generate professional printable proposal letterheads with company branding, scope of work, itemized table, and formal signature blocks.
+- Transition statuses (e.g. mark sent, accept, or reject with customer feedback).
+- Filter proposals by status, customer, sales rep, and validity dates.
 
 ### Contacts page
 
@@ -628,7 +640,8 @@ Results are grouped by category, and system pages are matched locally.
 | Tasks | `/tasks` | Manage all tasks. | Create, edit, change status, link to records, export, delete. |
 | Meetings | `/meetings` | Schedule and track meetings. | Create, edit, view calendar/grid/table, mark complete/cancel/reschedule, add participants. |
 | Deals & Pipeline | `/deals` | Manage opportunities. | Create, edit, move stage, close won/lost, export, filter. |
-| Customers | `/customers` | Manage converted accounts. | Create, edit, view contacts/deals, delete. |
+| Customers | `/customers` | Manage converted accounts. | Create, edit, view contacts/deals/proposals, delete. |
+| Customer Proposals | `/proposals` | Manage customer proposals & quotes. | Create, edit, line items, live totals, send, accept, reject, print/PDF preview. |
 | Contacts | `/contacts` | Manage people. | Create, edit, link to companies, delete. |
 | Companies | `/companies` | Placeholder company directory. | UI only; disabled in sidebar. |
 | Products & Services | `/products-services` | Maintain the catalog. | Create, edit, activate/deactivate, delete. |

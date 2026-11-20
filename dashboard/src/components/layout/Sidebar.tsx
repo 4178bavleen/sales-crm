@@ -13,6 +13,7 @@ import {
   Target,
   BarChart3,
   FileText,
+  FileCheck,
   UserCog,
   ShieldCheck,
   Package,
@@ -48,6 +49,7 @@ const salesNav = [
 const crmNav = [
   { name: "Contacts", path: "/contacts", icon: Contact },
   { name: "Customers", path: "/customers", icon: UserRound },
+  { name: "Proposals", path: "/proposals", icon: FileCheck },
 ];
 
 const managementNav = [

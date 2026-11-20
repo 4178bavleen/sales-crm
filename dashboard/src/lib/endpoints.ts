@@ -149,6 +149,18 @@ export const ENDPOINTS = {
     delete: (id: number) => `/customers/${id}`,
   },
 
+  proposals: {
+    list: "/proposals",
+    stats: "/proposals/stats",
+    options: "/proposals/options",
+    byId: (id: number) => `/proposals/${id}`,
+    create: "/proposals",
+    update: (id: number) => `/proposals/${id}`,
+    status: (id: number) => `/proposals/${id}/status`,
+    send: (id: number) => `/proposals/${id}/send`,
+    delete: (id: number) => `/proposals/${id}`,
+  },
+
   auditLogs: {
     list: "/audit-logs",
   },

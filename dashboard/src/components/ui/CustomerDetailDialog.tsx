@@ -1,4 +1,5 @@
-import { X, Building2, Layers, CircleDollarSign } from "lucide-react";
+import { X, Building2, Layers, CircleDollarSign, FileCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { CustomerDetailDialogProps } from "../../types/customerUi";
 import {
   customerDetailFields,
@@ -106,6 +107,17 @@ export default function CustomerDetailDialog({
               </p>
             </>
           )}
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end">
+            <Link
+              to={`/proposals?customerId=${customer.id}`}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition"
+              onClick={onClose}
+            >
+              <FileCheck size={14} />
+              <span>View Customer Proposals</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
