@@ -108,16 +108,16 @@ export async function listExpenses(input: ListExpensesInput) {
   if (input.startDate || input.endDate) {
     where.transactionDate = {}
     if (input.startDate) {
-      const start = new Date(input.startDate)
+      const dateStr = input.startDate.includes('T') ? input.startDate : `${input.startDate}T00:00:00.000Z`
+      const start = new Date(dateStr)
       if (!isNaN(start.getTime())) {
-        start.setHours(0, 0, 0, 0)
         where.transactionDate.gte = start
       }
     }
     if (input.endDate) {
-      const end = new Date(input.endDate)
+      const dateStr = input.endDate.includes('T') ? input.endDate : `${input.endDate}T23:59:59.999Z`
+      const end = new Date(dateStr)
       if (!isNaN(end.getTime())) {
-        end.setHours(23, 59, 59, 999)
         where.transactionDate.lte = end
       }
     }
@@ -239,8 +239,8 @@ export async function listExpenses(input: ListExpensesInput) {
 
 export async function getExpenseSummary() {
   const sixMonthsAgo = new Date()
+  sixMonthsAgo.setDate(1) // Set day to 1st first to prevent month overflow
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-  sixMonthsAgo.setDate(1)
   sixMonthsAgo.setHours(0, 0, 0, 0)
 
   const [allActive, recentTransactions] = await Promise.all([
@@ -271,9 +271,10 @@ export async function getExpenseSummary() {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const monthlyMap: Record<string, { month: string; income: number; expense: number; net: number }> = {}
 
-  // Initialize last 6 months in chronological order
+  // Initialize last 6 months in chronological order safely
   for (let i = 5; i >= 0; i--) {
     const d = new Date()
+    d.setDate(1) // Set day to 1st first so setMonth never overflows on 28/29/30/31
     d.setMonth(d.getMonth() - i)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = `${monthNames[d.getMonth()]} ${d.getFullYear().toString().slice(2)}`

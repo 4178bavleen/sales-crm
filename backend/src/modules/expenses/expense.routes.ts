@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authenticateToken } from '../auth/auth.middleware.js'
+import { requirePermission } from '../permission/permission.middleware.js'
 import {
   listExpensesController,
   getExpenseSummaryController,
@@ -17,12 +18,12 @@ void ensureExpensePermissions()
 const router = Router()
 router.use(authenticateToken)
 
-router.get('/summary', getExpenseSummaryController)
-router.get('/options', getExpenseOptionsController)
-router.get('/:id', getExpenseByIdController)
-router.get('/', listExpensesController)
-router.post('/', createExpenseController)
-router.patch('/:id', updateExpenseController)
-router.delete('/:id', deleteExpenseController)
+router.get('/summary', requirePermission('expenses.view'), getExpenseSummaryController)
+router.get('/options', requirePermission('expenses.view'), getExpenseOptionsController)
+router.get('/:id', requirePermission('expenses.view'), getExpenseByIdController)
+router.get('/', requirePermission('expenses.view'), listExpensesController)
+router.post('/', requirePermission('expenses.create'), createExpenseController)
+router.patch('/:id', requirePermission('expenses.edit'), updateExpenseController)
+router.delete('/:id', requirePermission('expenses.delete'), deleteExpenseController)
 
 export default router

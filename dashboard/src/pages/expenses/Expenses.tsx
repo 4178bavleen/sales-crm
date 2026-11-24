@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import {
   TrendingUp,
@@ -124,18 +124,21 @@ export default function Expenses() {
 
   // Toast
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FinancialTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FinancialTransaction | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Form Fields
   const [formType, setFormType] = useState<FinancialTransactionType>("EXPENSE");
   const [formTitle, setFormTitle] = useState("");
   const [formAmount, setFormAmount] = useState<number | string>("");
   const [formCategory, setFormCategory] = useState("");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [formPaymentMethod, setFormPaymentMethod] = useState<TransactionPaymentMethod>("BANK_TRANSFER");
   const [formStatus, setFormStatus] = useState<TransactionStatus>("COMPLETED");
   const [formReference, setFormReference] = useState("");
@@ -146,9 +149,21 @@ export default function Expenses() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -239,6 +254,7 @@ export default function Expenses() {
     setFormTitle("");
     setFormAmount("");
     setFormCategory("");
+    setIsCustomCategory(false);
     setFormPaymentMethod("BANK_TRANSFER");
     setFormStatus("COMPLETED");
     setFormReference("");
@@ -256,6 +272,7 @@ export default function Expenses() {
     setFormTitle(item.title);
     setFormAmount(item.amount);
     setFormCategory(item.category);
+    setIsCustomCategory(false);
     setFormPaymentMethod(item.paymentMethod);
     setFormStatus(item.status);
     setFormReference(item.reference || "");
@@ -336,47 +353,75 @@ export default function Expenses() {
     }
   };
 
-  const handleExportExcel = () => {
-    if (transactions.length === 0) {
+  const handleExportExcel = async () => {
+    if (totalCount === 0) {
       showToast("No transactions available to export.", "error");
       return;
     }
 
-    const rows = transactions.map((t) => ({
-      "Transaction ID": t.id,
-      "Nature / Type": t.type === "INCOME" ? "Money Received (Income)" : "Money Spent (Expense)",
-      "Title": t.title,
-      "Amount (₹)": Number(t.amount),
-      "Category": t.category,
-      "Payment Method": t.paymentMethod.replace(/_/g, " "),
-      "Status": t.status,
-      "Transaction Date": t.transactionDate ? t.transactionDate.slice(0, 10) : "",
-      "Reference #": t.reference || "",
-      "Linked Customer": t.customer?.company?.name || t.customer?.primaryContact?.fullName || "",
-      "Linked Deal": t.deal?.name || "",
-      "Notes / Description": t.description || "",
-      "Logged By": t.createdBy?.name || "",
-    }));
+    try {
+      setExporting(true);
+      // Fetch all matching records across pages for complete export
+      const allRes = await fetchExpenses({
+        page: 1,
+        limit: Math.min(Math.max(totalCount, 100), 5000),
+        search: search.trim() || undefined,
+        type: selectedType === "ALL" ? undefined : selectedType,
+        category: selectedCategory || undefined,
+        status: selectedStatus === "ALL" ? undefined : selectedStatus,
+        paymentMethod: selectedMethod === "ALL" ? undefined : selectedMethod,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        sortBy: "transactionDate",
+        sortOrder: "desc",
+      });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Financial Transactions");
+      const exportList = allRes.transactions || [];
+      if (exportList.length === 0) {
+        showToast("No transactions found matching your filters.", "error");
+        return;
+      }
 
-    // Auto-fit column widths
-    const columnWidths = Object.keys(rows[0] || {}).map((key) => {
-      const maxValLen = Math.max(
-        ...rows.map((r) => String((r as any)[key] ?? "").length),
-        key.length
+      const rows = exportList.map((t) => ({
+        "Transaction ID": t.id,
+        "Nature / Type": t.type === "INCOME" ? "Money Received (Income)" : "Money Spent (Expense)",
+        "Title": t.title,
+        "Amount (₹)": Number(t.amount),
+        "Category": t.category,
+        "Payment Method": t.paymentMethod.replace(/_/g, " "),
+        "Status": t.status,
+        "Transaction Date": t.transactionDate ? t.transactionDate.slice(0, 10) : "",
+        "Reference #": t.reference || "",
+        "Linked Customer": t.customer?.company?.name || t.customer?.primaryContact?.fullName || "",
+        "Linked Deal": t.deal?.name || "",
+        "Notes / Description": t.description || "",
+        "Logged By": t.createdBy?.name || "",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Financial Transactions");
+
+      // Auto-fit column widths
+      const columnWidths = Object.keys(rows[0] || {}).map((key) => {
+        const maxValLen = Math.max(
+          ...rows.map((r) => String((r as any)[key] ?? "").length),
+          key.length
+        );
+        return { wch: Math.min(Math.max(maxValLen + 2, 12), 40) };
+      });
+      worksheet["!cols"] = columnWidths;
+
+      XLSX.writeFile(
+        workbook,
+        `Financial_Transactions_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
-      return { wch: Math.min(Math.max(maxValLen + 2, 12), 40) };
-    });
-    worksheet["!cols"] = columnWidths;
-
-    XLSX.writeFile(
-      workbook,
-      `Financial_Transactions_${new Date().toISOString().slice(0, 10)}.xlsx`
-    );
-    showToast("Excel spreadsheet exported successfully!");
+      showToast(`Exported ${exportList.length} records to Excel!`);
+    } catch (err: any) {
+      showToast(err?.message || "Failed to export Excel spreadsheet.", "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -392,6 +437,12 @@ export default function Expenses() {
       ? options.incomeCategories
       : options.expenseCategories;
   }, [formType, options]);
+
+  const filterCategoryOptions = useMemo(() => {
+    if (selectedType === "INCOME") return options.incomeCategories;
+    if (selectedType === "EXPENSE") return options.expenseCategories;
+    return Array.from(new Set([...options.incomeCategories, ...options.expenseCategories]));
+  }, [selectedType, options]);
 
   return (
     <div className="space-y-6">
@@ -418,7 +469,7 @@ export default function Expenses() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Expense & Financial Management
+              Expense Management
             </h1>
             <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
               Finance
@@ -446,10 +497,15 @@ export default function Expenses() {
           <button
             type="button"
             onClick={handleExportExcel}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs cursor-pointer"
+            disabled={exporting}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs cursor-pointer disabled:opacity-60"
           >
-            <Download size={15} />
-            <span>Export Excel (.xlsx)</span>
+            {exporting ? (
+              <RotateCw size={15} className="animate-spin text-blue-600" />
+            ) : (
+              <Download size={15} />
+            )}
+            <span>{exporting ? "Exporting..." : "Export Excel (.xlsx)"}</span>
           </button>
 
           <button
@@ -834,6 +890,7 @@ export default function Expenses() {
             type="button"
             onClick={() => {
               setSelectedType("ALL");
+              setSelectedCategory("");
               setPage(1);
             }}
             className={`pb-3 px-3 text-xs font-semibold transition border-b-2 cursor-pointer ${
@@ -849,6 +906,7 @@ export default function Expenses() {
             type="button"
             onClick={() => {
               setSelectedType("INCOME");
+              setSelectedCategory("");
               setPage(1);
             }}
             className={`pb-3 px-3 text-xs font-semibold transition border-b-2 cursor-pointer flex items-center gap-1.5 ${
@@ -868,6 +926,7 @@ export default function Expenses() {
             type="button"
             onClick={() => {
               setSelectedType("EXPENSE");
+              setSelectedCategory("");
               setPage(1);
             }}
             className={`pb-3 px-3 text-xs font-semibold transition border-b-2 cursor-pointer flex items-center gap-1.5 ${
@@ -911,7 +970,7 @@ export default function Expenses() {
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none cursor-pointer max-w-[160px]"
           >
             <option value="">All Categories</option>
-            {Array.from(new Set([...options.incomeCategories, ...options.expenseCategories])).map((cat) => (
+            {filterCategoryOptions.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -980,12 +1039,13 @@ export default function Expenses() {
             />
           </div>
 
-          {(search || selectedType !== "ALL" || selectedStatus !== "ALL" || selectedMethod !== "ALL" || startDate || endDate) && (
+          {(search || selectedType !== "ALL" || selectedCategory || selectedStatus !== "ALL" || selectedMethod !== "ALL" || startDate || endDate) && (
             <button
               type="button"
               onClick={() => {
                 setSearch("");
                 setSelectedType("ALL");
+                setSelectedCategory("");
                 setSelectedStatus("ALL");
                 setSelectedMethod("ALL");
                 setStartDate("");
@@ -1314,25 +1374,48 @@ export default function Expenses() {
               {/* Category & Payment Method */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Category <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">Select category...</option>
-                    {availableCategories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                    {formCategory && !availableCategories.includes(formCategory) && (
-                      <option value={formCategory}>{formCategory}</option>
-                    )}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider">
+                      Category <span className="text-rose-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(!isCustomCategory);
+                        setFormCategory("");
+                      }}
+                      className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      {isCustomCategory ? "Select from list" : "+ Custom Category"}
+                    </button>
+                  </div>
+                  {isCustomCategory ? (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter custom category name..."
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  ) : (
+                    <select
+                      required
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select category...</option>
+                      {availableCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      {formCategory && !availableCategories.includes(formCategory) && (
+                        <option value={formCategory}>{formCategory}</option>
+                      )}
+                    </select>
+                  )}
                 </div>
 
                 <div>
