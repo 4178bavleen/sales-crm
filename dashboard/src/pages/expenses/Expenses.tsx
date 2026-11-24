@@ -22,8 +22,11 @@ import {
   Tag,
   FileSpreadsheet,
   Minus,
+  PieChart,
 } from "lucide-react";
 import {
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
@@ -31,7 +34,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import StatCard from "../../components/ui/StatCard";
 import {
@@ -83,6 +85,30 @@ export default function Expenses() {
   // Visual analytics view
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<ExpenseSummaryData | null>(null);
+  const [analyticsChartType, setAnalyticsChartType] = useState<"area" | "bar">("area");
+  const [analyticsCategoryFilter, setAnalyticsCategoryFilter] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
+
+  const analyticsTotals = useMemo(() => {
+    if (!analyticsData?.timeline || analyticsData.timeline.length === 0) {
+      return { income: 0, expense: 0, net: 0, margin: 0 };
+    }
+    const income = analyticsData.timeline.reduce((acc, curr) => acc + curr.income, 0);
+    const expense = analyticsData.timeline.reduce((acc, curr) => acc + curr.expense, 0);
+    const net = income - expense;
+    const margin = income > 0 ? Math.round((net / income) * 100) : 0;
+    return { income, expense, net, margin };
+  }, [analyticsData]);
+
+  const filteredCategories = useMemo(() => {
+    if (!analyticsData?.categoryBreakdown) return [];
+    if (analyticsCategoryFilter === "ALL") return analyticsData.categoryBreakdown;
+    return analyticsData.categoryBreakdown.filter((c) => c.type === analyticsCategoryFilter);
+  }, [analyticsData, analyticsCategoryFilter]);
+
+  const maxCategoryTotal = useMemo(() => {
+    if (!filteredCategories || filteredCategories.length === 0) return 1;
+    return Math.max(...filteredCategories.map((c) => c.total), 1);
+  }, [filteredCategories]);
 
   // Loading & error states
   const [loading, setLoading] = useState(true);
@@ -520,84 +546,279 @@ export default function Expenses() {
 
       {/* Analytics Visualization Panel (Collapsible) */}
       {showAnalytics && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-sm space-y-5">
+          {/* Analytics Header Strip */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <BarChart2 size={18} className="text-blue-600" />
-                Monthly Cashflow Analytics (Last 6 Months)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Comparison of inbound revenue collections versus outbound operational expenses.
-              </p>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+                  <BarChart2 size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Cashflow & Financial Velocity
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Rolling 6-month comparison of inbound revenue vs operating expenditures.
+                  </p>
+                </div>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAnalytics(false)}
-              className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-            >
-              <X size={16} />
-            </button>
+
+            {/* Quick 6-Month Metrics & View Toggle */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs">
+                <span className="text-slate-400">6-Mo Inflow:</span>
+                <span className="font-bold text-emerald-600">+{formatCurrency(analyticsTotals.income)}</span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-400">Outflow:</span>
+                <span className="font-bold text-rose-600">-{formatCurrency(analyticsTotals.expense)}</span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-400">Net:</span>
+                <span className={`font-bold ${analyticsTotals.net >= 0 ? "text-blue-600" : "text-amber-600"}`}>
+                  {formatCurrency(analyticsTotals.net)} ({analyticsTotals.margin}%)
+                </span>
+              </div>
+
+              {/* Chart Mode Toggle */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsChartType("area")}
+                  className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                    analyticsChartType === "area"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Wave
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsChartType("bar")}
+                  className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                    analyticsChartType === "bar"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Bars
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAnalytics(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                title="Close Analytics"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Chart: Income vs Expense Timeline */}
-            <div className="lg:col-span-2 h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={analyticsData?.timeline || []}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} />
-                  <YAxis
-                    stroke="#64748b"
-                    fontSize={11}
-                    tickLine={false}
-                    tickFormatter={(val) => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
-                  />
-                  <Tooltip
-                    formatter={(value: any) => [formatCurrency(Number(value)), ""]}
-                    contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }}
-                  />
-                  <Legend />
-                  <Bar dataKey="income" name="Money Received" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="Money Spent" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main Interactive Chart (7 cols) */}
+            <div className="lg:col-span-7 rounded-xl border border-slate-100 bg-slate-50/40 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>Money Received</span>
+                  <span className="h-2 w-2 rounded-full bg-rose-500 ml-2" />
+                  <span>Money Spent</span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-medium">Monthly Trends</span>
+              </div>
+
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  {analyticsChartType === "area" ? (
+                    <AreaChart
+                      data={analyticsData?.timeline || []}
+                      margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                        <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="month"
+                        stroke="#64748b"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="#64748b"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
+                      />
+                      <Tooltip
+                        formatter={(value: any, name: any) => [
+                          formatCurrency(Number(value)),
+                          name === "income" ? "Money Received" : "Money Spent",
+                        ]}
+                        labelStyle={{ fontWeight: "bold", color: "#0f172a", marginBottom: "4px" }}
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "1px solid #e2e8f0",
+                          backgroundColor: "#ffffff",
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.08)",
+                          fontSize: "12px",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="income"
+                        name="income"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorIncome)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="expense"
+                        name="expense"
+                        stroke="#f43f5e"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorExpense)"
+                      />
+                    </AreaChart>
+                  ) : (
+                    <BarChart
+                      data={analyticsData?.timeline || []}
+                      margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="month"
+                        stroke="#64748b"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="#64748b"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`}
+                      />
+                      <Tooltip
+                        formatter={(value: any, name: any) => [
+                          formatCurrency(Number(value)),
+                          name === "income" ? "Money Received" : "Money Spent",
+                        ]}
+                        labelStyle={{ fontWeight: "bold", color: "#0f172a", marginBottom: "4px" }}
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "1px solid #e2e8f0",
+                          backgroundColor: "#ffffff",
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.08)",
+                          fontSize: "12px",
+                        }}
+                      />
+                      <Bar dataKey="income" name="income" fill="#10b981" radius={[5, 5, 0, 0]} />
+                      <Bar dataKey="expense" name="expense" fill="#f43f5e" radius={[5, 5, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            {/* Top Categories Distribution */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Tag size={13} />
-                Category Distribution
-              </h4>
+            {/* Category Breakdown & Progress Bars (5 cols) */}
+            <div className="lg:col-span-5 rounded-xl border border-slate-200/80 bg-white p-4 space-y-3.5 flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <Tag size={13} className="text-blue-600" />
+                  <span>Category Volume Breakdown</span>
+                </div>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {(analyticsData?.categoryBreakdown || []).slice(0, 6).map((cat, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200/80 text-xs"
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsCategoryFilter("ALL")}
+                    className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                      analyticsCategoryFilter === "ALL" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"
+                    }`}
                   >
-                    <div className="min-w-0 pr-2">
-                      <p className="font-semibold text-slate-800 truncate">{cat.category}</p>
-                      <span
-                        className={`inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium ${
-                          cat.type === "INCOME" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {cat.type} ({cat.count})
-                      </span>
-                    </div>
-                    <span className="font-bold text-slate-900 shrink-0">
-                      {formatCurrency(cat.total)}
-                    </span>
-                  </div>
-                ))}
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsCategoryFilter("INCOME")}
+                    className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                      analyticsCategoryFilter === "INCOME" ? "bg-white text-emerald-700 shadow-xs" : "text-slate-500"
+                    }`}
+                  >
+                    Inflows
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsCategoryFilter("EXPENSE")}
+                    className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                      analyticsCategoryFilter === "EXPENSE" ? "bg-white text-rose-700 shadow-xs" : "text-slate-500"
+                    }`}
+                  >
+                    Outflows
+                  </button>
+                </div>
+              </div>
 
-                {(!analyticsData?.categoryBreakdown || analyticsData.categoryBreakdown.length === 0) && (
-                  <p className="text-xs text-slate-400 text-center py-4">No completed category data recorded yet.</p>
+              {/* List of Categories with Sleek Progress Bars */}
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-64 pr-1">
+                {filteredCategories.slice(0, 8).map((cat, idx) => {
+                  const percent = Math.min(Math.round((cat.total / maxCategoryTotal) * 100), 100);
+                  const isIncome = cat.type === "INCOME";
+
+                  return (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                              isIncome ? "bg-emerald-500" : "bg-rose-500"
+                            }`}
+                          />
+                          <span className="font-semibold text-slate-800 truncate">{cat.category}</span>
+                          <span className="text-[10px] text-slate-400">({cat.count} txns)</span>
+                        </div>
+                        <span className={`font-bold shrink-0 ${isIncome ? "text-emerald-600" : "text-slate-900"}`}>
+                          {formatCurrency(cat.total)}
+                        </span>
+                      </div>
+
+                      {/* Visual Progress Bar */}
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isIncome ? "bg-emerald-500" : "bg-rose-500"
+                          }`}
+                          style={{ width: `${Math.max(percent, 4)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredCategories.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-xs text-center space-y-1">
+                    <PieChart size={24} className="text-slate-300" />
+                    <p className="font-medium text-slate-600">No category transactions found</p>
+                    <p className="text-[11px]">Recorded transactions will generate real-time distribution bars.</p>
+                  </div>
                 )}
               </div>
             </div>
