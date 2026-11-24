@@ -74,13 +74,23 @@ export default function Expenses() {
   const [totalCount, setTotalCount] = useState(0);
 
   // Filters
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedType, setSelectedType] = useState<"ALL" | FinancialTransactionType>("ALL");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"ALL" | TransactionStatus>("ALL");
   const [selectedMethod, setSelectedMethod] = useState<"ALL" | TransactionPaymentMethod>("ALL");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Debounce search input by 300ms to eliminate rapid requests & race conditions
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Visual analytics view
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -173,7 +183,7 @@ export default function Expenses() {
       const res = await fetchExpenses({
         page,
         limit: pageSize,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         type: selectedType === "ALL" ? undefined : selectedType,
         category: selectedCategory || undefined,
         status: selectedStatus === "ALL" ? undefined : selectedStatus,
@@ -194,7 +204,7 @@ export default function Expenses() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, pageSize, search, selectedType, selectedCategory, selectedStatus, selectedMethod, startDate, endDate]);
+  }, [page, pageSize, debouncedSearch, selectedType, selectedCategory, selectedStatus, selectedMethod, startDate, endDate]);
 
   const loadOptions = useCallback(async () => {
     try {
@@ -332,6 +342,7 @@ export default function Expenses() {
 
       setIsModalOpen(false);
       loadData(true);
+      loadOptions();
       if (showAnalytics) loadAnalytics();
     } catch (err: any) {
       setFormError(err?.message || "Failed to save transaction.");
@@ -347,6 +358,7 @@ export default function Expenses() {
       showToast("Transaction deleted successfully.");
       setDeleteTarget(null);
       loadData(true);
+      loadOptions();
       if (showAnalytics) loadAnalytics();
     } catch (err: any) {
       showToast(err?.message || "Failed to delete transaction.", "error");
@@ -365,7 +377,7 @@ export default function Expenses() {
       const allRes = await fetchExpenses({
         page: 1,
         limit: Math.min(Math.max(totalCount, 100), 5000),
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         type: selectedType === "ALL" ? undefined : selectedType,
         category: selectedCategory || undefined,
         status: selectedStatus === "ALL" ? undefined : selectedStatus,
@@ -720,7 +732,7 @@ export default function Expenses() {
                       />
                       <Tooltip
                         formatter={(value: any, name: any) => [
-                          formatCurrency(Number(value)),
+                          formatCurrency(Number(value || 0)),
                           name === "income" ? "Money Received" : "Money Spent",
                         ]}
                         labelStyle={{ fontWeight: "bold", color: "#0f172a", marginBottom: "4px" }}
@@ -773,7 +785,7 @@ export default function Expenses() {
                       />
                       <Tooltip
                         formatter={(value: any, name: any) => [
-                          formatCurrency(Number(value)),
+                          formatCurrency(Number(value || 0)),
                           name === "income" ? "Money Received" : "Money Spent",
                         ]}
                         labelStyle={{ fontWeight: "bold", color: "#0f172a", marginBottom: "4px" }}
@@ -951,11 +963,8 @@ export default function Expenses() {
             <input
               type="text"
               placeholder="Search title, category, reference #, notes..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -1039,11 +1048,12 @@ export default function Expenses() {
             />
           </div>
 
-          {(search || selectedType !== "ALL" || selectedCategory || selectedStatus !== "ALL" || selectedMethod !== "ALL" || startDate || endDate) && (
+          {(searchInput || selectedType !== "ALL" || selectedCategory || selectedStatus !== "ALL" || selectedMethod !== "ALL" || startDate || endDate) && (
             <button
               type="button"
               onClick={() => {
-                setSearch("");
+                setSearchInput("");
+                setDebouncedSearch("");
                 setSelectedType("ALL");
                 setSelectedCategory("");
                 setSelectedStatus("ALL");
@@ -1499,6 +1509,11 @@ export default function Expenses() {
                         {c.label}
                       </option>
                     ))}
+                    {formCustomerId && !options.customers.some((c) => c.id === Number(formCustomerId)) && (
+                      <option value={formCustomerId}>
+                        {editingItem?.customer?.company?.name || editingItem?.customer?.primaryContact?.fullName || `Customer #${formCustomerId}`}
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -1517,6 +1532,11 @@ export default function Expenses() {
                         {d.label}
                       </option>
                     ))}
+                    {formDealId && !options.deals.some((d) => d.id === Number(formDealId)) && (
+                      <option value={formDealId}>
+                        {editingItem?.deal?.name || `Deal #${formDealId}`}
+                      </option>
+                    )}
                   </select>
                 </div>
               </div>

@@ -1,9 +1,17 @@
 import { z } from 'zod'
 
+const optionalNullableId = z.preprocess(
+  (val) => (val === '' || val === undefined ? null : val),
+  z.coerce.number().int().positive('ID must be a positive integer').nullable().optional()
+)
+
 export const createExpenseSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   title: z.string().trim().min(2, 'Title must be at least 2 characters').max(255),
-  amount: z.coerce.number().positive('Amount must be greater than zero'),
+  amount: z.coerce
+    .number()
+    .positive('Amount must be greater than zero')
+    .max(999999999999.99, 'Amount exceeds maximum supported limit (999,999,999,999.99)'),
   category: z.string().trim().min(1, 'Category is required').max(100),
   paymentMethod: z
     .enum(['CASH', 'BANK_TRANSFER', 'UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'CHEQUE', 'OTHER'])
@@ -12,15 +20,19 @@ export const createExpenseSchema = z.object({
   reference: z.string().trim().max(100).nullable().optional(),
   transactionDate: z.string().optional(),
   description: z.string().trim().max(5000).nullable().optional(),
-  customerId: z.coerce.number().int().positive().nullable().optional(),
-  dealId: z.coerce.number().int().positive().nullable().optional(),
+  customerId: optionalNullableId,
+  dealId: optionalNullableId,
 })
 
 export const updateExpenseSchema = z
   .object({
     type: z.enum(['INCOME', 'EXPENSE']).optional(),
     title: z.string().trim().min(2).max(255).optional(),
-    amount: z.coerce.number().positive().optional(),
+    amount: z.coerce
+      .number()
+      .positive('Amount must be greater than zero')
+      .max(999999999999.99, 'Amount exceeds maximum supported limit (999,999,999,999.99)')
+      .optional(),
     category: z.string().trim().min(1).max(100).optional(),
     paymentMethod: z
       .enum(['CASH', 'BANK_TRANSFER', 'UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'CHEQUE', 'OTHER'])
@@ -29,8 +41,8 @@ export const updateExpenseSchema = z
     reference: z.string().trim().max(100).nullable().optional(),
     transactionDate: z.string().optional(),
     description: z.string().trim().max(5000).nullable().optional(),
-    customerId: z.coerce.number().int().positive().nullable().optional(),
-    dealId: z.coerce.number().int().positive().nullable().optional(),
+    customerId: optionalNullableId,
+    dealId: optionalNullableId,
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Provide at least one field to update',

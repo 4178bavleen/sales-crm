@@ -431,6 +431,24 @@ export async function updateExpense(id: number, input: UpdateExpenseInput, userI
     throw new ExpenseServiceError('Financial transaction not found', 404)
   }
 
+  if (input.customerId) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: input.customerId, deletedAt: null },
+    })
+    if (!customer) {
+      throw new ExpenseServiceError('Selected customer does not exist', 400)
+    }
+  }
+
+  if (input.dealId) {
+    const deal = await prisma.deal.findFirst({
+      where: { id: input.dealId, deletedAt: null },
+    })
+    if (!deal) {
+      throw new ExpenseServiceError('Selected deal does not exist', 400)
+    }
+  }
+
   const dataToUpdate: any = {}
 
   if (input.type !== undefined) dataToUpdate.type = input.type
