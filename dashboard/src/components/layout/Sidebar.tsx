@@ -18,6 +18,7 @@ import {
   Package,
   Bell,
   Shield,
+  CreditCard,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -48,6 +49,10 @@ const salesNav = [
 const crmNav = [
   { name: "Contacts", path: "/contacts", icon: Contact },
   { name: "Customers", path: "/customers", icon: UserRound },
+];
+
+const financeNav = [
+  { name: "Expense Management", path: "/expenses", icon: CreditCard },
 ];
 
 const managementNav = [
@@ -205,6 +210,45 @@ export default function Sidebar() {
 
           <div className="space-y-1">
             {crmNav.map(({ name, path, icon: Icon }) => (
+              <NavLink
+                key={name}
+                to={path}
+                className={({ isActive }) =>
+                  `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
+                    isActive
+                      ? "bg-[#1d61e7] text-white font-semibold shadow-sm shadow-blue-600/30"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      size={18}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                      className={`shrink-0 ${
+                        isActive
+                          ? "text-white"
+                          : "text-slate-400 group-hover:text-white"
+                      }`}
+                    />
+
+                    <span className="truncate">{name}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+
+        {/* FINANCE */}
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-bold tracking-[0.14em] text-slate-400 uppercase">
+            FINANCE
+          </p>
+
+          <div className="space-y-1">
+            {financeNav.map(({ name, path, icon: Icon }) => (
               <NavLink
                 key={name}
                 to={path}

@@ -102,6 +102,27 @@ enum ProductServiceType {
   SERVICE
 }
 
+enum FinancialTransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CREDIT_CARD
+  DEBIT_CARD
+  CHEQUE
+  OTHER
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  CANCELLED
+}
+
 // ---------------------------------------------------------------------
 // 1. USERS & ACCESS
 // ---------------------------------------------------------------------
@@ -190,6 +211,7 @@ model User {
   importBatches       ImportBatch[]
   notifications       Notification[]
   auditLogs           AuditLog[]
+  financialTransactions FinancialTransaction[] @relation("TransactionCreatedBy")
 
   @@index([roleId])
   @@index([teamId])
@@ -332,6 +354,7 @@ model Customer {
   activities         Activity[]
   meetings           Meeting[]
   documents          Document[]
+  financialTransactions FinancialTransaction[]
 
   @@index([companyId])
   @@index([ownerId])
@@ -473,6 +496,7 @@ model Deal {
   activities   Activity[]
   meetings     Meeting[]
   documents    Document[]
+  financialTransactions FinancialTransaction[]
 
   @@index([ownerId, status])
   @@index([stageId, status])
@@ -879,4 +903,41 @@ model WhatsAppSetting {
   createdAt        DateTime @default(now())
 
   @@map("whatsapp_settings")
+}
+
+// ---------------------------------------------------------------------
+// 10. EXPENSE & FINANCIAL TRANSACTIONS
+// ---------------------------------------------------------------------
+
+model FinancialTransaction {
+  id              Int                      @id @default(autoincrement())
+  type            FinancialTransactionType
+  title           String                   @db.VarChar(255)
+  amount          Decimal                  @db.Decimal(14, 2)
+  category        String                   @db.VarChar(100)
+  paymentMethod   TransactionPaymentMethod @default(BANK_TRANSFER)
+  status          TransactionStatus        @default(COMPLETED)
+  reference       String?                  @db.VarChar(100)
+  transactionDate DateTime                 @default(now())
+  description     String?                  @db.Text
+  createdById     Int?
+  customerId      Int?
+  dealId          Int?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  deletedAt       DateTime?
+
+  createdBy User?     @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal      Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([transactionDate])
+  @@index([category])
+  @@index([status])
+  @@index([createdById])
+  @@index([customerId])
+  @@index([dealId])
+  @@index([deletedAt])
+  @@map("financial_transactions")
 }

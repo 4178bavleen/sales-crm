@@ -172,6 +172,16 @@ export const ENDPOINTS = {
     testWhatsapp: "/settings/whatsapp/test",
   },
 
+  expenses: {
+    list: "/expenses",
+    summary: "/expenses/summary",
+    options: "/expenses/options",
+    byId: (id: number) => `/expenses/${id}`,
+    create: "/expenses",
+    update: (id: number) => `/expenses/${id}`,
+    delete: (id: number) => `/expenses/${id}`,
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */

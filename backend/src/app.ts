@@ -25,6 +25,7 @@ import auditRoutes from './modules/audit/audit.routes.js'
 import documentRoutes from './modules/documents/document.routes.js'
 import emailSettingsRoutes from './modules/email/email.routes.js'
 import whatsAppSettingsRoutes from './modules/whatsapp/whatsapp.routes.js'
+import expenseRoutes from './modules/expenses/expense.routes.js'
 
 
 const app = express()
@@ -68,6 +69,7 @@ app.use('/api/v1/audit-logs', auditRoutes)
 app.use('/api/v1/documents', documentRoutes)
 app.use('/api/v1/settings/email', emailSettingsRoutes)
 app.use('/api/v1/settings/whatsapp', whatsAppSettingsRoutes)
+app.use('/api/v1/expenses', expenseRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 

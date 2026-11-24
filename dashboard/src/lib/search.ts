@@ -17,6 +17,7 @@ import {
   Shield,
   Package,
   Bell,
+  CreditCard,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { request } from "./api";
@@ -52,6 +53,7 @@ export const SYSTEM_PAGES: SystemPageItem[] = [
   { name: "Sales Targets", path: "/targets", icon: Target, tags: ["targets", "goals", "quotas", "sales targets", "revenue quota", "attainment", "performance", "forecast"] },
   { name: "Reports", path: "/reports", icon: BarChart3, tags: ["reports", "analytics", "charts", "performance", "metrics", "sales reports", "conversion", "trends"] },
   { name: "Documents", path: "/documents", icon: FileText, tags: ["documents", "files", "contracts", "proposals", "agreements", "attachments", "vault", "docs", "versions"] },
+  { name: "Expense Management", path: "/expenses", icon: CreditCard, tags: ["expenses", "expense", "finance", "money", "received", "spent", "income", "transactions", "cashflow", "financial"] },
   { name: "User Management", path: "/users", icon: UserCog, tags: ["users", "team", "members", "staff", "employees", "user management", "accounts", "reps", "admin"] },
   { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck, tags: ["permissions", "roles", "access", "security", "privileges", "rbac", "authorization"] },
   { name: "Audit Logs", path: "/audit-logs", icon: Shield, tags: ["audit logs", "audit", "system activity", "logs", "security logs", "compliance", "history", "actions", "events"] },

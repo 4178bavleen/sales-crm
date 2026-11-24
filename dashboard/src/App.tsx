@@ -23,6 +23,7 @@ import Notifications from "./pages/notifications/Notifications";
 import AuditLogs from "./pages/audit-logs/AuditLogs";
 import Documents from "./pages/documents/Documents";
 import Settings from "./pages/settings/Settings";
+import Expenses from "./pages/expenses/Expenses";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 import "./App.css";
@@ -66,6 +67,9 @@ function AppShell() {
             <Route path="/permissions" element={<RolesAndPermissions />} />
             <Route path="/roles-permissions" element={<RolesAndPermissions />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/expense" element={<Expenses />} />
+            <Route path="/expense-management" element={<Expenses />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
