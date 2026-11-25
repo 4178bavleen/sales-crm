@@ -120,8 +120,7 @@ export type MyPermissions = {
 };
 
 export async function fetchMyPermissions(): Promise<MyPermissions> {
-  const res = await request<{ data: MyPermissions }>(ENDPOINTS.permissions.me, {
+  return request<MyPermissions>(ENDPOINTS.permissions.me, {
     token: authToken(),
   });
-  return res.data;
 }

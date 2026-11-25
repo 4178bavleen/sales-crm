@@ -13,6 +13,7 @@ import {
   Target,
   BarChart3,
   FileText,
+  FileCheck,
   UserCog,
   ShieldCheck,
   Package,
@@ -78,6 +79,7 @@ const navSections: NavSection[] = [
     items: [
       { name: "Contacts", path: "/contacts", icon: Contact },
       { name: "Customers", path: "/customers", icon: UserRound },
+  { name: "Proposals", path: "/proposals", icon: FileCheck },
     ],
   },
   {
@@ -201,35 +203,20 @@ export default function Sidebar() {
     >
       {/* Brand Header */}
       <div className="flex h-[72px] shrink-0 items-center px-5">
-        <NavLink to="/" className="flex items-center gap-3">
+        <NavLink to="/" className="flex items-center gap-3 min-w-0">
           <img
-            src="/logo/vis-white.png"
+            src="/logo/vib_logo.jpeg"
             alt="Vibrantick Infotech Solutions"
-            className="h-16 w-auto object-contain"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.style.display = "none";
-
-              const parent = target.parentElement;
-
-              if (parent && !parent.querySelector(".fallback-brand")) {
-                const brand = document.createElement("div");
-
-                brand.className = "fallback-brand flex flex-col";
-
-                brand.innerHTML = `
-                  <span class="text-base font-bold text-white tracking-tight">
-                    Vibrantick
-                  </span>
-                  <span class="text-[9px] font-semibold text-sky-400 tracking-[0.2em] uppercase">
-                    INFOTECH SOLUTIONS
-                  </span>
-                `;
-
-                parent.appendChild(brand);
-              }
-            }}
+            className="h-11 w-11 shrink-0 rounded-full object-cover bg-white ring-2 ring-white/15"
           />
+          <div className="flex flex-col min-w-0">
+            <span className="truncate text-base font-bold text-white tracking-tight leading-tight">
+              Vibrantick
+            </span>
+            <span className="truncate text-[9px] font-semibold text-sky-400 tracking-[0.2em] uppercase">
+              INFOTECH SOLUTIONS
+            </span>
+          </div>
         </NavLink>
       </div>
 

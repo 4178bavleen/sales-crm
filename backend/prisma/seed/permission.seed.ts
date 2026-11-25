@@ -53,6 +53,12 @@ const permissions = [
   ['products_services.create', 'Create products and services'],
   ['products_services.edit', 'Edit products and services'],
   ['products_services.delete', 'Delete products and services'],
+  ['proposals.view', 'View customer proposals'],
+  ['proposals.create', 'Create customer proposals'],
+  ['proposals.edit', 'Edit customer proposals'],
+  ['proposals.delete', 'Delete customer proposals'],
+  ['proposals.approve', 'Approve customer proposals before sending'],
+  ['proposals.send', 'Send customer proposals'],
 ]
 
 export async function seedPermissions() {

@@ -22,6 +22,7 @@ import RolesAndPermissions from "./pages/permissions/RolesAndPermissions";
 import Notifications from "./pages/notifications/Notifications";
 import AuditLogs from "./pages/audit-logs/AuditLogs";
 import Documents from "./pages/documents/Documents";
+import Proposals from "./pages/proposals/Proposals";
 import Settings from "./pages/settings/Settings";
 import Expenses from "./pages/expenses/Expenses";
 import InvoicesList from "./pages/invoices/InvoicesList";
@@ -47,6 +48,8 @@ function AppShell() {
             <Route path="/leads" element={<Leads />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/proposals" element={<Proposals />} />
+            <Route path="/customer-proposals" element={<Proposals />} />
             <Route path="/deals" element={<Deals />} />
             <Route path="/products-services" element={<ProductsServices />} />
             <Route path="/product-services" element={<ProductsServices />} />

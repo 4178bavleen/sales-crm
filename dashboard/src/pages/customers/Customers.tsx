@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Search,
@@ -23,6 +23,7 @@ import {
   Check,
   AlertCircle,
   CalendarDays,
+  FileCheck,
 } from "lucide-react";
 import type { Customer, CustomerFormValues } from "../../types/customer";
 import { CUSTOMER_OWNERS } from "../../types/customer";
@@ -881,6 +882,13 @@ export default function Customers() {
                   <Pencil size={13} className="text-slate-400" />
                   <span>Edit customer</span>
                 </button>
+                <Link
+                  to={`/proposals?customerId=${customer.id}`}
+                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <FileCheck size={13} className="text-slate-400" />
+                  <span>View proposals</span>
+                </Link>
                 <div className="my-1 border-t border-slate-100" />
                 <button
                   type="button"

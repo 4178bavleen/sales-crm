@@ -16,6 +16,7 @@ import {
   GitFork,
   CalendarDays,
   FileText,
+  FileCheck,
   Package,
   Target,
   PhoneCall,
@@ -464,6 +465,8 @@ export default function Topbar() {
         return <CalendarDays size={16} className="text-purple-600" />;
       case "document":
         return <FileText size={16} className="text-indigo-600" />;
+      case "proposal":
+        return <FileCheck size={16} className="text-violet-600" />;
       case "target":
         return <Target size={16} className="text-emerald-600" />;
       case "followup":

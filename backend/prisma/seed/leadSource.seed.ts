@@ -7,6 +7,7 @@ const leadSources = [
   'LinkedIn',
   'Google Ads',
   'Facebook Ads',
+  'Facebook Lead Ads',
   'Email Campaign',
   'Webinar',
   'Excel Import',
