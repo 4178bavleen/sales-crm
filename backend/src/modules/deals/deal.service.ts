@@ -516,7 +516,7 @@ export async function moveDealStage(
       data: {
         actorId,
         action: "DEAL_STAGE_CHANGED",
-        entityType: "Deal",
+        entityType: "DEAL",
         entityId: dealId,
         before: { stageId: deal.stageId, stageName: deal.stage.name },
         after: { stageId: targetStage.id, stageName: targetStage.name },
@@ -645,7 +645,7 @@ export async function closeDeal(
       data: {
         actorId,
         action: `DEAL_${input.status}`,
-        entityType: "Deal",
+        entityType: "DEAL",
         entityId: dealId,
         before: {
           status: deal.status,

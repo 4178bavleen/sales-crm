@@ -1,6 +1,7 @@
 
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../config/database.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateUserInput,
   ListUsersInput,
@@ -61,6 +62,19 @@ export async function createUser(input: CreateUserInput) {
         createdAt: true,
         role: { select: { id: true, name: true } },
 
+      },
+    })
+
+    void logAudit({
+      action: 'CREATE',
+      entityType: 'USER',
+      entityId: user.id,
+      after: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role?.name,
       },
     })
 
@@ -158,7 +172,7 @@ export async function getUserById(id: number) {
 export async function updateUser(id: number, input: UpdateUserInput) {
   const existingUser = await prisma.user.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, name: true, email: true, phone: true, isActive: true, roleId: true },
   })
 
   if (!existingUser) {
@@ -201,7 +215,7 @@ export async function updateUser(id: number, input: UpdateUserInput) {
 
 
   try {
-    return await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id },
       data,
       select: {
@@ -216,6 +230,27 @@ export async function updateUser(id: number, input: UpdateUserInput) {
     
       },
     })
+
+    void logAudit({
+      action: 'UPDATE',
+      entityType: 'USER',
+      entityId: updated.id,
+      before: {
+        name: existingUser.name,
+        email: existingUser.email,
+        phone: existingUser.phone,
+        isActive: existingUser.isActive,
+      },
+      after: {
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        isActive: updated.isActive,
+        role: updated.role?.name,
+      },
+    })
+
+    return updated
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -237,7 +272,7 @@ export async function deleteUser(id: number, actorId: number) {
 
   const user = await prisma.user.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, name: true, email: true },
   })
 
   if (!user) {
@@ -250,6 +285,14 @@ export async function deleteUser(id: number, actorId: number) {
       deletedAt: new Date(),
       isActive: false,
     },
+  })
+
+  void logAudit({
+    actorId,
+    action: 'DELETE',
+    entityType: 'USER',
+    entityId: id,
+    before: { id: user.id, name: user.name, email: user.email },
   })
 
   return { id, deleted: true }

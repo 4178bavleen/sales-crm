@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import { prisma } from '../../config/database.js'
 import { AppError } from '../../common/errors/AppErrors.js'
+import { logAudit } from '../audit/audit.service.js'
 
 export class EmailServiceError extends AppError {
   constructor(message: string, statusCode = 400) {
@@ -140,6 +141,26 @@ export async function updateEmailSettings(input: UpdateEmailSettingsInput): Prom
   const updated = await prisma.emailSetting.update({
     where: { id: existing.id },
     data: dataToUpdate,
+  })
+
+  void logAudit({
+    action: 'UPDATE',
+    entityType: 'EMAIL_SETTING',
+    entityId: updated.id,
+    before: {
+      smtpHost: existing.smtpHost,
+      smtpPort: existing.smtpPort,
+      smtpSecure: existing.smtpSecure,
+      fromEmail: existing.fromEmail,
+      isEnabled: existing.isEnabled,
+    },
+    after: {
+      smtpHost: updated.smtpHost,
+      smtpPort: updated.smtpPort,
+      smtpSecure: updated.smtpSecure,
+      fromEmail: updated.fromEmail,
+      isEnabled: updated.isEnabled,
+    },
   })
 
   return {

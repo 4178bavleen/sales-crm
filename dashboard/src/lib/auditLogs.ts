@@ -40,6 +40,9 @@ export type ListAuditLogsResponse = {
     deals: number;
     customers: number;
     users: number;
+    invoices?: number;
+    proposals?: number;
+    expenses?: number;
   };
 };
 
@@ -72,20 +75,26 @@ export async function fetchAuditLogs(params?: {
 export function getActionBadgeClass(action: string): string {
   switch (action) {
     case "CREATE":
+    case "CREATE_EXPENSE_TRANSACTION":
+    case "PAYMENT":
+    case "APPROVE":
       return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20";
     case "ASSIGN":
       return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20";
     case "STATUS_CHANGE":
     case "STAGE_CHANGE":
+    case "SUBMIT_FOR_APPROVAL":
       return "bg-blue-50 text-[#1d61e7] ring-1 ring-[#1d61e7]/20";
     case "COMPLETE":
     case "CLOSE_WON":
       return "bg-purple-50 text-purple-700 ring-1 ring-purple-600/20";
     case "DISQUALIFY":
     case "DELETE":
+    case "DELETE_EXPENSE_TRANSACTION":
     case "CANCEL":
       return "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20";
     case "RESCHEDULE":
+    case "APPROVAL_CHANGES_REQUESTED":
       return "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
     case "LOG_ACTIVITY":
       return "bg-sky-50 text-sky-700 ring-1 ring-sky-600/20";
@@ -96,6 +105,7 @@ export function getActionBadgeClass(action: string): string {
     case "LOGIN_FAILED":
       return "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20";
     case "UPDATE":
+    case "UPDATE_EXPENSE_TRANSACTION":
       return "bg-slate-100 text-slate-800 ring-1 ring-slate-400/20";
     default:
       return "bg-slate-100 text-slate-800";
@@ -114,6 +124,45 @@ export function formatAuditSummary(log: AuditLogItem): string {
   }
   if (log.action === "LOGIN_FAILED") {
     return `Failed login attempt for ${after.attemptedEmail ? `"${String(after.attemptedEmail)}"` : "account"}`;
+  }
+  if (log.entityType === "INVOICE") {
+    if (log.action === "CREATE") return `Invoice generated: ${String(after.invoiceNumber || `#${log.entityId}`)} (₹${Number(after.totalAmount || 0).toLocaleString()})`;
+    if (log.action === "PAYMENT") return `Payment recorded for Invoice ${String(after.invoiceNumber || `#${log.entityId}`)}: ₹${Number(after.amount || 0).toLocaleString()} via ${String(after.paymentMethod || 'PAYMENT')}`;
+    if (log.action === "UPDATE") return `Updated Invoice ${String(after.invoiceNumber || before.invoiceNumber || `#${log.entityId}`)}${after.status ? ` • Status: ${String(after.status)}` : ''}`;
+    if (log.action === "DELETE") return `Deleted Invoice #${log.entityId}`;
+  }
+  if (log.entityType === "INVOICESETTING") {
+    return `Company billing settings and bank details updated`;
+  }
+  if (log.entityType === "PROPOSAL") {
+    if (log.action === "CREATE") return `Proposal created: "${String(after.title || `#${log.entityId}`)}"${after.proposalNumber ? ` (${String(after.proposalNumber)})` : ''}`;
+    if (log.action === "SUBMIT_FOR_APPROVAL") return `Proposal submitted for approval: "${String(after.title || `#${log.entityId}`)}"`;
+    if (log.action === "APPROVE") return `Proposal approved: "${String(after.title || `#${log.entityId}`)}"`;
+    if (log.action === "APPROVAL_CHANGES_REQUESTED") return `Changes requested on proposal: "${String(after.title || `#${log.entityId}`)}"`;
+    if (log.action === "STATUS_CHANGE") return `Proposal moved to ${String(after.status || 'updated')}`;
+    if (log.action === "DELETE") return `Deleted Proposal #${log.entityId}`;
+  }
+  if (log.entityType === "FINANCIAL_TRANSACTION" || log.entityType === "EXPENSE") {
+    if (log.action === "CREATE_EXPENSE_TRANSACTION" || log.action === "CREATE") {
+      return `Expense recorded: ₹${Number(after.amount || 0).toLocaleString()} • ${String(after.category || 'Expense')}${after.title ? ` ("${String(after.title)}")` : ''}`;
+    }
+    if (log.action === "UPDATE_EXPENSE_TRANSACTION" || log.action === "UPDATE") {
+      return `Expense record updated: ${String(after.title || before.title || `#${log.entityId}`)}`;
+    }
+    if (log.action === "DELETE_EXPENSE_TRANSACTION" || log.action === "DELETE") {
+      return `Deleted expense record #${log.entityId}`;
+    }
+  }
+  if (log.entityType === "WHATSAPP_SETTING") {
+    return `WhatsApp Meta Cloud API integration settings updated`;
+  }
+  if (log.entityType === "EMAIL_SETTING") {
+    return `SMTP email integration settings updated`;
+  }
+  if (log.entityType === "USER") {
+    if (log.action === "CREATE") return `User account created: ${String(after.name || '')} (${String(after.email || '')}) • Role: ${String(after.role || 'USER')}`;
+    if (log.action === "UPDATE") return `User account updated: ${String(after.name || before.name || `#${log.entityId}`)}${after.role ? ` • Role: ${String(after.role)}` : ''}`;
+    if (log.action === "DELETE") return `User account deleted: ${String(before.name || before.email || `#${log.entityId}`)}`;
   }
   if (log.entityType === "CONTACT") {
     if (log.action === "CREATE") return `Contact created: ${String(after.fullName || `#${log.entityId}`)}${after.jobTitle ? ` (${String(after.jobTitle)})` : ""}${after.email ? ` • ${String(after.email)}` : ""}`;
