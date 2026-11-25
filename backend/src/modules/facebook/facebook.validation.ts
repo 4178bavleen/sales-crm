@@ -20,6 +20,16 @@ const leadgenValueSchema = z
   })
   .passthrough()
 
+export const facebookOAuthExchangeSchema = z.object({
+  code: z.string().min(1).max(2000),
+  state: z.string().min(1).max(200),
+})
+
+export const facebookOAuthSelectPageSchema = z.object({
+  sessionId: z.string().min(1).max(200),
+  pageId: z.string().min(1).max(100),
+})
+
 export const facebookWebhookSchema = z.object({
   object: z.string(),
   entry: z

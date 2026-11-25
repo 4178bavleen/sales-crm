@@ -134,6 +134,7 @@ export default function Settings() {
   const [facebookLoading, setFacebookLoading] = useState(true);
   const [facebookSaving, setFacebookSaving] = useState(false);
   const [facebookTesting, setFacebookTesting] = useState(false);
+  const [facebookConnecting, setFacebookConnecting] = useState(false);
   const [showAppSecret, setShowAppSecret] = useState(false);
   const [showPageAccessToken, setShowPageAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
@@ -225,7 +226,11 @@ export default function Settings() {
 
       try {
         setFacebookLoading(true);
-        setFacebookFeedback(null);
+        const oauthMessage = sessionStorage.getItem("fb_oauth_result");
+        setFacebookFeedback(
+          oauthMessage ? { type: "success", message: oauthMessage } : null,
+        );
+        if (oauthMessage) sessionStorage.removeItem("fb_oauth_result");
         const [settingsRes, usersRes] = await Promise.all([
           request<any>(ENDPOINTS.settings.facebook, { token }),
           request<any>(ENDPOINTS.users.list, { token }).catch(() => null),
@@ -539,6 +544,31 @@ export default function Settings() {
       });
     } finally {
       setFacebookTesting(false);
+    }
+  };
+
+  const handleConnectFacebook = async () => {
+    const token = getSession()?.token;
+    if (!token) return;
+
+    try {
+      setFacebookConnecting(true);
+      setFacebookFeedback(null);
+      const res = await request<any>(ENDPOINTS.settings.facebookOAuthUrl, { token });
+      const url: string | undefined = res?.data?.url ?? res?.url;
+      if (!url) throw new Error("Facebook authorization URL was not returned.");
+      window.location.assign(url);
+    } catch (err: any) {
+      setFacebookFeedback({
+        type: "error",
+        message:
+          err instanceof ApiError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Failed to start Facebook OAuth flow.",
+      });
+      setFacebookConnecting(false);
     }
   };
 
@@ -1432,6 +1462,44 @@ export default function Settings() {
                   </p>
                 </div>
               </label>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <UserRound size={18} className="text-blue-600" />
+                  One-click Connect with Facebook (OAuth)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Save App ID and App Secret first, then connect the Facebook account that can advertise on your lead Page.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                  Add this OAuth Redirect URI in Meta App → Settings → Basic
+                </p>
+                <code className="break-all text-xs text-slate-800">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/settings/facebook/callback`
+                    : "https://<frontend-host>/settings/facebook/callback"}
+                </code>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  This fills Page ID and Page Access Token automatically and subscribes the app to the <code>leadgen</code> webhook.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConnectFacebook}
+                  disabled={facebookConnecting || !facebookForm.appId || !facebookForm.hasAppSecret}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
+                >
+                  {facebookConnecting ? <RotateCw size={16} className="animate-spin" /> : <UserRound size={16} />}
+                  Connect with Facebook
+                </button>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-6 shadow-xs space-y-3">

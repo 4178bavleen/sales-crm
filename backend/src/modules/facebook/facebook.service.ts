@@ -170,7 +170,7 @@ export async function testFacebookConnection() {
   if (!token) throw new FacebookServiceError('Page access token is not configured', 400)
 
   const response = await fetch(
-    `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(token)}`,
+    `https://graph.facebook.com/v27.0/me?fields=id,name&access_token=${encodeURIComponent(token)}`,
     { method: 'GET' },
   )
   const result: any = await response.json().catch(() => null)

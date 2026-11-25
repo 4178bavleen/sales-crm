@@ -116,7 +116,7 @@ function mapGraphLead(graphLead: GraphLead, leadgenId: string) {
 }
 
 async function fetchLeadgenLead(leadgenId: string, accessToken: string): Promise<GraphLead> {
-  const url = `https://graph.facebook.com/v21.0/${encodeURIComponent(leadgenId)}?fields=id,created_time,form_id,field_data&access_token=${encodeURIComponent(accessToken)}`
+  const url = `https://graph.facebook.com/v27.0/${encodeURIComponent(leadgenId)}?fields=id,created_time,form_id,field_data&access_token=${encodeURIComponent(accessToken)}`
   const response = await fetch(url, { method: 'GET' })
   const result: any = await response.json().catch(() => null)
 

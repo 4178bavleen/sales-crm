@@ -84,7 +84,6 @@ export async function createRole(
     handleError(error, res, next)
   }
 }
-
 export async function updateRole(
   req: Request,
   res: Response,

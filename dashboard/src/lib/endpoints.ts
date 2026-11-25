@@ -187,6 +187,9 @@ export const ENDPOINTS = {
     testWhatsapp: "/settings/whatsapp/test",
     facebook: "/settings/facebook",
     testFacebook: "/settings/facebook/test",
+    facebookOAuthUrl: "/settings/facebook/oauth/url",
+    facebookOAuthExchange: "/settings/facebook/oauth/exchange",
+    facebookOAuthSelectPage: "/settings/facebook/oauth/select-page",
   },
 
 } as const;
