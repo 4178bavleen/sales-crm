@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Factory,
   ShieldCheck,
+  MapPin,
 } from "lucide-react";
 import type { CustomerFormValues } from "../../types/customer";
 import { CUSTOMER_OWNERS } from "../../types/customer";
@@ -25,6 +26,10 @@ const emptyValues: CustomerFormValues = {
   owner: CUSTOMER_OWNERS[0] ?? "",
   convertedAt: today(),
   notes: "",
+  address: "",
+  city: "",
+  state: "",
+  country: "",
 };
 
 export default function CustomerForm({
@@ -42,6 +47,10 @@ export default function CustomerForm({
         company: values.company === "—" ? "" : values.company,
         primaryContact: values.primaryContact === "—" ? "" : values.primaryContact,
         owner: values.owner === "Unassigned" ? "" : values.owner,
+        address: values.address || "",
+        city: values.city || "",
+        state: values.state || "",
+        country: values.country || "",
       }
     : emptyValues;
   const [form, setForm] = useState<CustomerFormValues>(initialValues);
@@ -110,6 +119,10 @@ export default function CustomerForm({
         owner: form.owner.trim(),
         convertedAt: form.convertedAt || today(),
         notes: (form.notes || "").trim(),
+        address: form.address?.trim() || undefined,
+        city: form.city?.trim() || undefined,
+        state: form.state?.trim() || undefined,
+        country: form.country?.trim() || undefined,
       });
     } finally {
       setIsSubmitting(false);
@@ -277,6 +290,49 @@ export default function CustomerForm({
                     onChange={(e) => update("convertedAt", e.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-950 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                   />
+                </div>
+              </div>
+
+              {/* Billing / Registered Address */}
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-[#1d61e7]" />
+                    <span>Billing &amp; Office Address</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Used on invoices &amp; proposals</span>
+                </label>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Street address (e.g. SCO 45, Sector 62, Phase 8)"
+                    value={form.address || ""}
+                    onChange={(e) => update("address", e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={form.city || ""}
+                      onChange={(e) => update("city", e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <input
+                      type="text"
+                      placeholder="State"
+                      value={form.state || ""}
+                      onChange={(e) => update("state", e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Country"
+                      value={form.country || ""}
+                      onChange={(e) => update("country", e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -355,6 +355,10 @@ export default function Customers() {
         ? customer.convertedAt.slice(0, 10)
         : new Date().toISOString().slice(0, 10),
       notes: customer.notes || "",
+      address: customer.companyDetails?.address || "",
+      city: customer.companyDetails?.city || "",
+      state: customer.companyDetails?.state || "",
+      country: customer.companyDetails?.country || "",
     });
     setShowCreateModal(true);
     setDetailCustomer(null);
@@ -374,6 +378,10 @@ export default function Customers() {
           ownerId: values.ownerId,
           convertedAt: values.convertedAt,
           notes: values.notes,
+          address: values.address,
+          city: values.city,
+          state: values.state,
+          country: values.country,
         });
         setToastMessage({
           type: "success",
@@ -388,6 +396,10 @@ export default function Customers() {
           ownerId: values.ownerId,
           convertedAt: values.convertedAt,
           notes: values.notes,
+          address: values.address,
+          city: values.city,
+          state: values.state,
+          country: values.country,
         });
         setToastMessage({
           type: "success",

@@ -324,6 +324,14 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
     throw new InvoiceServiceError('Customer not found or has been deleted', 404)
   }
 
+  // Update customer's company address if a custom billing address was provided
+  if (input.billingAddress && customer.companyId) {
+    await prisma.company.update({
+      where: { id: customer.companyId },
+      data: { address: input.billingAddress },
+    }).catch(() => null)
+  }
+
   if (input.dealId) {
     const deal = await prisma.deal.findFirst({
       where: { id: input.dealId, deletedAt: null },
@@ -499,10 +507,17 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
 export async function updateInvoice(id: number, input: UpdateInvoiceInput, userId: number) {
   const existing = await prisma.invoice.findFirst({
     where: { id, deletedAt: null },
-    include: { items: true, payments: true },
+    include: { items: true, payments: true, customer: true },
   })
   if (!existing) {
     throw new InvoiceServiceError('Invoice not found or has been deleted', 404)
+  }
+
+  if (input.billingAddress && existing.customer?.companyId) {
+    await prisma.company.update({
+      where: { id: existing.customer.companyId },
+      data: { address: input.billingAddress },
+    }).catch(() => null)
   }
 
   const taxType = input.taxType || existing.taxType

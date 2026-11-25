@@ -52,7 +52,9 @@ export type Customer = {
     industry?: string | null;
     website?: string | null;
     phone?: string | null;
+    address?: string | null;
     city?: string | null;
+    state?: string | null;
     country?: string | null;
   } | null;
   contactDetails?: {
@@ -85,6 +87,10 @@ export type CustomerFormValues = {
   owner: string;
   convertedAt: string;
   notes: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
 };
 
 /** Owners a customer can be assigned to (Customer.ownerId -> User). */

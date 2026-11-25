@@ -21,6 +21,7 @@ import {
   ArrowDown,
   ShieldCheck,
   CheckCircle2,
+  MapPin,
 } from 'lucide-react';
 import {
   createInvoice,
@@ -268,6 +269,7 @@ export default function InvoiceFormDialog({
     return d.toISOString().slice(0, 10);
   });
   const [status, setStatus] = useState<InvoiceStatus>('DRAFT');
+  const [billingAddress, setBillingAddress] = useState('');
   const [templateEdition, setTemplateEdition] = useState<InvoiceTemplateEdition>('VIBRANT_TECH');
   const [taxType, setTaxType] = useState<InvoiceTaxType>('INTRA_STATE');
   const [totalDiscount, setTotalDiscount] = useState<number>(0);
@@ -295,6 +297,29 @@ export default function InvoiceFormDialog({
 
   const customerMeta = useMemo(() => {
     return resolveCustomerInfo(selectedCustomer);
+  }, [selectedCustomer]);
+
+  // When customer changes, auto-populate billing address from customer's company details
+  useEffect(() => {
+    if (!selectedCustomer) {
+      if (!isEdit) setBillingAddress('');
+      return;
+    }
+    const company = selectedCustomer.companyDetails || selectedCustomer.company;
+    const addr = [
+      typeof company === 'object' ? company?.address : null,
+      typeof company === 'object' ? company?.city : null,
+      typeof company === 'object' ? company?.state : null,
+      typeof company === 'object' ? company?.country : null,
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).trim())
+      .filter(Boolean)
+      .join(', ');
+
+    if (addr && (!billingAddress || !isEdit)) {
+      setBillingAddress(addr);
+    }
   }, [selectedCustomer]);
 
   // Handle re-generating or refreshing next invoice number
@@ -364,6 +389,20 @@ export default function InvoiceFormDialog({
           setTotalDiscount(Number(inv.totalDiscount || 0));
           setNotes(inv.notes || '');
           setTerms(inv.terms || '');
+
+          const editAddr = [
+            inv.customer?.company?.address,
+            inv.customer?.company?.city,
+            inv.customer?.company?.state,
+            inv.customer?.company?.country,
+          ]
+            .filter(Boolean)
+            .map((s) => String(s).trim())
+            .filter(Boolean)
+            .join(', ');
+          if (editAddr) {
+            setBillingAddress(editAddr);
+          }
 
           if (inv.items && inv.items.length > 0) {
             setItems(
@@ -552,6 +591,7 @@ export default function InvoiceFormDialog({
       const payload: CreateInvoicePayload = {
         customerId: Number(customerId),
         dealId: dealId ? Number(dealId) : null,
+        billingAddress: billingAddress.trim() || undefined,
         invoiceNumber: invoiceNumber.trim() || undefined,
         issueDate,
         dueDate,
@@ -794,6 +834,12 @@ export default function InvoiceFormDialog({
                       {customerMeta.phone && (
                         <div className="text-slate-500 mt-0.5">Phone: {customerMeta.phone}</div>
                       )}
+                      {billingAddress && (
+                        <div className="text-slate-600 mt-2 text-[11px] leading-relaxed bg-slate-50/80 p-2 rounded-lg border border-slate-200/60">
+                          <span className="font-semibold text-slate-500 block text-[9px] uppercase tracking-wider mb-0.5">Billing Address:</span>
+                          {billingAddress}
+                        </div>
+                      )}
                     </div>
 
                     <div className="sm:text-right space-y-1">
@@ -1026,30 +1072,50 @@ export default function InvoiceFormDialog({
 
                     {/* Rich Customer Information Card when selected */}
                     {selectedCustomer && (
-                      <div className="mt-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-2xs flex flex-wrap items-center gap-y-2 gap-x-4 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
-                          <Building className="w-3.5 h-3.5 text-[#1d61e7]" />
-                          <span>{customerMeta.title}</span>
+                      <>
+                        <div className="mt-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-2xs flex flex-wrap items-center gap-y-2 gap-x-4 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                            <Building className="w-3.5 h-3.5 text-[#1d61e7]" />
+                            <span>{customerMeta.title}</span>
+                          </div>
+                          {customerMeta.contactName && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{customerMeta.contactName}</span>
+                            </div>
+                          )}
+                          {customerMeta.phone && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{customerMeta.phone}</span>
+                            </div>
+                          )}
+                          {customerMeta.email && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Mail className="w-3.5 h-3.5 text-sky-600" />
+                              <span>{customerMeta.email}</span>
+                            </div>
+                          )}
                         </div>
-                        {customerMeta.contactName && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{customerMeta.contactName}</span>
-                          </div>
-                        )}
-                        {customerMeta.phone && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>{customerMeta.phone}</span>
-                          </div>
-                        )}
-                        {customerMeta.email && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Mail className="w-3.5 h-3.5 text-sky-600" />
-                            <span>{customerMeta.email}</span>
-                          </div>
-                        )}
-                      </div>
+
+                        {/* Editable Client Billing Address */}
+                        <div className="mt-2.5 space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#1d61e7]" />
+                              Client Billing Address (Printed on Invoice)
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-normal">Auto-filled from company, editable</span>
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={billingAddress}
+                            onChange={(e) => setBillingAddress(e.target.value)}
+                            placeholder="e.g. SCO 12, Floor 2, IT Park, Mohali, Punjab - 160071"
+                            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] shadow-2xs text-slate-800 placeholder:text-slate-400 font-normal"
+                          />
+                        </div>
+                      </>
                     )}
                   </div>
 

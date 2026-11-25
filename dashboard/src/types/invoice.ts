@@ -141,6 +141,7 @@ export interface InvoiceSetting {
 export interface CreateInvoicePayload {
   customerId: number;
   dealId?: number | null;
+  billingAddress?: string | null;
   invoiceNumber?: string;
   issueDate: string;
   dueDate: string;

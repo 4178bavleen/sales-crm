@@ -14,6 +14,7 @@ export const invoiceItemSchema = z.object({
 export const createInvoiceSchema = z.object({
   customerId: z.number().int().positive('Customer is required'),
   dealId: z.number().int().positive().nullable().optional(),
+  billingAddress: z.string().trim().max(500).nullable().optional(),
   invoiceNumber: z.string().trim().min(1).optional(),
   issueDate: z.string().or(z.date()).transform((val) => new Date(val)),
   dueDate: z.string().or(z.date()).transform((val) => new Date(val)),
