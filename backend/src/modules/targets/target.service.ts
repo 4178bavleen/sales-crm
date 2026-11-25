@@ -944,7 +944,6 @@ export async function checkTargetMilestones(userId?: number) {
               entityType: 'target',
               entityId: target.id,
             })
-            console.log(`[TargetNotification] Dispatched ${m.type} to User #${repId} for Target #${target.id}`)
           }
         }
       }

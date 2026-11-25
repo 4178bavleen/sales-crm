@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateToken } from '../auth/auth.middleware.js'
 import { requirePermission } from '../permission/permission.middleware.js'
+import { requireAdmin } from '../users/user.middleware.js'
 import {
   listInvoicesController,
   getInvoiceByIdController,
@@ -23,9 +24,9 @@ void ensureInvoicePermissions()
 const router = Router()
 router.use(authenticateToken)
 
-// Settings
-router.get('/settings', requirePermission('invoices.settings'), getInvoiceSettingsController)
-router.put('/settings', requirePermission('invoices.settings'), updateInvoiceSettingsController)
+// Settings (Admin restricted)
+router.get('/settings', requireAdmin, getInvoiceSettingsController)
+router.put('/settings', requireAdmin, updateInvoiceSettingsController)
 
 // Sequence helper (preview next invoice number)
 router.get('/next-number', requirePermission('invoices.view'), getNextInvoiceNumberController)

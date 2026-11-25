@@ -317,8 +317,6 @@ export async function sendNotificationEmail(params: {
       text: `${params.title}\n\n${params.body || ''}`,
       html,
     })
-
-    console.log(`[EmailService] Sent email notification "${params.title}" to ${user.email}`)
   } catch (err: any) {
     console.error('[EmailService] Failed to send email alert:', err.message || err)
   }

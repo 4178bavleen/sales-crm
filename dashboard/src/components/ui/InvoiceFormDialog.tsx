@@ -242,8 +242,6 @@ export default function InvoiceFormDialog({
   onClose,
   onSuccess,
 }: InvoiceFormDialogProps) {
-  if (!isOpen) return null;
-
   const isEdit = mode === 'edit' && Boolean(invoiceId);
 
   // Tabs: 'form' (interactive fields) vs 'preview' (live visual invoice sheet)
@@ -315,6 +313,7 @@ export default function InvoiceFormDialog({
   };
 
   useEffect(() => {
+    if (!isOpen) return;
     let isMounted = true;
 
     async function init() {
@@ -394,7 +393,8 @@ export default function InvoiceFormDialog({
       } catch (err: any) {
         console.error('[InvoiceFormDialog] Initialization error:', err);
         if (isMounted) {
-          setError(err?.message || 'Failed to initialize invoice form');
+          const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+          setError(isUserErr ? err.message : 'Unable to initialize invoice form. Please try again.');
         }
       } finally {
         if (isMounted) {
@@ -408,7 +408,7 @@ export default function InvoiceFormDialog({
     return () => {
       isMounted = false;
     };
-  }, [isEdit, invoiceId]);
+  }, [isOpen, isEdit, invoiceId]);
 
   const addItem = () => {
     setItems((prev) => [
@@ -582,7 +582,8 @@ export default function InvoiceFormDialog({
       onSuccess(result);
     } catch (err: any) {
       console.error('[InvoiceFormDialog] Submit error:', err);
-      setError(err?.message || 'Failed to save invoice. Please check the fields and try again.');
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      setError(isUserErr ? err.message : 'Failed to save invoice. Please check the fields and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -591,6 +592,8 @@ export default function InvoiceFormDialog({
   const activeThemeMeta = useMemo(() => {
     return TEMPLATE_EDITIONS.find((t) => t.id === templateEdition) || TEMPLATE_EDITIONS[0];
   }, [templateEdition]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">

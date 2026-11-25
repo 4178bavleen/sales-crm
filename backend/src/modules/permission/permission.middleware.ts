@@ -47,8 +47,17 @@ export function requirePermission(code: string) {
         return
       }
 
+      if (!user.role || !Array.isArray(user.role.permissions)) {
+        res.status(403).json({
+          success: false,
+          message: 'You do not have permission to perform this action',
+          requiredPermission: code,
+        })
+        return
+      }
+
       const allowed = user.role.permissions.some(
-        (item) => item.permission.code === code,
+        (item) => item.permission?.code === code,
       )
 
       if (!allowed) {
@@ -111,8 +120,17 @@ export function requireAnyPermission(...codes: string[]) {
         return
       }
 
+      if (!user.role || !Array.isArray(user.role.permissions)) {
+        res.status(403).json({
+          success: false,
+          message: 'You do not have permission to perform this action',
+          requiredPermissions: codes,
+        })
+        return
+      }
+
       const allowed = user.role.permissions.some((item) =>
-        codes.includes(item.permission.code),
+        item.permission && codes.includes(item.permission.code),
       )
 
       if (!allowed) {

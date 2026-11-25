@@ -80,7 +80,8 @@ export default function InvoiceView() {
       );
     } catch (err: any) {
       console.error('[InvoiceView] Load error:', err);
-      setError(err?.message || 'Failed to load invoice');
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      setError(isUserErr ? err.message : 'Unable to load invoice. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,8 @@ export default function InvoiceView() {
     try {
       await downloadInvoicePdf(invoice.id, invoice.invoiceNumber);
     } catch (err: any) {
-      alert(err?.message || 'Failed to download PDF');
+      console.error('[InvoiceView] PDF download error:', err);
+      alert('Unable to download PDF. Please try again.');
     }
   };
 
@@ -125,7 +127,9 @@ export default function InvoiceView() {
       setPaymentNotes('');
       await loadInvoice();
     } catch (err: any) {
-      alert(err?.message || 'Failed to record payment');
+      console.error('[InvoiceView] Payment error:', err);
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      alert(isUserErr ? err.message : 'Failed to record payment. Please try again.');
     } finally {
       setRecordingPayment(false);
     }
@@ -154,7 +158,9 @@ export default function InvoiceView() {
         loadInvoice();
       }, 2000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to send invoice email');
+      console.error('[InvoiceView] Email send error:', err);
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      alert(isUserErr ? err.message : 'Failed to send invoice email. Please try again.');
     } finally {
       setSendingEmail(false);
     }
@@ -177,7 +183,9 @@ export default function InvoiceView() {
       setWhatsAppResult(res);
       await loadInvoice();
     } catch (err: any) {
-      alert(err?.message || 'Failed to dispatch WhatsApp message');
+      console.error('[InvoiceView] WhatsApp error:', err);
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      alert(isUserErr ? err.message : 'Failed to dispatch WhatsApp message. Please try again.');
     } finally {
       setSendingWhatsApp(false);
     }
@@ -365,9 +373,16 @@ export default function InvoiceView() {
                 {invoice.customer?.primaryContact?.phone && (
                   <p className="text-sm text-slate-500">{invoice.customer.primaryContact.phone}</p>
                 )}
-                {invoice.customer?.company?.address && (
+                {(invoice.customer?.company?.address || invoice.customer?.company?.city) && (
                   <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-sm">
-                    {invoice.customer.company.address}
+                    {[
+                      invoice.customer.company?.address,
+                      invoice.customer.company?.city,
+                      invoice.customer.company?.state,
+                      invoice.customer.company?.country,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
                   </p>
                 )}
               </div>

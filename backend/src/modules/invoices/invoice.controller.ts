@@ -1,6 +1,8 @@
 import type { Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
+import { Prisma } from '../../generated/prisma/client.js'
 import type { AuthenticatedRequest } from '../auth/auth.middleware.js'
+import { AppError } from '../../common/errors/AppErrors.js'
 import * as invoiceService from './invoice.service.js'
 import { InvoiceServiceError } from './invoice.service.js'
 import {
@@ -14,22 +16,71 @@ import {
 } from './invoice.validation.js'
 
 function handleError(error: unknown, res: Response, next: NextFunction): void {
-  if (error instanceof ZodError) {
+  if (
+    error instanceof ZodError ||
+    (error && typeof error === 'object' && (error as any).name === 'ZodError')
+  ) {
+    const issues = (error as any).issues || []
+    const errorDetails = issues.map((issue: any) => issue.message).join(', ')
     res.status(400).json({
       success: false,
-      message: 'Validation failed',
-      errors: error.issues.map((issue) => ({
-        field: issue.path.join('.'),
+      message: errorDetails || 'Validation failed',
+      errors: issues.map((issue: any) => ({
+        field: Array.isArray(issue.path) ? issue.path.join('.') : '',
         message: issue.message,
       })),
     })
     return
   }
 
-  if (error instanceof InvoiceServiceError) {
-    res.status(error.statusCode).json({
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      const target = (error.meta?.target as string[]) || []
+      const field = Array.isArray(target) ? target.join(', ') : String(target)
+      res.status(409).json({
+        success: false,
+        message: field.includes('invoiceNumber')
+          ? 'An invoice with this invoice number already exists'
+          : `Unique constraint violated${field ? ` on ${field}` : ''}`,
+      })
+      return
+    }
+    if (error.code === 'P2003') {
+      res.status(400).json({
+        success: false,
+        message: 'A referenced entity (customer, deal, or product) does not exist or has been removed',
+      })
+      return
+    }
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        message: 'The requested record was not found or has been removed',
+      })
+      return
+    }
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientValidationError ||
+    (error && typeof error === 'object' && (error as any).name === 'PrismaClientValidationError')
+  ) {
+    res.status(400).json({
       success: false,
-      message: error.message,
+      message: 'Invalid data format provided for database operation',
+    })
+    return
+  }
+
+  if (
+    error instanceof InvoiceServiceError ||
+    error instanceof AppError ||
+    (error && typeof error === 'object' && ('statusCode' in error || 'status' in error))
+  ) {
+    const statusCode = (error as any).statusCode || (error as any).status || 400
+    res.status(statusCode).json({
+      success: false,
+      message: (error as any).message || 'Invoice operation failed',
     })
     return
   }

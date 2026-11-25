@@ -39,19 +39,33 @@ type RequestOptions = {
 };
 
 function readErrorMessage(payload: unknown, status: number): string {
-  if (payload && typeof payload === "object") {
+  if (status >= 500) {
+    return 'Something went wrong on the server. Please try again later.';
+  }
+
+  if (payload && typeof payload === 'object') {
     const body = payload as Record<string, unknown>;
 
     const nested = body.error;
-    if (nested && typeof nested === "object") {
+    if (nested && typeof nested === 'object') {
       const message = (nested as Record<string, unknown>).message;
-      if (typeof message === "string" && message) return message;
+      if (typeof message === 'string' && message) {
+        if (message.toLowerCase().includes('internal server error')) {
+          return 'Something went wrong on the server. Please try again later.';
+        }
+        return message;
+      }
     }
 
-    if (typeof body.message === "string" && body.message) return body.message;
+    if (typeof body.message === 'string' && body.message) {
+      if (body.message.toLowerCase().includes('internal server error')) {
+        return 'Something went wrong on the server. Please try again later.';
+      }
+      return body.message;
+    }
   }
 
-  return `Request failed with status ${status}`;
+  return 'An error occurred while processing your request. Please try again.';
 }
 
 /** Perform an API request and return the unwrapped `data` payload. */

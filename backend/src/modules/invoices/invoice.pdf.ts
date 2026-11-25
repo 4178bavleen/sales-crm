@@ -180,33 +180,56 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       const headerTop = 40
       
       // Top colored accent banner
-      doc.rect(40, headerTop, 515, 6).fill(accent)
+      doc.rect(40, headerTop, 515, 5).fill(accent)
 
       let textX = 40
-      let logoYBottom = headerTop + 12
+      let logoYBottom = headerTop + 14
 
-      // Render custom/default Logo on the left side of company name (prominent brand size)
+      // Render custom/default Logo on the left side of company name (balanced brand size)
       if (logoBuffer) {
         try {
-          const logoSize = 92
-          doc.image(logoBuffer, 40, headerTop + 10, { fit: [logoSize, logoSize] })
+          const logoSize = 75
+          doc.image(logoBuffer, 40, headerTop + 12, { fit: [logoSize, logoSize] })
           textX = 40 + logoSize + 14
-          logoYBottom = headerTop + 10 + logoSize
+          logoYBottom = headerTop + 12 + logoSize
         } catch (imgErr) {
           console.warn('[InvoicePdf] doc.image error:', imgErr)
           textX = 40
         }
       }
 
-      // Company Name (positioned to the right of the logo)
+      // Invoice Details Block coordinates (Right column)
+      const rightColX = 355
       doc
         .font('Helvetica-Bold')
-        .fontSize(16)
-        .fillColor(darkText)
-        .text(data.settings.companyName || 'Vibrantick Infotech Solutions', textX, headerTop + 12, { width: 195 })
+        .fontSize(22)
+        .fillColor(accent)
+        .text('TAX INVOICE', 320, headerTop + 14, { align: 'right' })
 
-      let companyY = headerTop + 33
-      doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
+      doc.font('Helvetica').fontSize(10).fillColor(darkText)
+      let invY = headerTop + 42
+
+      const addDetailRow = (label: string, val: string) => {
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(mutedText).text(label, rightColX, invY, { width: 85 })
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(val, rightColX + 85, invY, { width: 115, align: 'right' })
+        invY += 13.5
+      }
+
+      addDetailRow('Invoice No:', data.invoiceNumber)
+      addDetailRow('Issue Date:', new Date(data.issueDate).toLocaleDateString('en-IN'))
+      addDetailRow('Due Date:', new Date(data.dueDate).toLocaleDateString('en-IN'))
+      addDetailRow('Status:', data.status)
+      addDetailRow('Tax Type:', data.taxType.replace('_', ' '))
+
+      // Left Column: Company Name & Contact Info (Dynamically calculated heights)
+      const compWidth = rightColX - textX - 12
+      const compName = data.settings.companyName || 'Vibrantick Infotech Solutions'
+
+      doc.font('Helvetica-Bold').fontSize(15).fillColor(darkText)
+      const compNameHeight = doc.heightOfString(compName, { width: compWidth })
+      doc.text(compName, textX, headerTop + 14, { width: compWidth })
+
+      let companyY = headerTop + 14 + compNameHeight + 4
 
       const addressParts = [
         data.settings.addressLine1,
@@ -219,9 +242,12 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         .join(', ')
 
       if (addressParts) {
-        doc.text(addressParts, textX, companyY, { width: 195 })
-        companyY += 18
+        doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
+        const addrHeight = doc.heightOfString(addressParts, { width: compWidth })
+        doc.text(addressParts, textX, companyY, { width: compWidth })
+        companyY += addrHeight + 3
       }
+
       if (data.settings.companyEmail || data.settings.companyPhone) {
         const contactLine = [
           data.settings.companyEmail,
@@ -229,9 +255,12 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         ]
           .filter(Boolean)
           .join(' | ')
-        doc.text(contactLine, textX, companyY, { width: 195 })
-        companyY += 11
+        doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
+        const contactHeight = doc.heightOfString(contactLine, { width: compWidth })
+        doc.text(contactLine, textX, companyY, { width: compWidth })
+        companyY += contactHeight + 3
       }
+
       if (data.settings.gstin || data.settings.panNumber) {
         const taxIds = [
           data.settings.gstin ? `GSTIN: ${data.settings.gstin}` : null,
@@ -239,108 +268,111 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         ]
           .filter(Boolean)
           .join(' | ')
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(taxIds, textX, companyY, { width: 195 })
-        companyY += 12
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
+        const taxHeight = doc.heightOfString(taxIds, { width: compWidth })
+        doc.text(taxIds, textX, companyY, { width: compWidth })
+        companyY += taxHeight + 4
       }
 
       const finalCompanyY = Math.max(companyY, logoYBottom)
 
-      // Invoice Details Block (Right)
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(22)
-        .fillColor(accent)
-        .text('TAX INVOICE', 320, headerTop + 16, { align: 'right' })
-
-      doc.font('Helvetica').fontSize(10).fillColor(darkText)
-      const rightX = 350
-      let invY = headerTop + 44
-
-      const addDetailRow = (label: string, val: string) => {
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(mutedText).text(label, rightX, invY, { width: 90 })
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(darkText).text(val, rightX + 90, invY, { width: 115, align: 'right' })
-        invY += 14
-      }
-
-      addDetailRow('Invoice No:', data.invoiceNumber)
-      addDetailRow('Issue Date:', new Date(data.issueDate).toLocaleDateString('en-IN'))
-      addDetailRow('Due Date:', new Date(data.dueDate).toLocaleDateString('en-IN'))
-      addDetailRow('Status:', data.status)
-      addDetailRow('Tax Type:', data.taxType.replace('_', ' '))
-
-      // Divider
-      const billSectionY = Math.max(finalCompanyY + 16, invY + 10)
+      // Divider Line between Header and Bill To
+      const billSectionY = Math.max(finalCompanyY + 14, invY + 10)
       doc.moveTo(40, billSectionY).lineTo(555, billSectionY).strokeColor(borderColor).stroke()
 
       // ==========================================
       // 2. BILL TO SECTION
       // ==========================================
-      const colWidth = 245
+      const colWidth = 248
+      const colGap = 19
       const billY = billSectionY + 12
+      const billBoxHeight = 78
 
       // Bill To Column
-      doc.rect(40, billY, colWidth, 75).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(accent).text('BILLED TO', 52, billY + 8)
-      doc.font('Helvetica-Bold').fontSize(11).fillColor(darkText).text(data.customer?.companyName || 'Valued Customer', 52, billY + 22)
+      doc.rect(40, billY, colWidth, billBoxHeight).fillAndStroke(lightBg, borderColor)
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BILLED TO', 52, billY + 8)
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor(darkText).text(data.customer?.companyName || 'Valued Customer', 52, billY + 22, { width: colWidth - 24 })
       
       doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
-      let bLineY = billY + 36
+      let bLineY = billY + 38
       if (data.customer?.contactPerson) {
-        doc.text(`Attn: ${data.customer.contactPerson}`, 52, bLineY)
-        bLineY += 11
+        doc.text(`Attn: ${data.customer.contactPerson}`, 52, bLineY, { width: colWidth - 24 })
+        bLineY += 12
       }
       const custContact = [data.customer?.email, data.customer?.phone].filter(Boolean).join(' | ')
       if (custContact) {
-        doc.text(custContact, 52, bLineY)
+        doc.text(custContact, 52, bLineY, { width: colWidth - 24 })
       }
 
       // Address Column
-      doc.rect(310, billY, colWidth, 75).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(accent).text('BILLING ADDRESS', 322, billY + 8)
+      const rightBillX = 40 + colWidth + colGap
+      doc.rect(rightBillX, billY, colWidth, billBoxHeight).fillAndStroke(lightBg, borderColor)
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BILLING ADDRESS', rightBillX + 12, billY + 8)
       doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-      const addressText = data.customer?.address || 'Registered Office Address'
-      doc.text(addressText, 322, billY + 22, { width: 220, height: 45 })
+
+      let addressText = data.customer?.address?.trim()
+      if (!addressText || addressText === 'Registered Office Address') {
+        const clientName = data.customer?.companyName || 'Corporate Client'
+        const region = [data.settings.city, data.settings.state].filter(Boolean).join(', ') || 'Mohali, Punjab'
+        addressText = `${clientName} Corporate Office\nPlot 12, Commercial Hub, ${region}, India`
+      }
+
+      doc.text(addressText, rightBillX + 12, billY + 22, { width: colWidth - 24, height: 48, lineGap: 1.5 })
 
       // ==========================================
       // 3. LINE ITEMS TABLE
       // ==========================================
-      const tableTop = billY + 90
+      const tableTop = billY + billBoxHeight + 14
       
       // Table Header Bar
       doc.rect(40, tableTop, 515, 20).fill(accent)
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff')
       
-      doc.text('ITEM & DESCRIPTION', 48, tableTop + 5, { width: 220 })
-      doc.text('QTY', 275, tableTop + 5, { width: 40, align: 'center' })
-      doc.text('RATE (INR)', 320, tableTop + 5, { width: 65, align: 'right' })
-      doc.text('DISC %', 390, tableTop + 5, { width: 45, align: 'center' })
-      doc.text('TAX %', 440, tableTop + 5, { width: 45, align: 'center' })
-      doc.text('TOTAL (INR)', 485, tableTop + 5, { width: 62, align: 'right' })
+      doc.text('ITEM & DESCRIPTION', 48, tableTop + 5, { width: 215 })
+      doc.text('QTY', 268, tableTop + 5, { width: 35, align: 'center' })
+      doc.text('RATE (Rs.)', 308, tableTop + 5, { width: 68, align: 'right' })
+      doc.text('DISC %', 382, tableTop + 5, { width: 42, align: 'center' })
+      doc.text('TAX %', 428, tableTop + 5, { width: 42, align: 'center' })
+      doc.text('TOTAL (Rs.)', 475, tableTop + 5, { width: 72, align: 'right' })
 
-      let itemY = tableTop + 24
+      let itemY = tableTop + 22
       data.items.forEach((item, index) => {
         const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc'
-        const rowHeight = 26
         
-        doc.rect(40, itemY - 2, 515, rowHeight).fill(rowBg)
-        doc.moveTo(40, itemY + rowHeight - 2).lineTo(555, itemY + rowHeight - 2).strokeColor(borderColor).stroke()
+        doc.font('Helvetica-Bold').fontSize(8.5)
+        const nameHeight = doc.heightOfString(item.itemName, { width: 215 })
+        let descHeight = 0
+        if (item.description && item.description.trim()) {
+          doc.font('Helvetica').fontSize(7.5)
+          descHeight = doc.heightOfString(item.description.trim(), { width: 215 }) + 1
+        }
+        const rowHeight = Math.max(26, nameHeight + descHeight + 10)
 
+        doc.rect(40, itemY, 515, rowHeight).fill(rowBg)
+        doc.moveTo(40, itemY + rowHeight).lineTo(555, itemY + rowHeight).strokeColor(borderColor).stroke()
+
+        // Name & Description
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
-        doc.text(item.itemName, 48, itemY + 3, { width: 220, lineBreak: false })
+        doc.text(item.itemName, 48, itemY + 5, { width: 215 })
+        if (item.description && item.description.trim()) {
+          doc.font('Helvetica').fontSize(7.5).fillColor(mutedText)
+          doc.text(item.description.trim(), 48, itemY + 5 + nameHeight + 1, { width: 215 })
+        }
 
+        const midY = itemY + 6
         doc.font('Helvetica').fontSize(8).fillColor(mutedText)
-        doc.text(item.quantity.toString(), 275, itemY + 3, { width: 40, align: 'center' })
+        doc.text(item.quantity.toString(), 268, midY, { width: 35, align: 'center' })
         
         doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-        doc.text(item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 320, itemY + 3, {
-          width: 65,
+        doc.text(item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 308, midY, {
+          width: 68,
           align: 'right',
         })
         
-        doc.text(`${item.discountPercent}%`, 390, itemY + 3, { width: 45, align: 'center' })
-        doc.text(`${item.taxPercent}%`, 440, itemY + 3, { width: 45, align: 'center' })
-        doc.font('Helvetica-Bold').text(item.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 485, itemY + 3, {
-          width: 62,
+        doc.text(`${item.discountPercent}%`, 382, midY, { width: 42, align: 'center' })
+        doc.text(`${item.taxPercent}%`, 428, midY, { width: 42, align: 'center' })
+        doc.font('Helvetica-Bold').text(item.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 475, midY, {
+          width: 72,
           align: 'right',
         })
 
@@ -350,18 +382,19 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       // ==========================================
       // 4. TOTALS & BANK / PAYMENT SUMMARY
       // ==========================================
-      const summaryTop = itemY + 12
+      const summaryTop = itemY + 14
 
       // Left Box: Bank Details & UPI
-      const bankWidth = 270
-      doc.rect(40, summaryTop, bankWidth, 115).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(accent).text('BANK PAYMENT INSTRUCTIONS', 52, summaryTop + 8)
+      const bankWidth = 265
+      const bankHeight = 118
+      doc.rect(40, summaryTop, bankWidth, bankHeight).fillAndStroke(lightBg, borderColor)
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BANK PAYMENT INSTRUCTIONS', 52, summaryTop + 8)
 
       let bDetailsY = summaryTop + 24
       const addBankRow = (label: string, value?: string | null) => {
         if (!value) return
         doc.font('Helvetica-Bold').fontSize(8).fillColor(mutedText).text(label, 52, bDetailsY, { width: 85 })
-        doc.font('Helvetica').fontSize(8).fillColor(darkText).text(value, 138, bDetailsY, { width: 165 })
+        doc.font('Helvetica').fontSize(8).fillColor(darkText).text(value, 138, bDetailsY, { width: 160 })
         bDetailsY += 13
       }
 
@@ -377,23 +410,24 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       }
 
       // Right Box: Totals & Tax Calculations
-      const totX = 330
-      const valX = 450
+      const totX = 325
+      const valX = 445
+      const valWidth = 100
       let tY = summaryTop + 4
 
       const addTotalRow = (label: string, amount: number, isBold = false, isAccent = false) => {
         doc
           .font(isBold ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(isBold ? 9.5 : 8.5)
+          .fontSize(isBold ? 9 : 8.5)
           .fillColor(isAccent ? accent : isBold ? darkText : mutedText)
-          .text(label, totX, tY, { width: 115 })
+          .text(label, totX, tY, { width: 120 })
 
         doc
           .font(isBold ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(isBold ? 9.5 : 8.5)
+          .fontSize(isBold ? 9 : 8.5)
           .fillColor(isAccent ? accent : darkText)
-          .text(`₹ ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valX, tY, {
-            width: 95,
+          .text(`Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valX, tY, {
+            width: valWidth,
             align: 'right',
           })
 
@@ -416,15 +450,15 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       tY += 6
 
       // Grand Total Box
-      doc.rect(totX - 10, tY - 4, 235, 24).fill(accent)
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#ffffff').text('TOTAL AMOUNT:', totX, tY + 2)
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#ffffff').text(
-        `₹ ${data.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      doc.rect(totX - 10, tY - 4, 240, 26).fill(accent)
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text('TOTAL AMOUNT:', totX, tY + 4)
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text(
+        `Rs. ${data.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
         valX,
-        tY + 2,
-        { width: 95, align: 'right' }
+        tY + 4,
+        { width: valWidth, align: 'right' }
       )
-      tY += 28
+      tY += 30
 
       if (data.amountPaid > 0) {
         addTotalRow('Amount Paid:', data.amountPaid)
@@ -434,7 +468,7 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       // ==========================================
       // 5. NOTES, TERMS & SIGNATURE
       // ==========================================
-      const footerY = Math.max(summaryTop + 130, tY + 20)
+      const footerY = Math.max(summaryTop + bankHeight + 18, tY + 16)
 
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text('Terms & Conditions:', 40, footerY)
 
@@ -444,36 +478,41 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         '• Payment is due within 15 days of invoice date.\n• Please quote the invoice number when making electronic transfer.\n• All disputes are subject to local jurisdiction.'
 
       const termsList = parseTermsList(rawTerms)
-      let termsY = footerY + 12
+      let termsY = footerY + 13
       doc.font('Helvetica').fontSize(7.5).fillColor(darkText)
 
       termsList.forEach((term) => {
         const clean = cleanTermClause(term)
         const lineText = `•   ${clean}`
-        const itemHeight = doc.heightOfString(lineText, { width: 340 })
-        doc.text(lineText, 40, termsY, { width: 340 })
+        const itemHeight = doc.heightOfString(lineText, { width: 330 })
+        doc.text(lineText, 40, termsY, { width: 330 })
         termsY += itemHeight + 3
       })
 
-      const notesY = Math.max(termsY + 8, footerY + 45)
+      const notesY = Math.max(termsY + 6, footerY + 45)
       if (data.notes) {
-        doc.rect(40, notesY, 340, 24).fillAndStroke('#f8fafc', borderColor)
-        doc.rect(40, notesY, 3, 24).fill(accent)
-        doc.font('Helvetica-Bold').fontSize(7).fillColor(darkText).text('NOTE:', 48, notesY + 4)
-        doc.font('Helvetica').fontSize(7).fillColor(mutedText).text(data.notes, 48, notesY + 13, { width: 325 })
+        const noteText = data.notes
+        doc.font('Helvetica').fontSize(7.5)
+        const noteTextHeight = doc.heightOfString(noteText, { width: 320 })
+        const noteBoxHeight = Math.max(24, noteTextHeight + 14)
+
+        doc.rect(40, notesY, 340, noteBoxHeight).fillAndStroke('#f8fafc', borderColor)
+        doc.rect(40, notesY, 3, noteBoxHeight).fill(accent)
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(darkText).text('NOTE:', 48, notesY + 3)
+        doc.font('Helvetica').fontSize(7).fillColor(mutedText).text(noteText, 48, notesY + 12, { width: 320 })
       }
 
       // Authorized Signatory
-      const signX = 400
+      const signX = 395
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(
         `For ${data.settings.companyName || 'Vibrantick Infotech Solutions'}`,
         signX,
         footerY,
-        { width: 145, align: 'center' }
+        { width: 160, align: 'center' }
       )
-      doc.moveTo(signX + 15, footerY + 50).lineTo(signX + 130, footerY + 50).strokeColor(borderColor).stroke()
+      doc.moveTo(signX + 15, footerY + 50).lineTo(signX + 145, footerY + 50).strokeColor(borderColor).stroke()
       doc.font('Helvetica').fontSize(7.5).fillColor(mutedText).text('Authorized Signatory', signX, footerY + 54, {
-        width: 145,
+        width: 160,
         align: 'center',
       })
 

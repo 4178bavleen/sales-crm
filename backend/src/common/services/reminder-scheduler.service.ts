@@ -70,7 +70,6 @@ export async function runReminderChecks() {
           entityId: task.id,
         })
         tasksNotified++
-        console.log(`[ReminderScheduler] Dispatched ${notifType} for Task #${task.id} to User #${task.assignedToId}`)
       }
     }
 
@@ -122,7 +121,6 @@ export async function runReminderChecks() {
             entityId: meeting.id,
           })
           meetingsNotified++
-          console.log(`[ReminderScheduler] Dispatched MEETING_UPCOMING_REMINDER for Meeting #${meeting.id} to User #${userId}`)
         }
       }
     }
@@ -169,7 +167,6 @@ export async function runReminderChecks() {
           entityId: lead.id,
         })
         followUpsNotified++
-        console.log(`[ReminderScheduler] Dispatched FOLLOW_UP_DUE_TODAY for Lead #${lead.id} to User #${lead.ownerId}`)
       }
     }
 
@@ -214,16 +211,11 @@ export async function runReminderChecks() {
           entityId: task.id,
         })
         followUpsNotified++
-        console.log(`[ReminderScheduler] Dispatched FOLLOW_UP_DUE_TODAY for Task #${task.id} to User #${task.assignedToId}`)
       }
     }
 
     // 4. Sales Target Milestones: Check active revenue targets for 50%, 80%, 100% attainment
     await checkTargetMilestones()
-
-    if (tasksNotified > 0 || meetingsNotified > 0 || followUpsNotified > 0) {
-      console.log(`[ReminderScheduler] Sent ${tasksNotified} task reminders, ${meetingsNotified} meeting reminders, and ${followUpsNotified} follow-up reminders.`)
-    }
   } catch (err) {
     console.error('Error running automated reminder check:', err)
   } finally {
@@ -235,7 +227,6 @@ export async function runReminderChecks() {
  * Initializes a background reminder timer running every 5 minutes.
  */
 export function initReminderScheduler() {
-  console.log('[ReminderScheduler] Initialized background scheduler (interval: 5m, initial check in 10s)')
   // Run first check 10 seconds after server start
   setTimeout(() => {
     void runReminderChecks()

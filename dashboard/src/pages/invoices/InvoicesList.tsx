@@ -71,7 +71,8 @@ export default function InvoicesList() {
       setSummary(res.summary);
     } catch (err: any) {
       console.error('[InvoicesList] Load failed:', err);
-      setError(err?.message || 'Failed to load invoices');
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      setError(isUserErr ? err.message : 'Unable to load invoices. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,9 @@ export default function InvoicesList() {
       setDeleteTarget(null);
       await loadData();
     } catch (err: any) {
-      alert(err?.message || 'Failed to delete invoice');
+      console.error('[InvoicesList] Delete error:', err);
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      alert(isUserErr ? err.message : 'Failed to delete invoice. Please try again.');
     } finally {
       setDeleting(false);
     }
@@ -100,7 +103,8 @@ export default function InvoicesList() {
     try {
       await downloadInvoicePdf(inv.id, inv.invoiceNumber);
     } catch (err: any) {
-      alert(err?.message || 'Failed to generate PDF');
+      console.error('[InvoicesList] PDF download error:', err);
+      alert('Unable to generate invoice PDF. Please try again.');
     }
   };
 

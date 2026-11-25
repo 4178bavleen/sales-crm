@@ -123,7 +123,7 @@ export default function InvoiceSettings() {
         }
       } catch (err: any) {
         console.error('[InvoiceSettings] Load error:', err);
-        setErrorMsg('Failed to load invoice settings');
+        setErrorMsg('Unable to load invoice settings. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -169,7 +169,8 @@ export default function InvoiceSettings() {
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
       console.error('[InvoiceSettings] Save error:', err);
-      setErrorMsg(err?.message || 'Failed to update invoice settings');
+      const isUserErr = err?.status && err.status < 500 && err.message && !err.message.includes('500');
+      setErrorMsg(isUserErr ? err.message : 'Failed to update invoice settings. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -179,8 +180,8 @@ export default function InvoiceSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (PNG, JPG, SVG, WebP)');
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+      alert('Please upload a PNG or JPG/JPEG image for PDF rendering compatibility');
       return;
     }
 
@@ -275,7 +276,7 @@ export default function InvoiceSettings() {
                 Upload Logo Image
                 <input
                   type="file"
-                  accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                  accept="image/png, image/jpeg"
                   onChange={handleLogoUpload}
                   className="hidden"
                 />

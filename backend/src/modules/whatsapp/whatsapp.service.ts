@@ -325,8 +325,6 @@ export async function sendNotificationWhatsApp(params: {
       accessToken: settings.accessToken,
       payload,
     })
-
-    console.log(`[WhatsAppService] Successfully sent WhatsApp alert "${params.title}" to +${cleanPhone}`)
   } catch (err: any) {
     console.error('[WhatsAppService] Failed to send WhatsApp alert:', err.message || err)
   }

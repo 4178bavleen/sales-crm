@@ -43,24 +43,83 @@ export async function ensureInvoicePermissions(): Promise<void> {
       })
     }
 
-    const rolesToAssign = await prisma.role.findMany({
-      where: { name: { in: ['ADMIN', 'SALES_MANAGER'] } },
+    const adminRole = await prisma.role.findFirst({
+      where: { name: 'ADMIN' },
+      select: { id: true },
+    })
+
+    const salesManagerRole = await prisma.role.findFirst({
+      where: { name: 'SALES_MANAGER' },
+      select: { id: true },
+    })
+
+    const salesEmployeeRole = await prisma.role.findFirst({
+      where: { name: 'SALES_EMPLOYEE' },
+      select: { id: true },
+    })
+
+    const reportViewerRole = await prisma.role.findFirst({
+      where: { name: 'REPORT_VIEWER' },
       select: { id: true },
     })
 
     const dbPermissions = await prisma.permission.findMany({
       where: { code: { startsWith: 'invoices.' } },
-      select: { id: true },
+      select: { id: true, code: true },
     })
 
-    for (const role of rolesToAssign) {
+    if (adminRole) {
       await prisma.rolePermission.createMany({
         data: dbPermissions.map((p) => ({
-          roleId: role.id,
+          roleId: adminRole.id,
           permissionId: p.id,
         })),
         skipDuplicates: true,
       })
+    }
+
+    if (salesManagerRole) {
+      const nonSettingsPermissions = dbPermissions.filter((p) => p.code !== 'invoices.settings')
+      await prisma.rolePermission.createMany({
+        data: nonSettingsPermissions.map((p) => ({
+          roleId: salesManagerRole.id,
+          permissionId: p.id,
+        })),
+        skipDuplicates: true,
+      })
+
+      const settingsPerm = dbPermissions.find((p) => p.code === 'invoices.settings')
+      if (settingsPerm) {
+        await prisma.rolePermission.deleteMany({
+          where: {
+            roleId: salesManagerRole.id,
+            permissionId: settingsPerm.id,
+          },
+        })
+      }
+    }
+
+    if (salesEmployeeRole) {
+      const employeePerms = dbPermissions.filter((p) =>
+        ['invoices.view', 'invoices.create', 'invoices.edit'].includes(p.code)
+      )
+      await prisma.rolePermission.createMany({
+        data: employeePerms.map((p) => ({
+          roleId: salesEmployeeRole.id,
+          permissionId: p.id,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
+    if (reportViewerRole) {
+      const viewPerm = dbPermissions.find((p) => p.code === 'invoices.view')
+      if (viewPerm) {
+        await prisma.rolePermission.createMany({
+          data: [{ roleId: reportViewerRole.id, permissionId: viewPerm.id }],
+          skipDuplicates: true,
+        })
+      }
     }
   } catch (err) {
     console.error('[InvoiceService] Failed to ensure invoice permissions:', err)
@@ -297,7 +356,30 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
     where: { invoiceNumber },
   })
   if (existing) {
-    throw new InvoiceServiceError(`Invoice number "${invoiceNumber}" already exists`, 409)
+    // If the conflicting invoice number was the previewed sequential number, atomically generate the next available sequence number
+    const isSequentialPattern = invoiceNumber.startsWith(settings.invoicePrefix)
+    if (isSequentialPattern) {
+      invoiceNumber = await getNextInvoiceNumber()
+    } else {
+      throw new InvoiceServiceError(`Invoice number "${invoiceNumber}" already exists`, 409)
+    }
+  }
+
+  // Validate and sanitize any productServiceIds in items
+  const productIds = input.items
+    .map((i) => i.productServiceId)
+    .filter((id): id is number => typeof id === 'number' && id > 0)
+  if (productIds.length > 0) {
+    const existingProducts = await prisma.productService.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true },
+    })
+    const validIds = new Set(existingProducts.map((p) => p.id))
+    for (const item of input.items) {
+      if (item.productServiceId && !validIds.has(item.productServiceId)) {
+        item.productServiceId = null
+      }
+    }
   }
 
   const { subtotal, taxAmount, totalDiscount, grandTotal, processedItems } = calculateTotals(
@@ -308,45 +390,97 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
 
   const amountDue = grandTotal
 
-  const invoice = await prisma.invoice.create({
-    data: {
-      invoiceNumber,
-      customerId: input.customerId,
-      dealId: input.dealId || null,
-      createdById: userId,
-      status: input.status || 'DRAFT',
-      templateEdition: input.templateEdition || settings.defaultTemplate,
-      taxType: input.taxType || 'INTRA_STATE',
-      currency: input.currency || 'INR',
-      issueDate: input.issueDate,
-      dueDate: input.dueDate,
+  let invoice
+  try {
+    invoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        customerId: input.customerId,
+        dealId: input.dealId || null,
+        createdById: userId,
+        status: input.status || 'DRAFT',
+        templateEdition: input.templateEdition || settings.defaultTemplate,
+        taxType: input.taxType || 'INTRA_STATE',
+        currency: input.currency || 'INR',
+        issueDate: input.issueDate,
+        dueDate: input.dueDate,
 
-      subtotal,
-      totalDiscount,
-      taxAmount,
-      grandTotal,
-      amountPaid: new Prisma.Decimal(0),
-      amountDue,
+        subtotal,
+        totalDiscount,
+        taxAmount,
+        grandTotal,
+        amountPaid: new Prisma.Decimal(0),
+        amountDue,
 
-      notes: input.notes !== undefined ? input.notes : settings.defaultNotes,
-      terms: input.terms !== undefined ? input.terms : settings.defaultTerms,
+        notes: input.notes !== undefined ? input.notes : settings.defaultNotes,
+        terms: input.terms !== undefined ? input.terms : settings.defaultTerms,
 
-      items: {
-        create: processedItems,
-      },
-    },
-    include: {
-      customer: {
-        include: {
-          company: true,
-          primaryContact: true,
+        items: {
+          create: processedItems,
         },
       },
-      deal: true,
-      items: true,
-      payments: true,
-    },
-  })
+      include: {
+        customer: {
+          include: {
+            company: true,
+            primaryContact: true,
+          },
+        },
+        deal: true,
+        items: true,
+        payments: true,
+      },
+    })
+  } catch (createErr) {
+    if (
+      createErr instanceof Prisma.PrismaClientKnownRequestError &&
+      createErr.code === 'P2002'
+    ) {
+      // Allocate next sequence number and retry once
+      const fallbackNumber = await getNextInvoiceNumber()
+      invoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber: fallbackNumber,
+          customerId: input.customerId,
+          dealId: input.dealId || null,
+          createdById: userId,
+          status: input.status || 'DRAFT',
+          templateEdition: input.templateEdition || settings.defaultTemplate,
+          taxType: input.taxType || 'INTRA_STATE',
+          currency: input.currency || 'INR',
+          issueDate: input.issueDate,
+          dueDate: input.dueDate,
+
+          subtotal,
+          totalDiscount,
+          taxAmount,
+          grandTotal,
+          amountPaid: new Prisma.Decimal(0),
+          amountDue,
+
+          notes: input.notes !== undefined ? input.notes : settings.defaultNotes,
+          terms: input.terms !== undefined ? input.terms : settings.defaultTerms,
+
+          items: {
+            create: processedItems,
+          },
+        },
+        include: {
+          customer: {
+            include: {
+              company: true,
+              primaryContact: true,
+            },
+          },
+          deal: true,
+          items: true,
+          payments: true,
+        },
+      })
+    } else {
+      throw createErr
+    }
+  }
 
   void logAudit({
     actorId: userId,
@@ -363,12 +497,12 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
  * Updates an invoice
  */
 export async function updateInvoice(id: number, input: UpdateInvoiceInput, userId: number) {
-  const existing = await prisma.invoice.findUnique({
-    where: { id },
+  const existing = await prisma.invoice.findFirst({
+    where: { id, deletedAt: null },
     include: { items: true, payments: true },
   })
   if (!existing) {
-    throw new InvoiceServiceError('Invoice not found', 404)
+    throw new InvoiceServiceError('Invoice not found or has been deleted', 404)
   }
 
   const taxType = input.taxType || existing.taxType
@@ -380,6 +514,23 @@ export async function updateInvoice(id: number, input: UpdateInvoiceInput, userI
   let processedItems = null
 
   if (input.items && input.items.length > 0) {
+    // Validate and sanitize any productServiceIds in items
+    const productIds = input.items
+      .map((i) => i.productServiceId)
+      .filter((id): id is number => typeof id === 'number' && id > 0)
+    if (productIds.length > 0) {
+      const existingProducts = await prisma.productService.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true },
+      })
+      const validIds = new Set(existingProducts.map((p) => p.id))
+      for (const item of input.items) {
+        if (item.productServiceId && !validIds.has(item.productServiceId)) {
+          item.productServiceId = null
+        }
+      }
+    }
+
     const calc = calculateTotals(input.items, taxType, totalDiscount)
     subtotal = calc.subtotal
     taxAmount = calc.taxAmount
@@ -542,15 +693,27 @@ export async function listInvoices(input: ListInvoicesInput) {
     prisma.invoice.count({ where }),
   ])
 
-  // Summary aggregation
+  // Summary aggregation (exclude CANCELLED invoices from financial totals)
   const summaryAggregations = await prisma.invoice.groupBy({
     by: ['status'],
-    where: { deletedAt: null },
+    where: {
+      deletedAt: null,
+      status: { not: 'CANCELLED' },
+    },
     _sum: {
       grandTotal: true,
       amountPaid: true,
       amountDue: true,
     },
+    _count: {
+      id: true,
+    },
+  })
+
+  // Get total count per status including CANCELLED for status badge tallies
+  const allStatusCounts = await prisma.invoice.groupBy({
+    by: ['status'],
+    where: { deletedAt: null },
     _count: {
       id: true,
     },
@@ -563,8 +726,11 @@ export async function listInvoices(input: ListInvoicesInput) {
     statusCounts: {} as Record<string, number>,
   }
 
-  summaryAggregations.forEach((item) => {
+  allStatusCounts.forEach((item) => {
     summary.statusCounts[item.status] = item._count.id
+  })
+
+  summaryAggregations.forEach((item) => {
     summary.totalInvoiced += Number(item._sum.grandTotal || 0)
     summary.totalPaid += Number(item._sum.amountPaid || 0)
     summary.totalOutstanding += Number(item._sum.amountDue || 0)
@@ -621,13 +787,13 @@ export async function getInvoiceById(id: number) {
  * Deletes an invoice
  */
 export async function deleteInvoice(id: number, userId: number) {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, deletedAt: null },
     include: { payments: true },
   })
 
   if (!invoice) {
-    throw new InvoiceServiceError('Invoice not found', 404)
+    throw new InvoiceServiceError('Invoice not found or already deleted', 404)
   }
 
   if (invoice.payments.length > 0) {
@@ -657,8 +823,8 @@ export async function deleteInvoice(id: number, userId: number) {
  * Records a payment against an invoice and automatically synchronizes with Cashflow (Expense/Income)
  */
 export async function recordInvoicePayment(invoiceId: number, input: RecordPaymentInput, userId: number) {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, deletedAt: null },
     include: {
       customer: {
         include: {
@@ -671,11 +837,23 @@ export async function recordInvoicePayment(invoiceId: number, input: RecordPayme
   })
 
   if (!invoice) {
-    throw new InvoiceServiceError('Invoice not found', 404)
+    throw new InvoiceServiceError('Invoice not found or has been deleted', 404)
+  }
+
+  if (invoice.status === 'CANCELLED') {
+    throw new InvoiceServiceError('Cannot record payment for a cancelled invoice', 400)
   }
 
   if (invoice.status === 'PAID') {
     throw new InvoiceServiceError('Invoice is already fully paid', 400)
+  }
+
+  const currentAmountDue = Number(invoice.amountDue)
+  if (input.amount > currentAmountDue) {
+    throw new InvoiceServiceError(
+      `Payment amount (₹${input.amount}) exceeds the remaining balance due (₹${currentAmountDue})`,
+      400
+    )
   }
 
   const currentAmountPaid = Number(invoice.amountPaid)
@@ -853,7 +1031,16 @@ export async function generateInvoicePdf(invoiceId: number) {
           contactPerson: invoice.customer.primaryContact?.fullName || null,
           email: invoice.customer.primaryContact?.email || null,
           phone: invoice.customer.primaryContact?.phone || invoice.customer.company?.phone || null,
-          address: invoice.customer.company?.address || null,
+          address: [
+            invoice.customer.company?.address,
+            invoice.customer.company?.city,
+            invoice.customer.company?.state,
+            invoice.customer.company?.country,
+          ]
+            .filter(Boolean)
+            .map((s) => String(s).trim())
+            .filter(Boolean)
+            .join(', ') || null,
         }
       : null,
     items: invoice.items.map((i) => ({
@@ -1035,17 +1222,19 @@ export async function sendInvoiceEmail(invoiceId: number, input?: SendInvoiceEma
     }
   }
 
-  // Update invoice status and emailSentAt
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      emailSentAt: new Date(),
-      status: invoice.status === 'DRAFT' || invoice.status === 'ISSUED' ? 'SENT' : invoice.status,
-    },
-  })
+  // Only update invoice status and emailSentAt if email was actually dispatched or simulated successfully
+  if (dispatchResult.sent) {
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        emailSentAt: new Date(),
+        status: invoice.status === 'DRAFT' || invoice.status === 'ISSUED' ? 'SENT' : invoice.status,
+      },
+    })
+  }
 
   return {
-    success: true,
+    success: dispatchResult.sent,
     recipient,
     subject,
     ...dispatchResult,
@@ -1152,17 +1341,21 @@ Thank you for your business!`
     }
   }
 
-  // Update invoice status and whatsappSentAt
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      whatsappSentAt: new Date(),
-      status: invoice.status === 'DRAFT' || invoice.status === 'ISSUED' ? 'SENT' : invoice.status,
-    },
-  })
+  // Update invoice status and whatsappSentAt if message was dispatched via Meta or direct WhatsApp URL is prepared
+  const isDeliveredOrReady = metaApiResult.dispatchedViaMeta || (!whatsAppSettings?.accessToken && directWhatsAppUrl)
+
+  if (isDeliveredOrReady) {
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        whatsappSentAt: new Date(),
+        status: invoice.status === 'DRAFT' || invoice.status === 'ISSUED' ? 'SENT' : invoice.status,
+      },
+    })
+  }
 
   return {
-    success: true,
+    success: Boolean(isDeliveredOrReady),
     recipientPhone,
     officialSenderNumber: officialNumber,
     directWhatsAppUrl,

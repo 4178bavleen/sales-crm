@@ -1,5 +1,6 @@
 
 import type { ErrorRequestHandler } from 'express'
+import fs from 'fs'
 import { AppError } from '../errors/AppErrors.js'
 
 export const errorMiddleware: ErrorRequestHandler = (
@@ -8,11 +9,20 @@ export const errorMiddleware: ErrorRequestHandler = (
   res,
   _next,
 ) => {
-  const statusCode =
-    error instanceof AppError ? error.statusCode : 500
+  const isJsonParseError =
+    error !== null &&
+    typeof error === 'object' &&
+    (error as { type?: string }).type === 'entity.parse.failed'
 
-  const message =
-    error instanceof AppError
+  const statusCode = isJsonParseError
+    ? 400
+    : error instanceof AppError
+      ? error.statusCode
+      : 500
+
+  const message = isJsonParseError
+    ? 'Invalid JSON payload'
+    : error instanceof AppError
       ? error.message
       : 'Internal server error'
 
@@ -21,6 +31,14 @@ export const errorMiddleware: ErrorRequestHandler = (
   if (statusCode >= 500) {
     console.error(`\x1b[31m[${timestamp}] [ERROR ${statusCode}] ${req.method} ${req.originalUrl || req.url}\x1b[0m`)
     console.error(error)
+    try {
+      fs.appendFileSync(
+        '/tmp/crm_last_error.log',
+        `\n[${timestamp}] [ERROR ${statusCode}] ${req.method} ${req.originalUrl || req.url}\n${error && (error as any).stack ? (error as any).stack : String(error)}\nPayload: ${JSON.stringify(req.body)}\n`
+      )
+    } catch (e) {
+      console.error('Failed to write error log:', e)
+    }
   } else if (statusCode >= 400) {
     console.warn(`\x1b[33m[${timestamp}] [WARN ${statusCode}] ${req.method} ${req.originalUrl || req.url} - ${message}\x1b[0m`)
   }

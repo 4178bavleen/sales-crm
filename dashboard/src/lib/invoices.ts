@@ -66,7 +66,7 @@ export async function createInvoice(payload: CreateInvoicePayload): Promise<Invo
   const res = await request<any>(ENDPOINTS.invoices.create, {
     method: 'POST',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return (res?.data !== undefined ? res.data : res) as Invoice;
 }
@@ -76,7 +76,7 @@ export async function updateInvoice(id: number, payload: UpdateInvoicePayload): 
   const res = await request<any>(ENDPOINTS.invoices.update(id), {
     method: 'PATCH',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return (res?.data !== undefined ? res.data : res) as Invoice;
 }
@@ -94,7 +94,7 @@ export async function recordInvoicePayment(id: number, payload: RecordPaymentPay
   const res = await request<any>(ENDPOINTS.invoices.payments(id), {
     method: 'POST',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return res?.data !== undefined ? res.data : res;
 }
@@ -108,7 +108,7 @@ export async function downloadInvoicePdf(id: number, invoiceNumber: string): Pro
   });
 
   if (!response.ok) {
-    throw new Error('Failed to download invoice PDF');
+    throw new Error('Failed to download invoice PDF. Please try again.');
   }
 
   const blob = await response.blob();
@@ -130,7 +130,7 @@ export async function sendInvoiceEmail(
   const res = await request<any>(ENDPOINTS.invoices.email(id), {
     method: 'POST',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return res?.data !== undefined ? res.data : res;
 }
@@ -143,7 +143,7 @@ export async function sendInvoiceWhatsApp(
   const res = await request<any>(ENDPOINTS.invoices.whatsapp(id), {
     method: 'POST',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return res?.data !== undefined ? res.data : res;
 }
@@ -159,7 +159,7 @@ export async function updateInvoiceSettings(payload: Partial<InvoiceSetting>): P
   const res = await request<any>(ENDPOINTS.invoices.settings, {
     method: 'PUT',
     token,
-    body: JSON.stringify(payload),
+    body: payload,
   });
   return (res?.data !== undefined ? res.data : res) as InvoiceSetting;
 }
