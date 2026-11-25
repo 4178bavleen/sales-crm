@@ -215,6 +215,7 @@ export default function AuditLogs() {
                 <th className="px-4 py-3">Action</th>
                 <th className="px-4 py-3">Entity</th>
                 <th className="px-4 py-3">Performed By</th>
+                <th className="px-4 py-3">Origin / IP</th>
                 <th className="px-4 py-3">Change Details</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -222,7 +223,7 @@ export default function AuditLogs() {
             <tbody className="divide-y divide-slate-100 text-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-700">
+                  <td colSpan={8} className="py-12 text-center text-slate-700">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-[#1d61e7]" />
                       <span>Loading audit logs...</span>
@@ -231,7 +232,7 @@ export default function AuditLogs() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-700">
+                  <td colSpan={8} className="py-12 text-center text-slate-700">
                     <History className="mx-auto h-8 w-8 text-slate-400 mb-2" />
                     <span>No audit log records match the current filters.</span>
                   </td>
@@ -275,6 +276,28 @@ export default function AuditLogs() {
                             {actorEmail && <p className="text-[10px] text-slate-600">{actorEmail}</p>}
                           </div>
                         </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {log.ipAddress ? (
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11px] border ${
+                              log.ipAddress === "::1" || log.ipAddress === "127.0.0.1"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                log.ipAddress === "::1" || log.ipAddress === "127.0.0.1"
+                                  ? "bg-blue-500"
+                                  : "bg-emerald-500"
+                              }`}
+                            />
+                            {log.ipAddress === "::1" ? "127.0.0.1" : log.ipAddress}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] italic">System Event</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 max-w-sm">
                         <p className="text-xs text-slate-800 font-medium truncate" title={formatAuditSummary(log)}>

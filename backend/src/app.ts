@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env.js'
 import { requestLogger } from './common/middleware/logger.middleware.js'
+import { requestContextMiddleware } from './common/context/request-context.js'
 import { notFoundMiddleware } from './common/middleware/not-found.middleware.js'
 import { errorMiddleware } from './common/middleware/error.middleware.js'
 import dealRoutes from "./modules/deals/deal.routes.js";
@@ -33,8 +34,10 @@ import invoiceRoutes from './modules/invoices/invoice.routes.js'
 
 
 const app = express()
+app.set('trust proxy', true)
 app.disable('x-powered-by')
 
+app.use(requestContextMiddleware)
 app.use(helmet())
 
 app.use(

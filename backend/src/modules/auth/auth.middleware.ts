@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { env } from '../../config/env.js'
 import type { JwtPayload } from './auth.types.js'
 import { getUserProfile } from './auth.service.js';
+import { getRequestContext } from '../../common/context/request-context.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -47,6 +48,11 @@ export async function authenticateToken(
       id: user.id,
       role: user.role,
     };
+
+    const ctx = getRequestContext();
+    if (ctx) {
+      ctx.actorId = user.id;
+    }
 
     next();
   } catch (error) {

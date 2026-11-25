@@ -4,21 +4,14 @@ import * as authService from './auth.service.js'
 import { loginSchema } from './auth.validation.js'
 import { logAudit } from '../audit/audit.service.js'
 import type { AuthenticatedRequest } from './auth.middleware.js'
-
-function getClientIp(req: Request): string | null {
-  const forwarded = req.headers['x-forwarded-for']
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim()
-  }
-  return req.ip || null
-}
+import { extractClientIp } from '../../common/context/request-context.js'
 
 export async function login(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const ipAddress = getClientIp(req)
+  const ipAddress = extractClientIp(req)
   try {
     const input = loginSchema.parse(req.body)
     const result = await authService.loginUser(input)
@@ -89,7 +82,7 @@ export async function me(
 
 export function logout(req: Request, res: Response): void {
   const userId = (req as AuthenticatedRequest).user?.id
-  const ipAddress = getClientIp(req)
+  const ipAddress = extractClientIp(req)
 
   if (userId) {
     void logAudit({

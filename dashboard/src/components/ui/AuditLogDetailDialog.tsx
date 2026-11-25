@@ -192,9 +192,28 @@ export default function AuditLogDetailDialog({
                 <Globe size={12} className="text-slate-500" />
                 Origin / Client IP
               </span>
-              <p className="mt-1 font-mono text-xs font-bold text-slate-800">
-                {log.ipAddress || "Internal Server / Loopback"}
-              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-slate-800">
+                  {log.ipAddress
+                    ? log.ipAddress === "::1" || log.ipAddress === "127.0.0.1"
+                      ? "127.0.0.1"
+                      : log.ipAddress
+                    : "Direct System Event"}
+                </span>
+                {log.ipAddress && log.ipAddress !== "::1" && log.ipAddress !== "127.0.0.1" ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Client IP
+                  </span>
+                ) : log.ipAddress ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                    Localhost
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    System
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

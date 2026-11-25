@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.js'
+import { getRequestIp, getRequestContext } from '../../common/context/request-context.js'
 
 export class AuditLogServiceError extends Error {
   statusCode: number
@@ -22,15 +23,19 @@ export type CreateAuditLogInput = {
 
 export async function logAudit(input: CreateAuditLogInput) {
   try {
+    const ctx = getRequestContext()
+    const resolvedIp = input.ipAddress ?? getRequestIp() ?? null
+    const resolvedActorId = input.actorId ?? ctx?.actorId ?? null
+
     return await prisma.auditLog.create({
       data: {
-        actorId: input.actorId ?? null,
+        actorId: resolvedActorId,
         action: input.action.trim(),
         entityType: input.entityType.trim().toUpperCase(),
         entityId: input.entityId,
         before: (input.before as any) ?? undefined,
         after: (input.after as any) ?? undefined,
-        ipAddress: input.ipAddress ?? null,
+        ipAddress: resolvedIp,
       },
     })
   } catch (error) {
