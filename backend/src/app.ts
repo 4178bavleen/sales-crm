@@ -28,6 +28,8 @@ import emailSettingsRoutes from './modules/email/email.routes.js'
 import whatsAppSettingsRoutes from './modules/whatsapp/whatsapp.routes.js'
 import facebookSettingsRoutes from './modules/facebook/facebook.routes.js'
 import facebookWebhookRoutes from './modules/facebook/webhook.routes.js'
+import expenseRoutes from './modules/expenses/expense.routes.js'
+import invoiceRoutes from './modules/invoices/invoice.routes.js'
 
 
 const app = express()
@@ -98,6 +100,8 @@ app.use('/api/v1/settings/email', emailSettingsRoutes)
 app.use('/api/v1/settings/whatsapp', whatsAppSettingsRoutes)
 app.use('/api/v1/settings/facebook', facebookSettingsRoutes)
 app.use('/api/v1/webhooks/facebook', facebookWebhookRoutes)
+app.use('/api/v1/expenses', expenseRoutes)
+app.use('/api/v1/invoices', invoiceRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 

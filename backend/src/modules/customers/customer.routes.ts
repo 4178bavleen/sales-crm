@@ -8,17 +8,17 @@ import {
   getOptions,
 } from './customer.controller.js'
 import { authenticateToken } from '../auth/auth.middleware.js'
-import { requirePermission } from '../permission/permission.middleware.js'
+import { requirePermission, requireAnyPermission } from '../permission/permission.middleware.js'
 
 const router = Router()
 
 // All customer routes require authentication.
 router.use(authenticateToken)
 
-router.get('/options', getOptions)
+router.get('/options', requireAnyPermission('deals.view', 'invoices.view', 'invoices.create', 'leads.view'), getOptions)
 router.post('/', requirePermission('deals.create'), createCustomer)
-router.get('/', requirePermission('deals.view'), listCustomers)
-router.get('/:id', requirePermission('deals.view'), getCustomer)
+router.get('/', requireAnyPermission('deals.view', 'invoices.view', 'invoices.create', 'leads.view'), listCustomers)
+router.get('/:id', requireAnyPermission('deals.view', 'invoices.view', 'invoices.create', 'leads.view'), getCustomer)
 router.patch('/:id', requirePermission('deals.edit'), updateCustomer)
 router.delete('/:id', requirePermission('deals.delete'), removeCustomer)
 

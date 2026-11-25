@@ -24,6 +24,11 @@ import AuditLogs from "./pages/audit-logs/AuditLogs";
 import Documents from "./pages/documents/Documents";
 import Proposals from "./pages/proposals/Proposals";
 import Settings from "./pages/settings/Settings";
+import Expenses from "./pages/expenses/Expenses";
+import InvoicesList from "./pages/invoices/InvoicesList";
+import InvoiceForm from "./pages/invoices/InvoiceForm";
+import InvoiceView from "./pages/invoices/InvoiceView";
+import InvoiceSettings from "./pages/invoices/InvoiceSettings";
 import FacebookOAuthCallback from "./pages/settings/FacebookOAuthCallback";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
@@ -32,13 +37,13 @@ import "./App.css";
 /** The signed-in workspace: sidebar + topbar wrapped around the routed page. */
 function AppShell() {
   return (
-    <div className="min-h-screen bg-[#f4f6f8]">
+    <div className="min-h-screen bg-[#f4f6f8] print:bg-white">
       <Sidebar />
 
-      <div className="min-h-screen md:ml-64 flex flex-col">
+      <div className="min-h-screen md:ml-64 print:ml-0 flex flex-col">
         <Topbar />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-7">
+        <main className="flex-1 p-4 md:p-6 lg:p-7 print:p-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
@@ -70,6 +75,15 @@ function AppShell() {
             <Route path="/permissions" element={<RolesAndPermissions />} />
             <Route path="/roles-permissions" element={<RolesAndPermissions />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/expense" element={<Expenses />} />
+            <Route path="/expense-management" element={<Expenses />} />
+            <Route path="/invoices" element={<InvoicesList />} />
+            <Route path="/invoice" element={<InvoicesList />} />
+            <Route path="/invoices/new" element={<InvoiceForm />} />
+            <Route path="/invoices/settings" element={<InvoiceSettings />} />
+            <Route path="/invoices/:id" element={<InvoiceView />} />
+            <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
             <Route path="/settings/facebook/callback" element={<FacebookOAuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

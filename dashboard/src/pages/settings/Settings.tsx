@@ -171,7 +171,7 @@ export default function Settings() {
           setEmailForm((prev) => ({
             ...prev,
             ...data,
-            smtpPass: "",
+            smtpPass: data.smtpPass ?? "",
           }));
         }
       } catch (err: any) {
@@ -317,7 +317,7 @@ export default function Settings() {
         setEmailForm((prev) => ({
           ...prev,
           ...data,
-          smtpPass: "",
+          smtpPass: data.smtpPass ?? prev.smtpPass ?? "",
         }));
       }
 

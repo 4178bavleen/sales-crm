@@ -15,6 +15,7 @@ export type EmailSettingsDto = {
   smtpPort: number
   smtpSecure: boolean
   smtpUser: string
+  smtpPass?: string
   hasPassword: boolean
   fromEmail: string
   fromName: string
@@ -74,6 +75,7 @@ export async function getEmailSettings(): Promise<EmailSettingsDto> {
     smtpPort: settings.smtpPort,
     smtpSecure: settings.smtpSecure,
     smtpUser: settings.smtpUser,
+    smtpPass: settings.smtpPass || '',
     hasPassword: Boolean(settings.smtpPass && settings.smtpPass.trim().length > 0),
     fromEmail: settings.fromEmail,
     fromName: settings.fromName,
@@ -146,6 +148,7 @@ export async function updateEmailSettings(input: UpdateEmailSettingsInput): Prom
     smtpPort: updated.smtpPort,
     smtpSecure: updated.smtpSecure,
     smtpUser: updated.smtpUser,
+    smtpPass: updated.smtpPass || '',
     hasPassword: Boolean(updated.smtpPass && updated.smtpPass.trim().length > 0),
     fromEmail: updated.fromEmail,
     fromName: updated.fromName,
@@ -314,8 +317,6 @@ export async function sendNotificationEmail(params: {
       text: `${params.title}\n\n${params.body || ''}`,
       html,
     })
-
-    console.log(`[EmailService] Sent email notification "${params.title}" to ${user.email}`)
   } catch (err: any) {
     console.error('[EmailService] Failed to send email alert:', err.message || err)
   }

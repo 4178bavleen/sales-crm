@@ -118,6 +118,27 @@ enum DiscountType {
   FIXED
 }
 
+enum FinancialTransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CREDIT_CARD
+  DEBIT_CARD
+  CHEQUE
+  OTHER
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  CANCELLED
+}
+
 // ---------------------------------------------------------------------
 // 1. USERS & ACCESS
 // ---------------------------------------------------------------------
@@ -210,6 +231,8 @@ model User {
   createdProposals    Proposal[]           @relation("ProposalCreatedBy")
   approvedProposals   Proposal[]           @relation("ProposalApprovedBy")
   facebookDefaultOwners FacebookSetting[]  @relation("FacebookDefaultOwner")
+  financialTransactions FinancialTransaction[] @relation("TransactionCreatedBy")
+  invoicesCreated       Invoice[]              @relation("InvoiceCreatedBy")
 
   @@index([roleId])
   @@index([teamId])
@@ -241,6 +264,7 @@ model ProductService {
   leads Lead[]
   deals Deal[]
   proposalItems ProposalItem[]
+  invoiceItems InvoiceItem[]
 
   @@index([type, isActive])
   @@map("products_services")
@@ -354,6 +378,8 @@ model Customer {
   meetings           Meeting[]
   documents          Document[]
   proposals          Proposal[]
+  financialTransactions FinancialTransaction[]
+  invoices              Invoice[]
 
   @@index([companyId])
   @@index([ownerId])
@@ -498,6 +524,8 @@ model Deal {
   meetings     Meeting[]
   documents    Document[]
   proposals    Proposal[]
+  financialTransactions FinancialTransaction[]
+  invoices              Invoice[]
 
   @@index([ownerId, status])
   @@index([stageId, status])
@@ -1001,4 +1029,191 @@ model ProposalItem {
 
   @@index([proposalId, position])
   @@map("proposal_items")
+}
+
+// ---------------------------------------------------------------------
+// 10. EXPENSE & FINANCIAL TRANSACTIONS
+// ---------------------------------------------------------------------
+
+model FinancialTransaction {
+  id              Int                      @id @default(autoincrement())
+  type            FinancialTransactionType
+  title           String                   @db.VarChar(255)
+  amount          Decimal                  @db.Decimal(14, 2)
+  category        String                   @db.VarChar(100)
+  paymentMethod   TransactionPaymentMethod @default(BANK_TRANSFER)
+  status          TransactionStatus        @default(COMPLETED)
+  reference       String?                  @db.VarChar(100)
+  transactionDate DateTime                 @default(now())
+  description     String?                  @db.Text
+  createdById     Int?
+  customerId      Int?
+  dealId          Int?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  deletedAt       DateTime?
+
+  createdBy User?     @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal      Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  invoicePayments InvoicePayment[]
+
+  @@index([type])
+  @@index([transactionDate])
+  @@index([category])
+  @@index([status])
+  @@index([createdById])
+  @@index([customerId])
+  @@index([dealId])
+  @@index([deletedAt])
+  @@map("financial_transactions")
+}
+
+// ---------------------------------------------------------------------
+// 11. INVOICE MANAGEMENT SYSTEM
+// ---------------------------------------------------------------------
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum InvoiceTaxType {
+  INTRA_STATE // CGST + SGST
+  INTER_STATE // IGST
+  EXEMPT      // Zero tax / Export / Exempt
+}
+
+enum InvoiceTemplateEdition {
+  MODERN_EXECUTIVE
+  CLASSIC_CORPORATE
+  MINIMALIST_CLEAN
+  VIBRANT_TECH
+}
+
+model Invoice {
+  id              Int                    @id @default(autoincrement())
+  invoiceNumber   String                 @unique @db.VarChar(50)
+  customerId      Int?
+  dealId          Int?
+  createdById     Int?
+  status          InvoiceStatus          @default(DRAFT)
+  issueDate       DateTime               @db.Date
+  dueDate         DateTime               @db.Date
+  currency        String                 @default("INR") @db.VarChar(10)
+  taxType         InvoiceTaxType         @default(INTRA_STATE)
+  templateEdition InvoiceTemplateEdition @default(MODERN_EXECUTIVE)
+
+  subtotal      Decimal @db.Decimal(14, 2)
+  totalDiscount Decimal @default(0) @db.Decimal(14, 2)
+  taxAmount     Decimal @default(0) @db.Decimal(14, 2)
+  grandTotal    Decimal @db.Decimal(14, 2)
+  amountPaid    Decimal @default(0) @db.Decimal(14, 2)
+  amountDue     Decimal @db.Decimal(14, 2)
+
+  notes          String?   @db.Text
+  terms          String?   @db.Text
+  pdfUrl         String?   @db.VarChar(500)
+  emailSentAt    DateTime?
+  whatsappSentAt DateTime?
+  cancelledAt    DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal      Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdBy User?     @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  items    InvoiceItem[]
+  payments InvoicePayment[]
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([dealId])
+  @@index([createdById])
+  @@index([status])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@index([deletedAt])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id               Int      @id @default(autoincrement())
+  invoiceId        Int
+  productServiceId Int?
+  itemName         String   @db.VarChar(255)
+  description      String?  @db.Text
+  quantity         Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice        Decimal  @db.Decimal(14, 2)
+  discountPercent  Decimal  @default(0) @db.Decimal(5, 2)
+  taxPercent       Decimal  @default(18) @db.Decimal(5, 2)
+  lineTotal        Decimal  @db.Decimal(14, 2)
+
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productService ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([productServiceId])
+  @@map("invoice_items")
+}
+
+model InvoicePayment {
+  id                     Int                      @id @default(autoincrement())
+  invoiceId              Int
+  amount                 Decimal                  @db.Decimal(14, 2)
+  paymentDate            DateTime                 @default(now())
+  paymentMethod          TransactionPaymentMethod @default(BANK_TRANSFER)
+  reference              String?                  @db.VarChar(100)
+  notes                  String?                  @db.Text
+  financialTransactionId Int?
+  createdAt              DateTime                 @default(now())
+
+  invoice              Invoice               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  financialTransaction FinancialTransaction? @relation(fields: [financialTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([financialTransactionId])
+  @@map("invoice_payments")
+}
+
+model InvoiceSetting {
+  id                   Int                    @id @default(autoincrement())
+  companyName          String                 @default("Vibrantick Infotech Solutions") @db.VarChar(255)
+  companyLogo          String?                @db.Text
+  companyEmail         String                 @default("info@vibrantick.in") @db.VarChar(255)
+  companyPhone         String                 @default("+91 8699792040") @db.VarChar(50)
+  whatsappNumber       String                 @default("8699792040") @db.VarChar(50)
+  addressLine1         String?                @db.VarChar(255)
+  city                 String                 @default("Mohali") @db.VarChar(100)
+  state                String                 @default("Punjab") @db.VarChar(100)
+  country              String                 @default("India") @db.VarChar(100)
+  pincode              String?                @db.VarChar(20)
+  gstin                String?                @db.VarChar(30)
+  panNumber            String?                @db.VarChar(20)
+  bankName             String?                @db.VarChar(100)
+  bankAccountNo        String?                @db.VarChar(50)
+  bankIfsc             String?                @db.VarChar(30)
+  bankBranch           String?                @db.VarChar(100)
+  upiId                String?                @db.VarChar(100)
+  invoicePrefix        String                 @default("VIS-INV-") @db.VarChar(20)
+  nextNumber           Int                    @default(1001)
+  defaultTemplate      InvoiceTemplateEdition @default(MODERN_EXECUTIVE)
+  brandColor           String                 @default("#1d61e7") @db.VarChar(30)
+  defaultNotes         String?                @db.Text
+  defaultTerms         String?                @db.Text
+  autoInvoiceOnDealWon Boolean                @default(true)
+  autoSyncCashflow     Boolean                @default(true)
+  updatedAt            DateTime               @updatedAt
+  createdAt            DateTime               @default(now())
+
+  @@map("invoice_settings")
 }
