@@ -57,6 +57,7 @@ const permissions = [
   ['proposals.create', 'Create customer proposals'],
   ['proposals.edit', 'Edit customer proposals'],
   ['proposals.delete', 'Delete customer proposals'],
+  ['proposals.approve', 'Approve customer proposals before sending'],
   ['proposals.send', 'Send customer proposals'],
 ]
 

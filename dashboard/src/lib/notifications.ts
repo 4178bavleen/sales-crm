@@ -122,7 +122,7 @@ export function formatNotificationTime(dateString: string): string {
 }
 
 export type NotificationMetadata = {
-  category: "task" | "lead" | "deal" | "meeting" | "document" | "target" | "followup" | "general";
+  category: "task" | "lead" | "deal" | "meeting" | "document" | "target" | "followup" | "proposal" | "general";
   categoryLabel: string;
   targetUrl: string | null;
   badgeClass: string;
@@ -206,6 +206,18 @@ export function getNotificationMetadata(item: NotificationItem): NotificationMet
       badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
       iconBgClass: "bg-amber-50",
       iconTextClass: "text-amber-600",
+    };
+  }
+
+  // Proposal workflow notifications
+  if (typeUpper.includes("PROPOSAL") || entityType === "proposal") {
+    return {
+      category: "proposal",
+      categoryLabel: "Proposal",
+      targetUrl: "/proposals",
+      badgeClass: "bg-violet-50 text-violet-700 border-violet-200",
+      iconBgClass: "bg-violet-50",
+      iconTextClass: "text-violet-600",
     };
   }
 

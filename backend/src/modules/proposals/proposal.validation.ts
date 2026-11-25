@@ -40,7 +40,7 @@ export const updateProposalSchema = z.object({
   leadId: z.coerce.number().int().positive().nullable().optional(),
   dealId: z.coerce.number().int().positive().nullable().optional(),
   ownerId: z.coerce.number().int().positive().optional(),
-  status: z.enum(['DRAFT', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']).optional(),
+  status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']).optional(),
   currency: z.string().optional(),
   issueDate: z.string().or(z.date()).optional(),
   validUntil: z.string().or(z.date()).optional(),
@@ -55,15 +55,23 @@ export const updateProposalSchema = z.object({
 })
 
 export const updateProposalStatusSchema = z.object({
-  status: z.enum(['DRAFT', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
+  status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
   rejectionReason: z.string().nullable().optional(),
+})
+
+export const approveProposalSchema = z.object({
+  note: z.string().max(1000).nullable().optional(),
+})
+
+export const requestProposalChangesSchema = z.object({
+  reason: z.string().max(1000).nullable().optional(),
 })
 
 export const proposalFilterSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional(),
-  status: z.enum(['ALL', 'DRAFT', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']).default('ALL'),
+  status: z.enum(['ALL', 'DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'EXPIRED']).default('ALL'),
   customerId: z.coerce.number().int().positive().optional(),
   dealId: z.coerce.number().int().positive().optional(),
   ownerId: z.coerce.number().int().positive().optional(),

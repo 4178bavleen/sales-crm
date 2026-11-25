@@ -16,8 +16,11 @@ import {
   FileText,
   Clock,
   Tag,
+  ShieldCheck,
+  RotateCcw,
 } from 'lucide-react'
 import StatCard from '../../components/ui/StatCard'
+import { useSession } from '../../lib/useSession'
 import {
   fetchProposals,
   fetchProposalStats,
@@ -25,6 +28,9 @@ import {
   createProposal,
   updateProposal,
   updateProposalStatus,
+  submitProposalForApproval,
+  approveProposal,
+  requestProposalChanges,
   sendProposal,
   deleteProposal,
 } from '../../lib/proposals'
@@ -39,12 +45,19 @@ import type {
 const CURRENCIES = [{ code: 'INR', symbol: '₹', name: 'Indian Rupee' }]
 
 export default function Proposals() {
+  const session = useSession()
+  const isAdmin = session?.user?.role?.toUpperCase() === 'ADMIN'
+
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [stats, setStats] = useState<ProposalStats>({
     totalCount: 0,
     totalValue: 0,
     draftCount: 0,
     draftValue: 0,
+    pendingApprovalCount: 0,
+    pendingApprovalValue: 0,
+    approvedCount: 0,
+    approvedValue: 0,
     sentCount: 0,
     sentValue: 0,
     underReviewCount: 0,
@@ -74,6 +87,9 @@ export default function Proposals() {
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false)
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'changes'>('approve')
+  const [approvalNote, setApprovalNote] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -410,6 +426,39 @@ export default function Proposals() {
     }
   }
 
+  const handleSubmitForApproval = async (proposalId: number) => {
+    try {
+      const updated = await submitProposalForApproval(proposalId)
+      setSelectedProposal((prev) => (prev?.id === proposalId ? updated : prev))
+      loadData(true)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to submit proposal for approval')
+    }
+  }
+
+  const handleOpenApprovalModal = (prop: Proposal, action: 'approve' | 'changes') => {
+    setSelectedProposal(prop)
+    setApprovalAction(action)
+    setApprovalNote('')
+    setApprovalModalOpen(true)
+  }
+
+  const handleConfirmApproval = async () => {
+    if (!selectedProposal) return
+    try {
+      const note = approvalNote.trim() || undefined
+      const updated =
+        approvalAction === 'approve'
+          ? await approveProposal(selectedProposal.id, note)
+          : await requestProposalChanges(selectedProposal.id, note)
+      setApprovalModalOpen(false)
+      setSelectedProposal(updated)
+      loadData(true)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to review proposal')
+    }
+  }
+
   const handleMarkAccepted = async (proposalId: number) => {
     try {
       await updateProposalStatus(proposalId, 'ACCEPTED')
@@ -469,6 +518,20 @@ export default function Proposals() {
           <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
             Draft
+          </span>
+        )
+      case 'PENDING_APPROVAL':
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+            <Clock size={11} />
+            Pending Approval
+          </span>
+        )
+      case 'APPROVED':
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <ShieldCheck size={11} />
+            Approved
           </span>
         )
       case 'SENT':
@@ -569,7 +632,7 @@ export default function Proposals() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <StatCard
           label="Total Proposals"
           value={stats.totalCount}
@@ -583,6 +646,13 @@ export default function Proposals() {
           subtext={`Value: ${formatCurrency(stats.draftValue)}`}
           icon={Clock}
           color="sky"
+        />
+        <StatCard
+          label="Awaiting Approval"
+          value={stats.pendingApprovalCount}
+          subtext={`${stats.approvedCount} approved · ${formatCurrency(stats.pendingApprovalValue)}`}
+          icon={ShieldCheck}
+          color="indigo"
         />
         <StatCard
           label="Sent & In Review"
@@ -649,6 +719,8 @@ export default function Proposals() {
             >
               <option value="ALL">All Statuses</option>
               <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
               <option value="SENT">Sent</option>
               <option value="UNDER_REVIEW">In Review</option>
               <option value="ACCEPTED">Accepted</option>
@@ -884,7 +956,39 @@ export default function Proposals() {
                           {prop.status === 'DRAFT' && (
                             <button
                               type="button"
-                              title="Mark as Sent"
+                              title="Submit for Admin Approval"
+                              onClick={() => handleSubmitForApproval(prop.id)}
+                              className="rounded-lg p-1.5 text-violet-500 hover:bg-violet-50 hover:text-violet-700 cursor-pointer"
+                            >
+                              <Send size={14} />
+                            </button>
+                          )}
+
+                          {prop.status === 'PENDING_APPROVAL' && isAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                title="Approve Proposal"
+                                onClick={() => handleOpenApprovalModal(prop, 'approve')}
+                                className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                              >
+                                <ShieldCheck size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Return for Changes"
+                                onClick={() => handleOpenApprovalModal(prop, 'changes')}
+                                className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 cursor-pointer"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+                            </>
+                          )}
+
+                          {prop.status === 'APPROVED' && (
+                            <button
+                              type="button"
+                              title="Send to Customer"
                               onClick={() => handleMarkSent(prop.id)}
                               className="rounded-lg p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
                             >
@@ -983,6 +1087,14 @@ export default function Proposals() {
                     ? `Update proposal details for ${formProposalNumber}`
                     : 'Draft a commercial proposal and itemized quotation for your customer'}
                 </p>
+                {isEditing &&
+                  selectedProposal &&
+                  (selectedProposal.status === 'PENDING_APPROVAL' ||
+                    selectedProposal.status === 'APPROVED') && (
+                    <p className="mt-1 text-[11px] font-semibold text-amber-600">
+                      Saving changes will return this proposal to draft for re-approval.
+                    </p>
+                  )}
               </div>
               <button
                 type="button"
@@ -1439,6 +1551,45 @@ export default function Proposals() {
                 {selectedProposal.status === 'DRAFT' && (
                   <button
                     type="button"
+                    onClick={() => handleSubmitForApproval(selectedProposal.id)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 cursor-pointer"
+                  >
+                    <Send size={13} />
+                    <span>Submit for Admin Approval</span>
+                  </button>
+                )}
+
+                {selectedProposal.status === 'PENDING_APPROVAL' && (
+                  isAdmin ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenApprovalModal(selectedProposal, 'approve')}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 cursor-pointer"
+                      >
+                        <ShieldCheck size={13} />
+                        <span>Approve</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenApprovalModal(selectedProposal, 'changes')}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
+                      >
+                        <RotateCcw size={13} />
+                        <span>Return for Changes</span>
+                      </button>
+                    </>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 border border-violet-200">
+                      <Clock size={13} />
+                      Awaiting admin approval
+                    </span>
+                  )
+                )}
+
+                {selectedProposal.status === 'APPROVED' && (
+                  <button
+                    type="button"
                     onClick={() => handleMarkSent(selectedProposal.id)}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 cursor-pointer"
                   >
@@ -1503,16 +1654,20 @@ export default function Proposals() {
             <div className="overflow-y-auto p-8 space-y-6 flex-1 bg-white text-slate-900 print:overflow-visible">
               {/* Header Letterhead */}
               <div className="flex justify-between items-start border-b border-slate-200 pb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm">
-                      V
-                    </div>
-                    <span className="text-lg font-black tracking-tight text-slate-950">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo/vib_logo.jpeg"
+                    alt="Vibrantick Infotech Solutions"
+                    className="h-14 w-14 shrink-0 rounded-full object-cover"
+                  />
+                  <div>
+                    <span className="text-lg font-black tracking-tight text-slate-950 block leading-tight">
                       Vibrantick Infotech Solutions
                     </span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Commercial Sales &amp; Solutions Proposal
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500">Commercial Sales & Solutions Proposal</p>
                 </div>
 
                 <div className="text-right">
@@ -1717,6 +1872,39 @@ export default function Proposals() {
                 </div>
               )}
 
+              {/* Admin approval trail */}
+              {(selectedProposal.submittedForApprovalAt ||
+                selectedProposal.approvedBy ||
+                selectedProposal.approvalNote) && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 print:border-slate-200 print:bg-transparent">
+                  {selectedProposal.status === 'PENDING_APPROVAL' &&
+                    selectedProposal.submittedForApprovalAt && (
+                      <p className="text-xs font-semibold text-indigo-700">
+                        Submitted for admin approval on{' '}
+                        {new Date(selectedProposal.submittedForApprovalAt).toLocaleString()}
+                      </p>
+                    )}
+
+                  {selectedProposal.status === 'APPROVED' && (
+                    <p className="text-xs font-semibold text-indigo-700">
+                      Approved by {selectedProposal.approvedBy?.name || 'Administrator'}
+                      {selectedProposal.approvedAt
+                        ? ` on ${new Date(selectedProposal.approvedAt).toLocaleString()}`
+                        : ''}
+                    </p>
+                  )}
+
+                  {selectedProposal.approvalNote && (
+                    <div className="mt-1">
+                      <span className="text-xs font-bold text-amber-700 block">
+                        {selectedProposal.status === 'APPROVED' ? 'Approval note' : 'Admin feedback'}:
+                      </span>
+                      <p className="text-xs text-amber-600 mt-1">{selectedProposal.approvalNote}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Signature Block for Formal Acceptance */}
               <div className="border-t border-slate-200 pt-6 mt-6 grid grid-cols-2 gap-8">
                 <div>
@@ -1732,6 +1920,53 @@ export default function Proposals() {
                   <p className="text-[11px] text-slate-400">Signature & Date</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* APPROVAL / RETURN-FOR-CHANGES MODAL */}
+      {approvalModalOpen && selectedProposal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">
+              {approvalAction === 'approve' ? 'Approve Proposal' : 'Return Proposal for Changes'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {approvalAction === 'approve'
+                ? `Approve ${selectedProposal.proposalNumber} so it can be sent to the customer.`
+                : `Return ${selectedProposal.proposalNumber} to draft with feedback for the author.`}
+            </p>
+            <textarea
+              rows={3}
+              placeholder={
+                approvalAction === 'approve'
+                  ? 'Optional approval note...'
+                  : 'Describe the changes required (optional)...'
+              }
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-800 outline-none focus:border-indigo-500"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setApprovalModalOpen(false)}
+                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmApproval}
+                className={`rounded-xl px-4 py-1.5 text-xs font-bold text-white ${
+                  approvalAction === 'approve'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+              >
+                {approvalAction === 'approve' ? 'Approve Proposal' : 'Return to Draft'}
+              </button>
             </div>
           </div>
         </div>

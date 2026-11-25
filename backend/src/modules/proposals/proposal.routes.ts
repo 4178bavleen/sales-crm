@@ -8,6 +8,9 @@ import {
   createProposalController,
   updateProposalController,
   updateProposalStatusController,
+  submitProposalForApprovalController,
+  approveProposalController,
+  requestProposalChangesController,
   sendProposalController,
   deleteProposalController,
 } from './proposal.controller.js'
@@ -29,6 +32,9 @@ router.post('/', createProposalController)
 router.get('/:id', getProposalByIdController)
 router.patch('/:id', updateProposalController)
 router.patch('/:id/status', updateProposalStatusController)
+router.post('/:id/submit-approval', submitProposalForApprovalController)
+router.post('/:id/approve', approveProposalController)
+router.post('/:id/request-changes', requestProposalChangesController)
 router.post('/:id/send', sendProposalController)
 router.delete('/:id', deleteProposalController)
 

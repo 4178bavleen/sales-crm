@@ -90,6 +90,32 @@ export async function updateProposalStatus(
   return res
 }
 
+export async function submitProposalForApproval(id: number): Promise<Proposal> {
+  const res = await request<Proposal>(ENDPOINTS.proposals.submitApproval(id), {
+    method: 'POST',
+    token: authToken(),
+  })
+  return res
+}
+
+export async function approveProposal(id: number, note?: string): Promise<Proposal> {
+  const res = await request<Proposal>(ENDPOINTS.proposals.approve(id), {
+    method: 'POST',
+    body: note ? { note } : {},
+    token: authToken(),
+  })
+  return res
+}
+
+export async function requestProposalChanges(id: number, reason?: string): Promise<Proposal> {
+  const res = await request<Proposal>(ENDPOINTS.proposals.requestChanges(id), {
+    method: 'POST',
+    body: reason ? { reason } : {},
+    token: authToken(),
+  })
+  return res
+}
+
 export async function sendProposal(id: number): Promise<Proposal> {
   const res = await request<Proposal>(ENDPOINTS.proposals.send(id), {
     method: 'POST',

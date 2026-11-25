@@ -58,6 +58,14 @@ export interface UpdateProposalStatusInput {
   rejectionReason?: string | null
 }
 
+export interface ApproveProposalInput {
+  note?: string | null
+}
+
+export interface RequestProposalChangesInput {
+  reason?: string | null
+}
+
 export interface ProposalFilterQuery {
   page?: number
   limit?: number
@@ -77,6 +85,10 @@ export interface ProposalStats {
   totalValue: number
   draftCount: number
   draftValue: number
+  pendingApprovalCount: number
+  pendingApprovalValue: number
+  approvedCount: number
+  approvedValue: number
   sentCount: number
   sentValue: number
   underReviewCount: number

@@ -30,6 +30,7 @@ export async function ensureProposalPermissions() {
       ['proposals.create', 'Create customer proposals'],
       ['proposals.edit', 'Edit customer proposals'],
       ['proposals.delete', 'Delete customer proposals'],
+      ['proposals.approve', 'Approve customer proposals before sending'],
       ['proposals.send', 'Send proposals to customers'],
     ]
 
@@ -48,12 +49,17 @@ export async function ensureProposalPermissions() {
 
     const perms = await prisma.permission.findMany({
       where: { code: { startsWith: 'proposals.' } },
-      select: { id: true },
+      select: { id: true, code: true },
     })
 
     for (const role of rolesToAssign) {
+      const rolePerms =
+        role.name === 'ADMIN'
+          ? perms
+          : perms.filter((p) => p.code !== 'proposals.approve')
+
       await prisma.rolePermission.createMany({
-        data: perms.map((p) => ({
+        data: rolePerms.map((p) => ({
           roleId: role.id,
           permissionId: p.id,
         })),
@@ -239,6 +245,9 @@ export async function listProposals(query: ProposalFilterQuery) {
         createdBy: {
           select: { id: true, name: true, email: true },
         },
+        approvedBy: {
+          select: { id: true, name: true, email: true },
+        },
         items: {
           orderBy: { position: 'asc' },
         },
@@ -279,6 +288,9 @@ export async function getProposalById(id: number) {
       createdBy: {
         select: { id: true, name: true, email: true },
       },
+      approvedBy: {
+        select: { id: true, name: true, email: true },
+      },
       items: {
         orderBy: { position: 'asc' },
         include: {
@@ -309,6 +321,10 @@ export async function getProposalStats(): Promise<ProposalStats> {
   let totalValue = 0
   let draftCount = 0
   let draftValue = 0
+  let pendingApprovalCount = 0
+  let pendingApprovalValue = 0
+  let approvedCount = 0
+  let approvedValue = 0
   let sentCount = 0
   let sentValue = 0
   let underReviewCount = 0
@@ -328,6 +344,14 @@ export async function getProposalStats(): Promise<ProposalStats> {
       case 'DRAFT':
         draftCount++
         draftValue += val
+        break
+      case 'PENDING_APPROVAL':
+        pendingApprovalCount++
+        pendingApprovalValue += val
+        break
+      case 'APPROVED':
+        approvedCount++
+        approvedValue += val
         break
       case 'SENT':
         sentCount++
@@ -360,6 +384,10 @@ export async function getProposalStats(): Promise<ProposalStats> {
     totalValue: Number(totalValue.toFixed(2)),
     draftCount,
     draftValue: Number(draftValue.toFixed(2)),
+    pendingApprovalCount,
+    pendingApprovalValue: Number(pendingApprovalValue.toFixed(2)),
+    approvedCount,
+    approvedValue: Number(approvedValue.toFixed(2)),
     sentCount,
     sentValue: Number(sentValue.toFixed(2)),
     underReviewCount,
@@ -595,6 +623,8 @@ export async function updateProposal(id: number, input: UpdateProposalInput, use
     taxRate,
   )
 
+  const resetApprovalOnEdit = existing.status === 'APPROVED' || existing.status === 'PENDING_APPROVAL'
+
   const updated = await prisma.$transaction(async (tx) => {
     // If items provided, replace items
     if (input.items) {
@@ -627,7 +657,10 @@ export async function updateProposal(id: number, input: UpdateProposalInput, use
         leadId: input.leadId,
         dealId: input.dealId,
         ownerId: input.ownerId,
-        status: input.status,
+        status: resetApprovalOnEdit ? 'DRAFT' : undefined,
+        submittedForApprovalAt: resetApprovalOnEdit ? null : undefined,
+        approvedAt: resetApprovalOnEdit ? null : undefined,
+        approvedById: resetApprovalOnEdit ? null : undefined,
         currency: input.currency,
         issueDate: input.issueDate ? new Date(input.issueDate) : undefined,
         validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
@@ -649,6 +682,8 @@ export async function updateProposal(id: number, input: UpdateProposalInput, use
         },
         deal: true,
         owner: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        approvedBy: { select: { id: true, name: true, email: true } },
         items: { orderBy: { position: 'asc' } },
       },
     })
@@ -670,9 +705,249 @@ export async function updateProposal(id: number, input: UpdateProposalInput, use
 }
 
 /**
- * Update proposal status (e.g. SENT, ACCEPTED, REJECTED)
+ * Helper to load proposal with standard relations after workflow transitions
  */
-export async function updateProposalStatus(id: number, input: UpdateProposalStatusInput, userId: number) {
+const proposalDetailInclude = {
+  customer: {
+    include: { company: true, primaryContact: true },
+  },
+  deal: true,
+  owner: { select: { id: true, name: true, email: true } },
+  createdBy: { select: { id: true, name: true, email: true } },
+  approvedBy: { select: { id: true, name: true, email: true } },
+  items: { orderBy: { position: 'asc' as const } },
+}
+
+/**
+ * Submit a DRAFT proposal to Admins for approval
+ */
+export async function submitProposalForApproval(id: number, userId: number) {
+  const proposal = await prisma.proposal.findFirst({
+    where: { id, deletedAt: null },
+  })
+
+  if (!proposal) {
+    throw new ProposalError('Proposal not found', 404)
+  }
+
+  if (proposal.status !== 'DRAFT') {
+    throw new ProposalError('Only draft proposals can be submitted for admin approval', 400)
+  }
+
+  const updated = await prisma.proposal.update({
+    where: { id },
+    data: {
+      status: 'PENDING_APPROVAL',
+      submittedForApprovalAt: new Date(),
+      approvedAt: null,
+      approvedById: null,
+      approvalNote: null,
+    },
+    include: proposalDetailInclude,
+  })
+
+  await logAudit({
+    actorId: userId,
+    action: 'SUBMIT_FOR_APPROVAL',
+    entityType: 'PROPOSAL',
+    entityId: id,
+    before: { status: proposal.status },
+    after: { status: 'PENDING_APPROVAL' },
+  })
+
+  // Notify active ADMIN users
+  try {
+    const admins = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        role: { name: 'ADMIN' },
+      },
+      select: { id: true },
+    })
+
+    for (const admin of admins) {
+      if (admin.id === userId) continue
+      await createInAppNotification({
+        userId: admin.id,
+        type: 'PROPOSAL_APPROVAL_REQUESTED',
+        title: 'Proposal awaiting approval',
+        body: `Proposal ${proposal.proposalNumber} (${proposal.title}) was submitted for admin approval`,
+        entityType: 'proposal',
+        entityId: id,
+      })
+    }
+  } catch (e) {
+    console.warn('Could not notify admins for proposal approval:', e)
+  }
+
+  return updated
+}
+
+/**
+ * Admin approves a proposal so it can be sent to the customer
+ */
+export async function approveProposal(
+  id: number,
+  userId: number,
+  userRole: string,
+  note?: string | null,
+) {
+  if (userRole.toUpperCase() !== 'ADMIN') {
+    throw new ProposalError('Only administrators can approve proposals', 403)
+  }
+
+  const proposal = await prisma.proposal.findFirst({
+    where: { id, deletedAt: null },
+  })
+
+  if (!proposal) {
+    throw new ProposalError('Proposal not found', 404)
+  }
+
+  if (proposal.status !== 'PENDING_APPROVAL') {
+    throw new ProposalError('Only proposals pending approval can be approved', 400)
+  }
+
+  const trimmedNote = note?.trim() || null
+
+  const updated = await prisma.proposal.update({
+    where: { id },
+    data: {
+      status: 'APPROVED',
+      approvedAt: new Date(),
+      approvedById: userId,
+      approvalNote: trimmedNote,
+    },
+    include: proposalDetailInclude,
+  })
+
+  await logAudit({
+    actorId: userId,
+    action: 'APPROVE',
+    entityType: 'PROPOSAL',
+    entityId: id,
+    before: { status: proposal.status },
+    after: { status: 'APPROVED', approvalNote: trimmedNote },
+  })
+
+  if (proposal.customerId) {
+    try {
+      await prisma.activity.create({
+        data: {
+          performedById: userId,
+          customerId: proposal.customerId,
+          type: 'OTHER',
+          outcome: `Proposal ${proposal.proposalNumber} approved by admin`,
+          notes: trimmedNote || undefined,
+        },
+      })
+    } catch (e) {
+      console.warn('Could not log activity for proposal approval:', e)
+    }
+  }
+
+  // Notify proposal owner & creator (deduped, excluding approver)
+  const recipientIds = new Set<number>()
+  if (proposal.ownerId && proposal.ownerId !== userId) recipientIds.add(proposal.ownerId)
+  if (proposal.createdById && proposal.createdById !== userId) recipientIds.add(proposal.createdById)
+
+  for (const recipientId of recipientIds) {
+    try {
+      await createInAppNotification({
+        userId: recipientId,
+        type: 'PROPOSAL_APPROVED',
+        title: 'Proposal approved',
+        body: `Proposal ${proposal.proposalNumber} has been approved by admin and is ready to send to the customer`,
+        entityType: 'proposal',
+        entityId: id,
+      })
+    } catch (e) {
+      console.warn('Could not notify user about proposal approval:', e)
+    }
+  }
+
+  return updated
+}
+
+/**
+ * Admin sends a proposal back to DRAFT with feedback for revisions
+ */
+export async function requestProposalChanges(
+  id: number,
+  userId: number,
+  userRole: string,
+  reason?: string | null,
+) {
+  if (userRole.toUpperCase() !== 'ADMIN') {
+    throw new ProposalError('Only administrators can review proposal approvals', 403)
+  }
+
+  const proposal = await prisma.proposal.findFirst({
+    where: { id, deletedAt: null },
+  })
+
+  if (!proposal) {
+    throw new ProposalError('Proposal not found', 404)
+  }
+
+  if (proposal.status !== 'PENDING_APPROVAL') {
+    throw new ProposalError('Only proposals pending approval can be returned for revisions', 400)
+  }
+
+  const feedback = reason?.trim() || 'Returned by admin for revisions'
+
+  const updated = await prisma.proposal.update({
+    where: { id },
+    data: {
+      status: 'DRAFT',
+      approvedAt: null,
+      approvedById: null,
+      approvalNote: feedback,
+    },
+    include: proposalDetailInclude,
+  })
+
+  await logAudit({
+    actorId: userId,
+    action: 'APPROVAL_CHANGES_REQUESTED',
+    entityType: 'PROPOSAL',
+    entityId: id,
+    before: { status: proposal.status },
+    after: { status: 'DRAFT', approvalNote: feedback },
+  })
+
+  const recipientIds = new Set<number>()
+  if (proposal.ownerId && proposal.ownerId !== userId) recipientIds.add(proposal.ownerId)
+  if (proposal.createdById && proposal.createdById !== userId) recipientIds.add(proposal.createdById)
+
+  for (const recipientId of recipientIds) {
+    try {
+      await createInAppNotification({
+        userId: recipientId,
+        type: 'PROPOSAL_CHANGES_REQUESTED',
+        title: 'Proposal revision requested',
+        body: `Proposal ${proposal.proposalNumber} was returned to draft: ${feedback}`,
+        entityType: 'proposal',
+        entityId: id,
+      })
+    } catch (e) {
+      console.warn('Could not notify user about proposal revision request:', e)
+    }
+  }
+
+  return updated
+}
+
+/**
+ * Update proposal status (enforces admin-approval workflow before sending to customer)
+ */
+export async function updateProposalStatus(
+  id: number,
+  input: UpdateProposalStatusInput,
+  userId: number,
+  userRole = '',
+) {
   const proposal = await prisma.proposal.findFirst({
     where: { id, deletedAt: null },
     include: {
@@ -686,6 +961,26 @@ export async function updateProposalStatus(id: number, input: UpdateProposalStat
 
   const oldStatus = proposal.status
   const newStatus = input.status
+
+  if (newStatus === 'PENDING_APPROVAL') {
+    return submitProposalForApproval(id, userId)
+  }
+
+  if (newStatus === 'APPROVED') {
+    return approveProposal(id, userId, userRole, input.rejectionReason)
+  }
+
+  if (newStatus === 'SENT' && oldStatus !== 'APPROVED') {
+    throw new ProposalError('Proposal must be approved by an admin before sending to the customer', 400)
+  }
+
+  if ((newStatus === 'ACCEPTED' || newStatus === 'REJECTED') && oldStatus !== 'SENT' && oldStatus !== 'UNDER_REVIEW') {
+    throw new ProposalError('Only sent or under-review proposals can be marked as accepted or rejected', 400)
+  }
+
+  if (newStatus === 'UNDER_REVIEW' && oldStatus !== 'SENT') {
+    throw new ProposalError('Only sent proposals can be moved to under review', 400)
+  }
 
   const data: Prisma.ProposalUpdateInput = {
     status: newStatus,
@@ -703,13 +998,7 @@ export async function updateProposalStatus(id: number, input: UpdateProposalStat
   const updated = await prisma.proposal.update({
     where: { id },
     data,
-    include: {
-      customer: {
-        include: { company: true, primaryContact: true },
-      },
-      owner: { select: { id: true, name: true, email: true } },
-      items: true,
-    },
+    include: proposalDetailInclude,
   })
 
   // Audit log
@@ -755,7 +1044,7 @@ export async function updateProposalStatus(id: number, input: UpdateProposalStat
 }
 
 /**
- * Mark proposal as sent
+ * Mark an admin-approved proposal as sent to customer
  */
 export async function sendProposal(id: number, userId: number) {
   return updateProposalStatus(id, { status: 'SENT' }, userId)

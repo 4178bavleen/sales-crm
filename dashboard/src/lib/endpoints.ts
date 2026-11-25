@@ -157,6 +157,9 @@ export const ENDPOINTS = {
     create: "/proposals",
     update: (id: number) => `/proposals/${id}`,
     status: (id: number) => `/proposals/${id}/status`,
+    submitApproval: (id: number) => `/proposals/${id}/submit-approval`,
+    approve: (id: number) => `/proposals/${id}/approve`,
+    requestChanges: (id: number) => `/proposals/${id}/request-changes`,
     send: (id: number) => `/proposals/${id}/send`,
     delete: (id: number) => `/proposals/${id}`,
   },
@@ -182,6 +185,8 @@ export const ENDPOINTS = {
     testEmail: "/settings/email/test",
     whatsapp: "/settings/whatsapp",
     testWhatsapp: "/settings/whatsapp/test",
+    facebook: "/settings/facebook",
+    testFacebook: "/settings/facebook/test",
   },
 
 } as const;

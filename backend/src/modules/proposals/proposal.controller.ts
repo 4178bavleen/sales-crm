@@ -9,6 +9,9 @@ import {
   createProposal,
   updateProposal,
   updateProposalStatus,
+  submitProposalForApproval,
+  approveProposal,
+  requestProposalChanges,
   sendProposal,
   deleteProposal,
   ProposalError,
@@ -18,6 +21,8 @@ import {
   createProposalSchema,
   updateProposalSchema,
   updateProposalStatusSchema,
+  approveProposalSchema,
+  requestProposalChangesSchema,
   proposalFilterSchema,
 } from './proposal.validation.js'
 
@@ -151,10 +156,78 @@ export async function updateProposalStatusController(
     }
     const id = proposalIdSchema.parse(req.params.id)
     const validated = updateProposalStatusSchema.parse(req.body)
-    const proposal = await updateProposalStatus(id, validated, req.user.id)
+    const proposal = await updateProposalStatus(id, validated, req.user.id, req.user.role)
     res.status(200).json({
       success: true,
       message: 'Proposal status updated successfully',
+      data: proposal,
+    })
+  } catch (error) {
+    handleProposalError(error, res, next)
+  }
+}
+
+export async function submitProposalForApprovalController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const id = proposalIdSchema.parse(req.params.id)
+    const proposal = await submitProposalForApproval(id, req.user.id)
+    res.status(200).json({
+      success: true,
+      message: 'Proposal submitted for admin approval',
+      data: proposal,
+    })
+  } catch (error) {
+    handleProposalError(error, res, next)
+  }
+}
+
+export async function approveProposalController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const id = proposalIdSchema.parse(req.params.id)
+    const validated = approveProposalSchema.parse(req.body ?? {})
+    const proposal = await approveProposal(id, req.user.id, req.user.role, validated.note)
+    res.status(200).json({
+      success: true,
+      message: 'Proposal approved and ready to send to customer',
+      data: proposal,
+    })
+  } catch (error) {
+    handleProposalError(error, res, next)
+  }
+}
+
+export async function requestProposalChangesController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const id = proposalIdSchema.parse(req.params.id)
+    const validated = requestProposalChangesSchema.parse(req.body ?? {})
+    const proposal = await requestProposalChanges(id, req.user.id, req.user.role, validated.reason)
+    res.status(200).json({
+      success: true,
+      message: 'Proposal returned to draft for revisions',
       data: proposal,
     })
   } catch (error) {

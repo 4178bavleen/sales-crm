@@ -104,6 +104,8 @@ enum ProductServiceType {
 
 enum ProposalStatus {
   DRAFT
+  PENDING_APPROVAL
+  APPROVED
   SENT
   UNDER_REVIEW
   ACCEPTED
@@ -206,6 +208,8 @@ model User {
   auditLogs           AuditLog[]
   ownedProposals      Proposal[]           @relation("ProposalOwner")
   createdProposals    Proposal[]           @relation("ProposalCreatedBy")
+  approvedProposals   Proposal[]           @relation("ProposalApprovedBy")
+  facebookDefaultOwners FacebookSetting[]  @relation("FacebookDefaultOwner")
 
   @@index([roleId])
   @@index([teamId])
@@ -394,6 +398,7 @@ model Lead {
   convertedCustomerId Int?
   convertedAt         DateTime?
   importRowId         Int?      @unique
+  facebookLeadId      String?   @unique
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -901,6 +906,24 @@ model WhatsAppSetting {
   @@map("whatsapp_settings")
 }
 
+model FacebookSetting {
+  id              Int      @id @default(autoincrement())
+  appId           String   @default("")
+  appSecret       String   @default("")
+  pageId          String   @default("")
+  pageAccessToken String   @default("")
+  verifyToken     String   @default("")
+  defaultOwnerId  Int?
+  isEnabled       Boolean  @default(false)
+  notifyOwner     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  defaultOwner User? @relation("FacebookDefaultOwner", fields: [defaultOwnerId], references: [id])
+
+  @@map("facebook_settings")
+}
+
 // ---------------------------------------------------------------------
 // 12. CUSTOMER PROPOSALS
 // ---------------------------------------------------------------------
@@ -916,12 +939,16 @@ model Proposal {
   createdById     Int
   status          ProposalStatus @default(DRAFT)
   currency        String         @default("USD")
-  issueDate       DateTime       @default(now()) @db.Date
-  validUntil      DateTime       @db.Date
-  sentAt          DateTime?
-  acceptedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
+  issueDate               DateTime       @default(now()) @db.Date
+  validUntil              DateTime       @db.Date
+  submittedForApprovalAt  DateTime?
+  approvedAt              DateTime?
+  approvedById            Int?
+  approvalNote            String?        @db.Text
+  sentAt                  DateTime?
+  acceptedAt              DateTime?
+  rejectedAt              DateTime?
+  rejectionReason         String?
 
   subtotal       Decimal      @default(0) @db.Decimal(14, 2)
   discountType   DiscountType @default(PERCENTAGE)
@@ -939,12 +966,13 @@ model Proposal {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  customer  Customer  @relation(fields: [customerId], references: [id])
-  lead      Lead?     @relation(fields: [leadId], references: [id])
-  deal      Deal?     @relation(fields: [dealId], references: [id])
-  owner     User      @relation("ProposalOwner", fields: [ownerId], references: [id])
-  createdBy User      @relation("ProposalCreatedBy", fields: [createdById], references: [id])
-  items     ProposalItem[]
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  lead       Lead?     @relation(fields: [leadId], references: [id])
+  deal       Deal?     @relation(fields: [dealId], references: [id])
+  owner      User      @relation("ProposalOwner", fields: [ownerId], references: [id])
+  createdBy  User      @relation("ProposalCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?     @relation("ProposalApprovedBy", fields: [approvedById], references: [id])
+  items      ProposalItem[]
 
   @@index([customerId])
   @@index([dealId])

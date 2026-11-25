@@ -15,6 +15,7 @@ import {
   Smartphone,
   KeyRound,
   FileCode,
+  UserRound,
 } from "lucide-react";
 import { request, ApiError } from "../../lib/api";
 import { ENDPOINTS } from "../../lib/endpoints";
@@ -54,8 +55,31 @@ type WhatsAppSettingsState = {
   updatedAt?: string;
 };
 
+type FacebookSettingsState = {
+  id: number;
+  appId: string;
+  appSecret?: string;
+  hasAppSecret: boolean;
+  pageId: string;
+  pageAccessToken?: string;
+  hasPageAccessToken: boolean;
+  verifyToken?: string;
+  hasVerifyToken: boolean;
+  defaultOwnerId: number | null;
+  defaultOwnerName: string | null;
+  isEnabled: boolean;
+  notifyOwner: boolean;
+  updatedAt?: string;
+};
+
+type OwnerOption = {
+  id: number;
+  name: string;
+  email?: string;
+};
+
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<"email" | "whatsapp">("email");
+  const [activeTab, setActiveTab] = useState<"email" | "whatsapp" | "facebook">("email");
 
   // Email (SMTP) State
   const [emailLoading, setEmailLoading] = useState(true);
@@ -105,6 +129,29 @@ export default function Settings() {
     notifyDocuments: true,
     notifyTargets: true,
     notifyFollowUps: true,
+  });
+
+  const [facebookLoading, setFacebookLoading] = useState(true);
+  const [facebookSaving, setFacebookSaving] = useState(false);
+  const [facebookTesting, setFacebookTesting] = useState(false);
+  const [showAppSecret, setShowAppSecret] = useState(false);
+  const [showPageAccessToken, setShowPageAccessToken] = useState(false);
+  const [showVerifyToken, setShowVerifyToken] = useState(false);
+  const [facebookFeedback, setFacebookFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [facebookTestFeedback, setFacebookTestFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [ownerOptions, setOwnerOptions] = useState<OwnerOption[]>([]);
+
+  const [facebookForm, setFacebookForm] = useState<FacebookSettingsState>({
+    id: 1,
+    appId: "",
+    hasAppSecret: false,
+    pageId: "",
+    hasPageAccessToken: false,
+    hasVerifyToken: false,
+    defaultOwnerId: null,
+    defaultOwnerName: null,
+    isEnabled: false,
+    notifyOwner: true,
   });
 
   // Load Email Settings
@@ -169,6 +216,61 @@ export default function Settings() {
     }
 
     loadWhatsAppSettings();
+  }, []);
+
+  useEffect(() => {
+    async function loadFacebookSettings() {
+      const token = getSession()?.token;
+      if (!token) return;
+
+      try {
+        setFacebookLoading(true);
+        setFacebookFeedback(null);
+        const [settingsRes, usersRes] = await Promise.all([
+          request<any>(ENDPOINTS.settings.facebook, { token }),
+          request<any>(ENDPOINTS.users.list, { token }).catch(() => null),
+        ]);
+
+        const data: FacebookSettingsState | undefined = settingsRes?.data ?? settingsRes;
+        if (data && typeof data === "object") {
+          setFacebookForm((prev) => ({
+            ...prev,
+            ...data,
+            appSecret: "",
+            pageAccessToken: "",
+            verifyToken: "",
+          }));
+        }
+
+        const usersData: any = usersRes?.data ?? usersRes;
+        const users = Array.isArray(usersData)
+          ? usersData
+          : Array.isArray(usersData?.users)
+            ? usersData.users
+            : Array.isArray(usersData?.data)
+              ? usersData.data
+              : [];
+        setOwnerOptions(
+          users
+            .filter((user: any) => user?.isActive !== false)
+            .map((user: any) => ({
+              id: Number(user.id),
+              name: String(user.name ?? `User ${user.id}`),
+              email: user.email ? String(user.email) : undefined,
+            }))
+            .filter((user: OwnerOption) => Number.isFinite(user.id)),
+        );
+      } catch (err: any) {
+        setFacebookFeedback({
+          type: "error",
+          message: err instanceof ApiError ? err.message : "Failed to load Facebook settings.",
+        });
+      } finally {
+        setFacebookLoading(false);
+      }
+    }
+
+    loadFacebookSettings();
   }, []);
 
   // Handle Save Email Settings
@@ -358,7 +460,89 @@ export default function Settings() {
     }
   };
 
-  const isLoading = emailLoading || whatsAppLoading;
+  const handleSaveFacebook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = getSession()?.token;
+    if (!token) return;
+
+    try {
+      setFacebookSaving(true);
+      setFacebookFeedback(null);
+
+      const payload: any = {
+        appId: facebookForm.appId,
+        pageId: facebookForm.pageId,
+        defaultOwnerId: facebookForm.defaultOwnerId,
+        isEnabled: facebookForm.isEnabled,
+        notifyOwner: facebookForm.notifyOwner,
+      };
+
+      if (facebookForm.appId && facebookForm.appId.trim()) payload.appId = facebookForm.appId.trim();
+      if (facebookForm.pageId && facebookForm.pageId.trim()) payload.pageId = facebookForm.pageId.trim();
+      if (facebookForm.appSecret && facebookForm.appSecret.trim()) payload.appSecret = facebookForm.appSecret.trim();
+      if (facebookForm.pageAccessToken && facebookForm.pageAccessToken.trim()) payload.pageAccessToken = facebookForm.pageAccessToken.trim();
+      if (facebookForm.verifyToken && facebookForm.verifyToken.trim()) payload.verifyToken = facebookForm.verifyToken.trim();
+
+      const res = await request<any>(ENDPOINTS.settings.facebook, {
+        method: "PUT",
+        token,
+        body: payload,
+      });
+
+      const data: FacebookSettingsState | undefined = res?.data ?? res;
+      if (data && typeof data === "object") {
+        setFacebookForm((prev) => ({
+          ...prev,
+          ...data,
+          appSecret: "",
+          pageAccessToken: "",
+          verifyToken: "",
+        }));
+      }
+      setShowAppSecret(false);
+      setShowPageAccessToken(false);
+      setShowVerifyToken(false);
+      setFacebookFeedback({
+        type: "success",
+        message: "Facebook Lead Ads settings saved successfully!",
+      });
+    } catch (err: any) {
+      setFacebookFeedback({
+        type: "error",
+        message: err instanceof ApiError ? err.message : "Failed to save Facebook settings.",
+      });
+    } finally {
+      setFacebookSaving(false);
+    }
+  };
+
+  const handleTestFacebook = async () => {
+    const token = getSession()?.token;
+    if (!token) return;
+
+    try {
+      setFacebookTesting(true);
+      setFacebookTestFeedback(null);
+      const res = await request<any>(ENDPOINTS.settings.testFacebook, {
+        method: "POST",
+        token,
+        body: {},
+      });
+      setFacebookTestFeedback({
+        type: "success",
+        message: res?.message || "Meta API connection verified successfully!",
+      });
+    } catch (err: any) {
+      setFacebookTestFeedback({
+        type: "error",
+        message: err instanceof ApiError ? err.message : "Facebook connection test failed.",
+      });
+    } finally {
+      setFacebookTesting(false);
+    }
+  };
+
+  const isLoading = emailLoading || whatsAppLoading || facebookLoading;
 
   if (isLoading) {
     return (
@@ -384,7 +568,7 @@ export default function Settings() {
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">
-          Configure dynamic notification channels (Email SMTP & Official Meta WhatsApp) and alert preferences.
+          Configure notification channels and automatic lead capture from Meta (Email, WhatsApp & Facebook Lead Ads).
         </p>
       </div>
 
@@ -414,6 +598,19 @@ export default function Settings() {
         >
           <MessageSquare size={18} />
           <span>WhatsApp Alerts (Meta Cloud API)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("facebook")}
+          className={`flex items-center gap-2.5 pb-3.5 px-3 text-sm font-semibold transition border-b-2 cursor-pointer ${
+            activeTab === "facebook"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <UserRound size={18} />
+          <span>Facebook Lead Ads</span>
         </button>
       </div>
 
@@ -1026,6 +1223,283 @@ export default function Settings() {
                 <span>Send Test WhatsApp</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "facebook" && (
+        <div className="space-y-6">
+          {facebookFeedback && (
+            <div
+              className={`flex items-start gap-3 rounded-xl p-4 text-sm font-medium border ${
+                facebookFeedback.type === "success"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-rose-50 text-rose-800 border-rose-200"
+              }`}
+            >
+              {facebookFeedback.type === "success" ? (
+                <CheckCircle2 size={18} className="shrink-0 text-emerald-600 mt-0.5" />
+              ) : (
+                <AlertCircle size={18} className="shrink-0 text-rose-600 mt-0.5" />
+              )}
+              <div className="flex-1">{facebookFeedback.message}</div>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveFacebook} className="space-y-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                    <UserRound size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Facebook Lead Ads Sync
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      New Meta leads are created in the CRM automatically through a signed webhook.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={facebookForm.isEnabled}
+                    onChange={(e) => setFacebookForm((prev) => ({ ...prev, isEnabled: e.target.checked }))}
+                    className="peer sr-only"
+                  />
+                  <div className="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-focus:outline-none"></div>
+                  <span className="ml-3 text-sm font-semibold text-slate-800">
+                    {facebookForm.isEnabled ? "Active" : "Disabled"}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <KeyRound size={18} className="text-slate-600" />
+                  Meta App & Page Credentials
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Use a Meta app with Lead Ads access and a Page Access Token that can read leads.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    App ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1234567890123456"
+                    value={facebookForm.appId}
+                    onChange={(e) => setFacebookForm((prev) => ({ ...prev, appId: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Page ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 987654321098765"
+                    value={facebookForm.pageId}
+                    onChange={(e) => setFacebookForm((prev) => ({ ...prev, pageId: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    App Secret {facebookForm.hasAppSecret && <span className="text-emerald-600 normal-case">(saved)</span>}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showAppSecret ? "text" : "password"}
+                      placeholder={facebookForm.hasAppSecret ? "Leave blank to keep current secret" : "Enter Meta App Secret"}
+                      value={facebookForm.appSecret ?? ""}
+                      onChange={(e) => setFacebookForm((prev) => ({ ...prev, appSecret: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAppSecret((value) => !value)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      {showAppSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Verify Token {facebookForm.hasVerifyToken && <span className="text-emerald-600 normal-case">(saved)</span>}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showVerifyToken ? "text" : "password"}
+                      placeholder={facebookForm.hasVerifyToken ? "Leave blank to keep current token" : "Choose a secret verification phrase"}
+                      value={facebookForm.verifyToken ?? ""}
+                      onChange={(e) => setFacebookForm((prev) => ({ ...prev, verifyToken: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowVerifyToken((value) => !value)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Page Access Token {facebookForm.hasPageAccessToken && <span className="text-emerald-600 normal-case">(saved)</span>}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPageAccessToken ? "text" : "password"}
+                    placeholder={facebookForm.hasPageAccessToken ? "Leave blank to keep current token" : "Enter Page Access Token with leads access"}
+                    value={facebookForm.pageAccessToken ?? ""}
+                    onChange={(e) => setFacebookForm((prev) => ({ ...prev, pageAccessToken: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPageAccessToken((value) => !value)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                  >
+                    {showPageAccessToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <UserRound size={18} className="text-slate-600" />
+                  Lead Routing
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Incoming leads are assigned to one fixed owner and duplicates are skipped automatically.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Default Lead Owner
+                </label>
+                <select
+                  value={facebookForm.defaultOwnerId ?? ""}
+                  onChange={(e) =>
+                    setFacebookForm((prev) => ({
+                      ...prev,
+                      defaultOwnerId: e.target.value ? Number(e.target.value) : null,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none"
+                >
+                  <option value="">First active administrator</option>
+                  {ownerOptions.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}{owner.email ? ` — ${owner.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-xl border border-slate-100 p-3.5 cursor-pointer hover:bg-slate-50/60">
+                <input
+                  type="checkbox"
+                  checked={facebookForm.notifyOwner}
+                  onChange={(e) => setFacebookForm((prev) => ({ ...prev, notifyOwner: e.target.checked }))}
+                  className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Notify owner about new leads</p>
+                  <p className="text-xs text-slate-500">
+                    Send an in-app notification when a new lead is imported.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-6 shadow-xs space-y-3">
+              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <FileCode size={18} className="text-blue-600" />
+                Webhook Setup in Meta
+              </h3>
+              <p className="text-xs text-slate-600">
+                Add the callback URL below to your Meta app's Lead Ads webhook, subscribe to the
+                <code className="mx-1 rounded bg-white px-1.5 py-0.5 text-blue-700">leadgen</code>
+                field for your Page, and use the same Verify Token saved above.
+              </p>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-white px-3.5 py-2.5">
+                <code className="truncate text-xs text-slate-800">
+                  https://&lt;backend-host&gt;/api/v1/webhooks/facebook
+                </code>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={facebookSaving}
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
+              >
+                {facebookSaving ? <RotateCw size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>Save Facebook Settings</span>
+              </button>
+            </div>
+          </form>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Send size={18} className="text-slate-600" />
+                Test Meta Connection
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verify that the saved Page Access Token can call the Meta Graph API.
+              </p>
+            </div>
+
+            {facebookTestFeedback && (
+              <div
+                className={`flex items-start gap-3 rounded-xl p-3.5 text-xs font-medium border ${
+                  facebookTestFeedback.type === "success"
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    : "bg-rose-50 text-rose-800 border-rose-200"
+                }`}
+              >
+                {facebookTestFeedback.type === "success" ? (
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-600 mt-0.5" />
+                ) : (
+                  <AlertCircle size={16} className="shrink-0 text-rose-600 mt-0.5" />
+                )}
+                <div className="flex-1">{facebookTestFeedback.message}</div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleTestFacebook}
+              disabled={facebookTesting || !facebookForm.hasPageAccessToken}
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
+            >
+              {facebookTesting ? <RotateCw size={16} className="animate-spin" /> : <Send size={16} />}
+              <span>Test Facebook Connection</span>
+            </button>
           </div>
         </div>
       )}

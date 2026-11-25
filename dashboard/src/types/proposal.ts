@@ -1,5 +1,7 @@
 export type ProposalStatus =
   | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
   | 'SENT'
   | 'UNDER_REVIEW'
   | 'ACCEPTED'
@@ -73,6 +75,10 @@ export interface Proposal {
   currency: string
   issueDate: string
   validUntil: string
+  submittedForApprovalAt?: string | null
+  approvedAt?: string | null
+  approvedById?: number | null
+  approvalNote?: string | null
   sentAt?: string | null
   acceptedAt?: string | null
   rejectedAt?: string | null
@@ -94,6 +100,7 @@ export interface Proposal {
   deal?: ProposalDeal | null
   owner?: ProposalUser
   createdBy?: ProposalUser
+  approvedBy?: ProposalUser | null
   items: ProposalItem[]
 }
 
@@ -113,6 +120,10 @@ export interface ProposalStats {
   totalValue: number
   draftCount: number
   draftValue: number
+  pendingApprovalCount: number
+  pendingApprovalValue: number
+  approvedCount: number
+  approvedValue: number
   sentCount: number
   sentValue: number
   underReviewCount: number
