@@ -474,7 +474,7 @@ export default function Topbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white print:hidden">
       <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-8">
         {/* Left: Brand mark & Global Search input */}
         <div className="flex min-w-0 flex-1 items-center gap-3">

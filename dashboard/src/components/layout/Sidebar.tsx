@@ -19,7 +19,9 @@ import {
   Bell,
   Shield,
   CreditCard,
+  Receipt,
   Settings as SettingsIcon,
+  SlidersHorizontal,
   ChevronDown,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +34,8 @@ interface NavItem {
   path: string;
   icon: LucideIcon;
   aliases?: string[];
+  /** When true, the item is only shown to users with the ADMIN role. */
+  adminOnly?: boolean;
 }
 
 interface NavSection {
@@ -80,6 +84,18 @@ const navSections: NavSection[] = [
     key: "finance",
     title: "FINANCE",
     items: [
+      {
+        name: "Invoices",
+        path: "/invoices",
+        icon: Receipt,
+        aliases: ["/invoice", "/invoices/new"],
+      },
+      {
+        name: "Invoice Settings",
+        path: "/invoices/settings",
+        icon: SlidersHorizontal,
+        adminOnly: true,
+      },
       {
         name: "Expense Management",
         path: "/expenses",
@@ -181,7 +197,7 @@ export default function Sidebar() {
   return (
     <aside
       aria-label="Sidebar Navigation"
-      className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-800/80 bg-[#0b1328] md:flex"
+      className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-800/80 bg-[#0b1328] md:flex print:hidden"
     >
       {/* Brand Header */}
       <div className="flex h-[72px] shrink-0 items-center px-5">
@@ -254,7 +270,10 @@ export default function Sidebar() {
               {/* Collapsible Nav Links */}
               {!isCollapsed && (
                 <div id={sectionId} className="space-y-1 pt-0.5">
-                  {section.items.map(({ name, path, icon: Icon, aliases }) => {
+                  {section.items.map(({ name, path, icon: Icon, aliases, adminOnly }) => {
+                    // Hide admin-only items for non-admin users
+                    if (adminOnly && userRole !== "ADMIN") return null;
+
                     const currentPath = location.pathname;
                     const isAliasActive =
                       aliases &&

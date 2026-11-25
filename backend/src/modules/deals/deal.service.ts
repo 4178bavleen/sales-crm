@@ -2,6 +2,7 @@ import { Prisma, DealStatus, StageKind ,ReasonType } from "../../generated/prism
 import { prisma } from "../../config/database.js";
 import { createInAppNotification } from "../notifications/notification.service.js";
 import { checkTargetMilestones } from "../targets/target.service.js";
+import { generateInvoiceFromDeal } from "../invoices/invoice.service.js";
 import type { DealInput } from "./deal.validation.js";
 import { DealValidationError } from "./deal.validation.js";
 
@@ -680,6 +681,11 @@ export async function closeDeal(
 
       // Trigger sales quota milestone check for this rep
       void checkTargetMilestones(updatedDeal.ownerId);
+
+      // Trigger automatic invoice generation on Deal Won
+      void generateInvoiceFromDeal(updatedDeal.id, actorId).catch((err) =>
+        console.error("[DealInvoice] Failed to auto-generate invoice on deal won:", err)
+      );
     } else if (input.status === DealStatus.LOST) {
       const reasonStr = updatedDeal.lostReason?.name
         ? ` (Reason: ${updatedDeal.lostReason.name})`

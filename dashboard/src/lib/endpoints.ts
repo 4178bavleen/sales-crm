@@ -182,6 +182,19 @@ export const ENDPOINTS = {
     delete: (id: number) => `/expenses/${id}`,
   },
 
+  invoices: {
+    list: "/invoices",
+    settings: "/invoices/settings",
+    byId: (id: number) => `/invoices/${id}`,
+    create: "/invoices",
+    update: (id: number) => `/invoices/${id}`,
+    delete: (id: number) => `/invoices/${id}`,
+    payments: (id: number) => `/invoices/${id}/payments`,
+    pdf: (id: number) => `/invoices/${id}/pdf`,
+    email: (id: number) => `/invoices/${id}/email`,
+    whatsapp: (id: number) => `/invoices/${id}/whatsapp`,
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */
