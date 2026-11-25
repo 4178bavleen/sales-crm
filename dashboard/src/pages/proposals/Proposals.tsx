@@ -36,14 +36,7 @@ import type {
   DiscountType,
 } from '../../types/proposal'
 
-const CURRENCIES = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-]
+const CURRENCIES = [{ code: 'INR', symbol: '₹', name: 'Indian Rupee' }]
 
 export default function Proposals() {
   const [proposals, setProposals] = useState<Proposal[]>([])
@@ -95,7 +88,7 @@ export default function Proposals() {
   const [formCustomerId, setFormCustomerId] = useState<number | ''>('')
   const [formDealId, setFormDealId] = useState<number | ''>('')
   const [formOwnerId, setFormOwnerId] = useState<number | ''>('')
-  const [formCurrency, setFormCurrency] = useState('USD')
+  const [formCurrency, setFormCurrency] = useState('INR')
   const [formIssueDate, setFormIssueDate] = useState(() => new Date().toISOString().split('T')[0])
   const [formValidUntil, setFormValidUntil] = useState(() => {
     const d = new Date()
@@ -216,7 +209,7 @@ export default function Proposals() {
     setFormCustomerId('')
     setFormDealId('')
     setFormOwnerId('')
-    setFormCurrency('USD')
+    setFormCurrency('INR')
     setFormIssueDate(new Date().toISOString().split('T')[0])
     const d = new Date()
     d.setDate(d.getDate() + 30)
@@ -252,7 +245,7 @@ export default function Proposals() {
     setFormCustomerId(prop.customerId)
     setFormDealId(prop.dealId || '')
     setFormOwnerId(prop.ownerId)
-    setFormCurrency(prop.currency || 'USD')
+    setFormCurrency('INR')
     setFormIssueDate(prop.issueDate ? prop.issueDate.split('T')[0] : '')
     setFormValidUntil(prop.validUntil ? prop.validUntil.split('T')[0] : '')
     setFormDiscountType(prop.discountType)
@@ -459,11 +452,11 @@ export default function Proposals() {
   }
 
   // Format Currency
-  const formatCurrency = (amt: number | string, curr = 'USD') => {
+  const formatCurrency = (amt: number | string, _curr = 'INR') => {
     const val = Number(amt) || 0
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: curr,
+      currency: 'INR',
       maximumFractionDigits: 2,
     }).format(val)
   }

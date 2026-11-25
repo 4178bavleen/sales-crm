@@ -491,7 +491,7 @@ export async function createProposal(input: CreateProposalInput, userId: number)
         ownerId,
         createdById: userId,
         status: 'DRAFT',
-        currency: input.currency || 'USD',
+        currency: input.currency || 'INR',
         issueDate,
         validUntil,
         subtotal,

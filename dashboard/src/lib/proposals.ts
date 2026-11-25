@@ -36,45 +36,45 @@ export async function fetchProposals(params?: FetchProposalsParams): Promise<Pro
 }
 
 export async function fetchProposalById(id: number): Promise<Proposal> {
-  const res = await request<{ success: boolean; data: Proposal }>(ENDPOINTS.proposals.byId(id), {
+  const res = await request<Proposal>(ENDPOINTS.proposals.byId(id), {
     method: 'GET',
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function fetchProposalStats(): Promise<ProposalStats> {
-  const res = await request<{ success: boolean; data: ProposalStats }>(ENDPOINTS.proposals.stats, {
+  const res = await request<ProposalStats>(ENDPOINTS.proposals.stats, {
     method: 'GET',
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function fetchProposalOptions(): Promise<ProposalOptions> {
-  const res = await request<{ success: boolean; data: ProposalOptions }>(ENDPOINTS.proposals.options, {
+  const res = await request<ProposalOptions>(ENDPOINTS.proposals.options, {
     method: 'GET',
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function createProposal(payload: CreateProposalPayload): Promise<Proposal> {
-  const res = await request<{ success: boolean; data: Proposal }>(ENDPOINTS.proposals.create, {
+  const res = await request<Proposal>(ENDPOINTS.proposals.create, {
     method: 'POST',
     body: payload,
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function updateProposal(id: number, payload: UpdateProposalPayload): Promise<Proposal> {
-  const res = await request<{ success: boolean; data: Proposal }>(ENDPOINTS.proposals.update(id), {
+  const res = await request<Proposal>(ENDPOINTS.proposals.update(id), {
     method: 'PATCH',
     body: payload,
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function updateProposalStatus(
@@ -82,20 +82,20 @@ export async function updateProposalStatus(
   status: ProposalStatus,
   rejectionReason?: string,
 ): Promise<Proposal> {
-  const res = await request<{ success: boolean; data: Proposal }>(ENDPOINTS.proposals.status(id), {
+  const res = await request<Proposal>(ENDPOINTS.proposals.status(id), {
     method: 'PATCH',
     body: { status, rejectionReason },
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function sendProposal(id: number): Promise<Proposal> {
-  const res = await request<{ success: boolean; data: Proposal }>(ENDPOINTS.proposals.send(id), {
+  const res = await request<Proposal>(ENDPOINTS.proposals.send(id), {
     method: 'POST',
     token: authToken(),
   })
-  return res.data
+  return res
 }
 
 export async function deleteProposal(id: number): Promise<{ success: boolean; message: string }> {

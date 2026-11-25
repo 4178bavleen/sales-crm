@@ -21,7 +21,7 @@ export const createProposalSchema = z.object({
   leadId: z.coerce.number().int().positive().nullable().optional(),
   dealId: z.coerce.number().int().positive().nullable().optional(),
   ownerId: z.coerce.number().int().positive().optional(),
-  currency: z.string().default('USD'),
+  currency: z.string().default('INR'),
   issueDate: z.string().or(z.date()).optional(),
   validUntil: z.string().or(z.date()),
   discountType: z.enum(['PERCENTAGE', 'FIXED']).default('PERCENTAGE'),
