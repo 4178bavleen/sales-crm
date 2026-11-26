@@ -287,10 +287,11 @@ export default function InvoiceFormDialog({
 
   const [items, setItems] = useState<FormItem[]>([
     {
-      itemName: 'Software Development & Consulting',
-      description: 'Monthly retainership and delivery services',
+      itemName: '',
+      hsnCode: '',
+      description: '',
       quantity: 1,
-      unitPrice: 50000,
+      unitPrice: 0,
       discountPercent: 0,
       taxPercent: 18,
     },
@@ -440,7 +441,18 @@ export default function InvoiceFormDialog({
             );
           }
         } else {
-          // CREATE MODE: Automatically generate and populate next invoice number!
+          // CREATE MODE: Reset line items to blank un-prefilled state
+          setItems([
+            {
+              itemName: '',
+              hsnCode: '',
+              description: '',
+              quantity: 1,
+              unitPrice: 0,
+              discountPercent: 0,
+              taxPercent: 18,
+            },
+          ]);
           try {
             const nextNum = await fetchNextInvoiceNumber();
             if (isMounted && nextNum) {
