@@ -3,7 +3,8 @@ import { Prisma } from '../../generated/prisma/client.js'
 import { AppError } from '../../common/errors/AppErrors.js'
 import { logAudit } from '../audit/audit.service.js'
 import { createExpense } from '../expenses/expense.service.js'
-import { generateInvoicePdfBuffer } from './invoice.pdf.js'
+import { generateInvoicePdfBuffer, resolveOrderNotice } from './invoice.pdf.js'
+export { resolveOrderNotice }
 import nodemailer from 'nodemailer'
 import type {
   CreateInvoiceInput,
@@ -45,6 +46,57 @@ export function getSupportedCurrencies() {
     currencies: SUPPORTED_INVOICE_CURRENCIES,
     defaultCurrency: 'INR',
   }
+}
+
+export function cleanAddress(raw?: string | null): string {
+  if (!raw) return ''
+  const segments = raw
+    .split(',')
+    .map((s) => s.trim().replace(/^[,\s]+|[.,\s]+$/g, ''))
+    .filter(Boolean)
+  const uniqueSegments: string[] = []
+  for (const seg of segments) {
+    const norm = seg.toLowerCase().replace(/[.,\s]/g, '')
+    const alreadyExists = uniqueSegments.some(
+      (u) => u.toLowerCase().replace(/[.,\s]/g, '') === norm
+    )
+    if (!alreadyExists) {
+      uniqueSegments.push(seg)
+    }
+  }
+  return uniqueSegments.join(', ')
+}
+
+export function formatBillingAddress(company?: {
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  country?: string | null
+} | null): string | null {
+  if (!company) return null
+  const cleanedAddr = cleanAddress(company.address)
+  const city = (company.city || '').trim().replace(/^[,\s]+|[.,\s]+$/g, '')
+  const state = (company.state || '').trim().replace(/^[,\s]+|[.,\s]+$/g, '')
+  const country = (company.country || '').trim().replace(/^[,\s]+|[.,\s]+$/g, '')
+
+  if (!cleanedAddr) {
+    return cleanAddress([city, state, country].filter(Boolean).join(', ')) || null
+  }
+
+  const lower = cleanedAddr.toLowerCase()
+  const extraParts: string[] = []
+
+  if (city && !lower.includes(city.toLowerCase())) {
+    extraParts.push(city)
+  }
+  if (state && !lower.includes(state.toLowerCase())) {
+    extraParts.push(state)
+  }
+  if (country && !lower.includes(country.toLowerCase())) {
+    extraParts.push(country)
+  }
+
+  return cleanAddress([cleanedAddr, ...extraParts].join(', ')) || null
 }
 
 /**
@@ -180,7 +232,7 @@ export async function getInvoiceSettings() {
         bankBranch: 'IT Park Branch',
         upiId: '8699792040@upi',
 
-        invoicePrefix: 'VIS-INV-',
+        invoicePrefix: 'VIS',
         nextNumber: 1001,
         defaultTemplate: 'VIBRANT_TECH',
         brandColor: '#1d61e7',
@@ -308,13 +360,46 @@ export function calculateTotals(
 }
 
 /**
+ * Calculates current working financial year (e.g., April 2026 to March 2027 -> '2026-27')
+ */
+export function getFinancialYear(d: Date = new Date()): string {
+  const year = d.getFullYear()
+  const month = d.getMonth() // 0-indexed: 0 is Jan, 3 is April
+  const startYear = month >= 3 ? year : year - 1
+  const endYearShort = String((startYear + 1) % 100).padStart(2, '0')
+  return `${startYear}-${endYearShort}`
+}
+
+/**
+ * Formats invoice number as PREFIX/YYYY-YY/NNN (e.g., VIS/2026-27/040)
+ */
+export function formatInvoiceNumber(
+  rawPrefix?: string | null,
+  sequence: number = 1,
+  date: Date = new Date()
+): string {
+  let cleanPrefix = (rawPrefix || 'VIS').trim()
+  // Normalize legacy prefixes like 'VIS-INV-' or 'VIS-' to 'VIS'
+  if (/^VIS(?:-INV)?[-/]*$/i.test(cleanPrefix)) {
+    cleanPrefix = 'VIS'
+  }
+  // Strip trailing slashes or hyphens
+  cleanPrefix = cleanPrefix.replace(/[\/-]+$/, '').trim()
+  // Strip any year or financial year pattern accidentally typed into prefix
+  cleanPrefix = cleanPrefix.replace(/\/\d{4}(?:-\d{2,4})?$/i, '').trim()
+  if (!cleanPrefix) cleanPrefix = 'VIS'
+
+  const fy = getFinancialYear(date)
+  const sequenceStr = sequence.toString().padStart(3, '0')
+  return `${cleanPrefix}/${fy}/${sequenceStr}`
+}
+
+/**
  * Previews the next sequence invoice number without incrementing the counter
  */
 export async function previewNextInvoiceNumber(): Promise<string> {
   const settings = await getInvoiceSettings()
-  const year = new Date().getFullYear()
-  const sequenceStr = settings.nextNumber.toString().padStart(4, '0')
-  return `${settings.invoicePrefix}${year}-${sequenceStr}`
+  return formatInvoiceNumber(settings.invoicePrefix, settings.nextNumber)
 }
 
 /**
@@ -330,11 +415,9 @@ export async function getNextInvoiceNumber(): Promise<string> {
     select: { nextNumber: true, invoicePrefix: true },
   })
 
-  const year = new Date().getFullYear()
   // The allocated number for this invoice is the pre-increment value
   const allocatedNumber = updated.nextNumber - 1
-  const sequenceStr = allocatedNumber.toString().padStart(4, '0')
-  return `${updated.invoicePrefix}${year}-${sequenceStr}`
+  return formatInvoiceNumber(updated.invoicePrefix, allocatedNumber)
 }
 
 /**
@@ -353,7 +436,7 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
   if (input.billingAddress && customer.companyId) {
     await prisma.company.update({
       where: { id: customer.companyId },
-      data: { address: input.billingAddress },
+      data: { address: cleanAddress(input.billingAddress) },
     }).catch(() => null)
   }
 
@@ -390,7 +473,11 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
   })
   if (existing) {
     // If the conflicting invoice number was the previewed sequential number, atomically generate the next available sequence number
-    const isSequentialPattern = invoiceNumber.startsWith(settings.invoicePrefix)
+    const fy = getFinancialYear()
+    const cleanP = (settings.invoicePrefix || 'VIS').replace(/[\/-]+$/, '')
+    const isSequentialPattern =
+      invoiceNumber.startsWith(`${cleanP}/${fy}/`) ||
+      invoiceNumber.startsWith(settings.invoicePrefix)
     if (isSequentialPattern) {
       invoiceNumber = await getNextInvoiceNumber()
     } else {
@@ -445,7 +532,10 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
         amountPaid: new Prisma.Decimal(0),
         amountDue,
 
-        notes: input.notes !== undefined ? input.notes : settings.defaultNotes,
+        notes:
+          input.notes !== undefined && input.notes !== null && input.notes.trim() !== ''
+            ? input.notes.trim()
+            : null,
         terms: input.terms !== undefined ? input.terms : settings.defaultTerms,
 
         items: {
@@ -491,7 +581,10 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
           amountPaid: new Prisma.Decimal(0),
           amountDue,
 
-          notes: input.notes !== undefined ? input.notes : settings.defaultNotes,
+          notes:
+          input.notes !== undefined && input.notes !== null && input.notes.trim() !== ''
+            ? input.notes.trim()
+            : null,
           terms: input.terms !== undefined ? input.terms : settings.defaultTerms,
 
           items: {
@@ -545,11 +638,18 @@ export async function updateInvoice(id: number, input: UpdateInvoiceInput, userI
     }
   }
 
-  if (input.billingAddress && existing.customer?.companyId) {
-    await prisma.company.update({
-      where: { id: existing.customer.companyId },
-      data: { address: input.billingAddress },
-    }).catch(() => null)
+  const targetCustId = input.customerId || existing.customerId
+  if (input.billingAddress && targetCustId) {
+    const cust = await prisma.customer.findUnique({
+      where: { id: targetCustId },
+      select: { companyId: true },
+    })
+    if (cust?.companyId) {
+      await prisma.company.update({
+        where: { id: cust.companyId },
+        data: { address: cleanAddress(input.billingAddress) },
+      }).catch(() => null)
+    }
   }
 
   const taxType = input.taxType || existing.taxType
@@ -1079,16 +1179,7 @@ export async function generateInvoicePdf(invoiceId: number) {
           contactPerson: invoice.customer.primaryContact?.fullName || null,
           email: invoice.customer.primaryContact?.email || null,
           phone: invoice.customer.primaryContact?.phone || invoice.customer.company?.phone || null,
-          address: [
-            invoice.customer.company?.address,
-            invoice.customer.company?.city,
-            invoice.customer.company?.state,
-            invoice.customer.company?.country,
-          ]
-            .filter(Boolean)
-            .map((s) => String(s).trim())
-            .filter(Boolean)
-            .join(', ') || null,
+          address: formatBillingAddress(invoice.customer.company),
         }
       : null,
     items: invoice.items.map((i) => ({
@@ -1119,6 +1210,7 @@ export async function generateInvoicePdf(invoiceId: number) {
       bankBranch: settings.bankBranch,
       upiId: settings.upiId,
       brandColor: settings.brandColor,
+      defaultNotes: settings.defaultNotes,
       defaultTerms: settings.defaultTerms,
     },
   })

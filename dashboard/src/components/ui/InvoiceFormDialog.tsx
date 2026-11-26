@@ -11,11 +11,10 @@ import {
   Receipt,
   Sparkles,
   Eye,
-  Check,
   User,
   Phone,
+  Smartphone,
   Mail,
-  Palette,
   Copy,
   ArrowUp,
   ArrowDown,
@@ -31,10 +30,11 @@ import {
   fetchNextInvoiceNumber,
   fetchInvoiceCurrencies,
   formatInvoiceAmount,
-  parseTermsList,
-  cleanTermClause,
+  numberToWords,
+  formatBillingAddress,
+  cleanAddress,
+  resolveOrderNotice,
 } from '../../lib/invoices';
-import { TermsClauseManager } from './TermsClauseManager';
 import { fetchCustomers } from '../../lib/customers';
 import { fetchProductServices } from '../../lib/products-services';
 import type {
@@ -326,17 +326,8 @@ export default function InvoiceFormDialog({
       if (!isEdit) setBillingAddress('');
       return;
     }
-    const company = selectedCustomer.companyDetails || selectedCustomer.company;
-    const addr = [
-      typeof company === 'object' ? company?.address : null,
-      typeof company === 'object' ? company?.city : null,
-      typeof company === 'object' ? company?.state : null,
-      typeof company === 'object' ? company?.country : null,
-    ]
-      .filter(Boolean)
-      .map((s) => String(s).trim())
-      .filter(Boolean)
-      .join(', ');
+    const company = (selectedCustomer as any).companyDetails || selectedCustomer.company;
+    const addr = formatBillingAddress(typeof company === 'object' ? company : null);
 
     if (addr && (!billingAddress || !isEdit)) {
       setBillingAddress(addr);
@@ -395,7 +386,7 @@ export default function InvoiceFormDialog({
 
         if (settingsRes && !isEdit) {
           setTemplateEdition(settingsRes.defaultTemplate || 'VIBRANT_TECH');
-          setNotes(settingsRes.defaultNotes || 'Thank you for partnering with Vibrantick Infotech Solutions.');
+          setNotes('');
           setTerms(
             settingsRes.defaultTerms ||
               '1. Payment is due within 15 days of invoice date.\n2. Please quote the invoice number when making electronic transfer.\n3. All disputes are subject to local jurisdiction.'
@@ -420,19 +411,14 @@ export default function InvoiceFormDialog({
           const hasPayments = (inv.payments && inv.payments.length > 0) || Number(inv.amountPaid || 0) > 0;
           setHasRecordedPayments(hasPayments);
           setTotalDiscount(Number(inv.totalDiscount || 0));
-          setNotes(inv.notes || '');
+          const isLegacyDefaultNote =
+            inv.notes?.trim() === 'Thank you for partnering with Vibrantick Infotech Solutions.' ||
+            inv.notes?.trim() === 'Thank you and looking forward to a fruitful relationship with our company.' ||
+            (settingsRes?.defaultNotes && inv.notes?.trim() === settingsRes.defaultNotes.trim());
+          setNotes(isLegacyDefaultNote ? '' : (inv.notes || ''));
           setTerms(inv.terms || '');
 
-          const editAddr = [
-            inv.customer?.company?.address,
-            inv.customer?.company?.city,
-            inv.customer?.company?.state,
-            inv.customer?.company?.country,
-          ]
-            .filter(Boolean)
-            .map((s) => String(s).trim())
-            .filter(Boolean)
-            .join(', ');
+          const editAddr = formatBillingAddress(inv.customer?.company);
           if (editAddr) {
             setBillingAddress(editAddr);
           }
@@ -624,7 +610,7 @@ export default function InvoiceFormDialog({
       const payload: CreateInvoicePayload = {
         customerId: Number(customerId),
         dealId: dealId ? Number(dealId) : null,
-        billingAddress: billingAddress.trim() || undefined,
+        billingAddress: cleanAddress(billingAddress.trim()) || undefined,
         invoiceNumber: invoiceNumber.trim() || undefined,
         issueDate,
         dueDate,
@@ -662,10 +648,6 @@ export default function InvoiceFormDialog({
     }
   };
 
-  const activeThemeMeta = useMemo(() => {
-    return TEMPLATE_EDITIONS.find((t) => t.id === templateEdition) || TEMPLATE_EDITIONS[0];
-  }, [templateEdition]);
-
   if (!isOpen) return null;
 
   return (
@@ -682,15 +664,7 @@ export default function InvoiceFormDialog({
                 <h3 className="text-base font-bold text-slate-900">
                   {isEdit ? `Edit Invoice ${invoiceNumber || ''}` : 'Create New Invoice'}
                 </h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-[#1d61e7] border border-blue-200">
-                  {activeThemeMeta.name}
-                </span>
               </div>
-              <p className="text-xs text-slate-500">
-                {isEdit
-                  ? 'Update line items, tax details, customer notes or invoice styling'
-                  : 'Generate a professional GST tax invoice with live calculations and edition preview'}
-              </p>
             </div>
           </div>
 
@@ -775,76 +749,43 @@ export default function InvoiceFormDialog({
               <p className="text-xs font-semibold text-slate-600">Loading invoice form & client data...</p>
             </div>
           ) : activeTab === 'preview' ? (
-            /* TAB 2: LIVE TEMPLATE DESIGN PREVIEW */
+            /* TAB 2: LIVE INVOICE PREVIEW */
             <div className="space-y-6">
-              {/* Quick Edition Switcher Bar */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[#1d61e7]" />
-                  <span className="text-xs font-bold text-slate-800">Selected Template Edition:</span>
-                  <span className="text-xs font-bold text-[#1d61e7]">{activeThemeMeta.name}</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {TEMPLATE_EDITIONS.map((ed) => (
-                    <button
-                      key={ed.id}
-                      type="button"
-                      onClick={() => setTemplateEdition(ed.id)}
-                      className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition ${
-                        templateEdition === ed.id
-                          ? 'bg-[#1d61e7] text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {ed.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Rendered Live Invoice Preview Sheet */}
-              <div
-                className={`bg-white rounded-xl border shadow-lg overflow-hidden transition-all ${
-                  templateEdition === 'CLASSIC_CORPORATE'
-                    ? 'border-2 border-slate-800 font-serif'
-                    : templateEdition === 'MINIMALIST_CLEAN'
-                    ? 'border border-slate-300'
-                    : 'border-slate-200'
-                }`}
-              >
-                {/* Header Banner */}
-                <div className={`p-6 ${activeThemeMeta.headerClass}`}>
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div className="flex items-center gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden min-h-[900px] flex flex-col justify-between">
+                <div>
+                  {/* Header (VIS Template) */}
+                <div className="p-6 border-b border-slate-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div>
                       <img
-                        src={settings?.companyLogo || '/favicon/favicon.png'}
+                        src={settings?.companyLogo || '/logo/vis-logo.png'}
                         alt={settings?.companyName || 'Company Logo'}
-                        className="h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32 object-contain flex-shrink-0 drop-shadow-md"
+                        className="h-12 sm:h-14 object-contain"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/favicon/favicon.png';
+                          (e.target as HTMLImageElement).src = '/logo/vis-logo.png';
                         }}
                       />
-                      <div>
-                        <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-                          {settings?.companyName || 'Vibrantick Infotech Solutions'}
-                        </h2>
-                        <p className="text-xs opacity-90 mt-0.5">
-                          GSTIN: {settings?.gstin || '03ABCDE1234F1Z5'} • PAN: {settings?.panNumber || 'ABCDE1234F'}
-                        </p>
-                        <p className="text-xs opacity-80 mt-0.5">
-                          {settings?.addressLine1 || 'SCO 12, IT Park'}, {settings?.city || 'Mohali'},{' '}
-                          {settings?.state || 'Punjab'} - {settings?.pincode || '160071'}
-                        </p>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 mt-2 font-mono">
+                        Invoice No: {invoiceNumber || 'VIS/2026-27/040'}
                       </div>
                     </div>
 
-                    <div className="text-right sm:border-l sm:border-white/20 sm:pl-6 flex-shrink-0">
-                      <div className="text-xs uppercase tracking-wider font-semibold opacity-80">Tax Invoice</div>
-                      <div className="text-lg font-black font-mono mt-0.5">
-                        {invoiceNumber || 'VIS-INV-PREVIEW'}
+                    <div className="sm:text-right space-y-1">
+                      <img
+                        src="/logo/msme-iso-badge.png"
+                        alt="MSME & ISO Certified"
+                        className="h-9 sm:h-11 object-contain sm:ml-auto"
+                      />
+                      <div className="text-[11px] sm:text-xs font-bold text-slate-900 font-mono">
+                        GSTIN- {settings?.gstin || '03BINPR6900A1ZK'}
                       </div>
-                      <div className="text-xs opacity-90 mt-1">
-                        Status: <span className="font-bold underline">{status}</span>
+                      <div className="text-[11px] sm:text-xs text-slate-800">
+                        Date: {new Date(issueDate).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        }).replace(/ /g, '-')}
                       </div>
                     </div>
                   </div>
@@ -960,102 +901,183 @@ export default function InvoiceFormDialog({
                     </table>
                   </div>
 
-                  {/* Calculations & Bank Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
-                    <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
-                        Payment Instructions & Bank Details
+                  {/* VIS Template Footer */}
+                  <div className="pt-6 border-t border-slate-200 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                      {/* Left Column: Thank You & Authorized Signatory */}
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-700 italic leading-relaxed">
+                          {(() => {
+                            const isCustomNote =
+                              Boolean(notes &&
+                              notes.trim().length > 0 &&
+                              notes.trim() !== 'Thank you for partnering with Vibrantick Infotech Solutions.' &&
+                              notes.trim() !== 'Thank you and looking forward to a fruitful relationship with our company.');
+                            return (
+                              (isCustomNote ? notes.trim() : null) ||
+                              settings?.defaultNotes?.trim() ||
+                              notes?.trim() ||
+                              'Thank you and looking forward to a fruitful relationship with our company.'
+                            );
+                          })()}
+                        </p>
+
+                        <div className="pt-2 space-y-1.5 text-left">
+                          {/* Space for signature */}
+                          <div className="h-10 w-36 border-b border-dashed border-slate-300" />
+                          <div className="text-xs font-bold text-slate-900">Auth. Signatory</div>
+                          <div className="text-[11px] text-slate-700">
+                            Rakesh Kumar Rai<br />Founder & CEO
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1 text-slate-600 text-[11px]">
-                        <div>Bank: <span className="font-semibold text-slate-800">{settings?.bankName || 'HDFC Bank'}</span></div>
-                        <div>Account No: <span className="font-mono font-semibold text-slate-800">{settings?.bankAccountNo || '50200012345678'}</span></div>
-                        <div>IFSC: <span className="font-mono font-semibold text-slate-800">{settings?.bankIfsc || 'HDFC0001234'}</span></div>
-                        <div>Branch: <span className="text-slate-800">{settings?.bankBranch || 'IT Park'}</span></div>
-                        <div>UPI ID: <span className="font-mono text-[#1d61e7] font-semibold">{settings?.upiId || '8699792040@upi'}</span></div>
+
+                      {/* Right Column: Calculations, In Words & Stamp */}
+                      <div className="space-y-2 text-xs sm:text-right">
+                        <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-700 py-0.5">
+                          <span className="font-medium">Sub Total:</span>
+                          <span className="font-semibold text-slate-900 font-mono">
+                            {fmtMoney(computedTotals.subtotal)}/-
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-700 py-0.5">
+                          <span className="font-medium">Discount:</span>
+                          <span className="font-semibold font-mono">
+                            {totalDiscount > 0 && computedTotals.subtotal > 0
+                              ? `${((totalDiscount / computedTotals.subtotal) * 100).toFixed(2)}%`
+                              : '0.00%'}
+                          </span>
+                        </div>
+
+                        {taxType === 'INTER_STATE' ? (
+                          <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                            <span>IGST (18%):</span>
+                            <span className="font-mono">{fmtMoney(computedTotals.igst)}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                              <span>SGST (9%):</span>
+                              <span className="font-mono">{fmtMoney(computedTotals.sgst)}</span>
+                            </div>
+                            <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                              <span>CGST (9%):</span>
+                              <span className="font-mono">{fmtMoney(computedTotals.cgst)}</span>
+                            </div>
+                          </>
+                        )}
+
+                        <div className="pt-2 border-t border-slate-300 flex justify-between sm:justify-end sm:gap-6 items-center text-slate-900">
+                          <span className="text-xs font-bold">Total Amount:</span>
+                          <span className="text-base font-black font-mono text-slate-900">
+                            {fmtMoney(computedTotals.grandTotal)}/-
+                          </span>
+                        </div>
+
+                        <div className="pt-2 text-left sm:text-right space-y-0.5">
+                          <div className="text-[15px] font-bold text-slate-700">Total Amount In Words:</div>
+                          <div className="text-[16px] font-bold text-slate-900 leading-relaxed">
+                            {numberToWords(computedTotals.grandTotal, activeCurrency.code)}
+                          </div>
+                        </div>
+
+                        {/* Stamped Badge */}
+                        <div className="pt-1 flex justify-start sm:justify-end">
+                          <div className={`inline-block border-2 rounded px-3 py-0.5 font-extrabold tracking-widest text-xs transform -rotate-6 uppercase shadow-sm ${
+                            status === 'PAID'
+                              ? 'border-emerald-700 text-emerald-800 bg-emerald-50/50'
+                              : 'border-slate-700 text-slate-800 bg-slate-50'
+                          }`}>
+                            {status || 'DRAFT'}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Taxable Subtotal:</span>
-                        <span className="font-semibold font-mono text-slate-900">
-                          {fmtMoney(computedTotals.subtotal)}
-                        </span>
+                    {/* Terms & Instructions and Contact Details (Matching Reference Template) */}
+                    <div className="pt-4 space-y-2.5">
+                      <div className="border-b border-slate-300 pb-1.5">
+                        <h4 className="text-base sm:text-lg font-bold text-slate-900 tracking-wide">
+                          Terms & Instructions
+                        </h4>
                       </div>
 
-                      {totalDiscount > 0 && (
-                        <div className="flex justify-between text-emerald-600">
-                          <span>Overall Discount:</span>
-                          <span className="font-semibold font-mono">
-                            -{fmtMoney(totalDiscount)}
-                          </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1 items-start text-xs sm:text-sm text-slate-800">
+                        {/* Left Column: Terms & Bank Details (Open layout, fully dynamic) */}
+                        <div className="space-y-2 leading-relaxed">
+                          <div className="font-medium text-slate-900">
+                            {resolveOrderNotice(terms, settings?.defaultTerms, settings?.companyName)}
+                          </div>
+                          <div className="font-bold text-slate-900 pt-0.5">Payment Details -</div>
+                          <div className="pl-3 space-y-1 text-slate-700 text-xs sm:text-[13px]">
+                            <div>Name - {settings?.companyName || 'VIBRANTICK INFOTECH SOLUTIONS'}</div>
+                            <div className="font-mono">Acc No. - {settings?.bankAccountNo || '50200012345678'}</div>
+                            <div className="font-mono">IFSC Code - {settings?.bankIfsc || 'HDFC0001234'}</div>
+                            <div>Bank Name- {settings?.bankName || 'HDFC Bank'}</div>
+                            <div>Branch Name - {settings?.bankBranch || 'IT Park Branch'}</div>
+                          </div>
                         </div>
-                      )}
 
-                      {taxType === 'INTRA_STATE' && (
-                        <>
-                          <div className="flex justify-between text-slate-500 text-[11px]">
-                            <span>CGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
-                            <span className="font-mono">
-                              {fmtMoney(computedTotals.cgst)}
+                        {/* Right Column: Contact Details with Icon Badges (Open layout, fully dynamic) */}
+                        <div className="space-y-2.5 sm:pl-6 text-xs sm:text-[13px]">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Phone className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 font-mono">
+                              {settings?.companyPhone || '+91 8699792040'}
                             </span>
                           </div>
-                          <div className="flex justify-between text-slate-500 text-[11px]">
-                            <span>SGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
-                            <span className="font-mono">
-                              {fmtMoney(computedTotals.sgst)}
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Smartphone className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 font-mono">
+                              {settings?.whatsappNumber || '8699792040'}
                             </span>
                           </div>
-                        </>
-                      )}
 
-                      {taxType === 'INTER_STATE' && (
-                        <div className="flex justify-between text-slate-500 text-[11px]">
-                          <span>IGST ({computedTotals.effectiveTaxRate.toFixed(1)}%):</span>
-                          <span className="font-mono">
-                            {fmtMoney(computedTotals.igst)}
-                          </span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Mail className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900">
+                              {settings?.companyEmail || 'info@vibrantick.in'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 mt-0.5 flex-shrink-0">
+                              <MapPin className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 leading-snug">
+                              {[
+                                settings?.addressLine1 || 'Prosperity Square, Phase 8b',
+                                settings?.city ? (settings.city.toLowerCase().includes('sector') ? settings.city : `Sector 74, ${settings.city}`) : 'Sector 74, Mohali',
+                                settings?.state || 'Punjab',
+                              ].filter(Boolean).join(', ')}
+                            </span>
+                          </div>
                         </div>
-                      )}
-
-                      <div className="pt-2 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                        <span className="font-bold text-xs uppercase tracking-wider">Grand Total ({activeCurrency.code}):</span>
-                        <span className="font-black text-lg text-[#1d61e7] font-mono">
-                          {fmtMoney(computedTotals.grandTotal)}
-                        </span>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Notes & Terms - Clean documentation style */}
-                  {(notes || terms) && (
-                    <div className="pt-4 border-t border-slate-200 text-xs text-slate-700 space-y-3">
-                      {terms && (
-                        <div>
-                          <div className="font-bold text-slate-900 text-xs mb-2">Terms & Conditions</div>
-                          <ul className="space-y-1.5 pl-0.5">
-                            {parseTermsList(terms).map((clause, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-700">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 shrink-0" />
-                                <span>{cleanTermClause(clause)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {notes && (
-                        <div className="p-2.5 bg-slate-50 border-l-4 border-slate-900 rounded-r-lg text-[11px] leading-relaxed">
-                          <span className="font-bold text-slate-900 block mb-0.5 tracking-wider uppercase text-[10px]">
-                            NOTE
-                          </span>
-                          <span className="text-slate-600">{notes}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {/* Document Footer Bar (Pinned at footer) */}
+              <div className="mt-auto border-t border-slate-200 bg-slate-50/60 py-3.5 px-6 text-center space-y-0.5">
+                <div className="text-xs font-bold text-slate-900">
+                  www.vibrantick.in
+                </div>
+                <div className="text-[10px] text-slate-500 tracking-wide">
+                  Cyber Security | Web Development | Digital Marketing | Cloud Mgt Services | Mobile Application
                 </div>
               </div>
             </div>
+          </div>
           ) : (
             /* TAB 1: INTERACTIVE FORM */
             <>
@@ -1174,7 +1196,7 @@ export default function InvoiceFormDialog({
                         type="text"
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
-                        placeholder="e.g. VIS-INV-2026-1001"
+                        placeholder="e.g. VIS/2026-27/040"
                         className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] font-mono font-semibold text-slate-900 shadow-2xs"
                         required
                       />
@@ -1269,85 +1291,7 @@ export default function InvoiceFormDialog({
                 </div>
               </div>
 
-              {/* 2. Visual Edition & Theme Picker */}
-              <div className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-[#1d61e7]" />
-                      Invoice Theme & Design Edition
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Choose an edition to preview its layout, typography and color banner
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('preview')}
-                    className="inline-flex items-center gap-1 text-xs text-[#1d61e7] hover:underline font-bold"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    Preview Full Page
-                  </button>
-                </div>
-
-                {/* 4 Interactive Visual Design Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                  {TEMPLATE_EDITIONS.map((ed) => {
-                    const isSelected = templateEdition === ed.id;
-                    return (
-                      <div
-                        key={ed.id}
-                        onClick={() => setTemplateEdition(ed.id)}
-                        className={`cursor-pointer rounded-xl border p-3 flex flex-col justify-between transition-all relative overflow-hidden bg-white shadow-2xs ${
-                          isSelected
-                            ? 'border-[#1d61e7] ring-2 ring-[#1d61e7]/20 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#1d61e7] text-white flex items-center justify-center shadow-2xs">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </div>
-                        )}
-
-                        <div>
-                          {/* Mini Layout Mockup Bar */}
-                          <div className={`h-8 rounded-lg mb-2.5 flex items-center px-2.5 ${ed.previewBg}`}>
-                            <div className="w-2.5 h-2.5 rounded-full bg-white/70 mr-1.5" />
-                            <div className="h-1.5 w-12 rounded-full bg-white/60" />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-900">{ed.name}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{ed.subtitle}</p>
-                          <p className="text-[10px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
-                            {ed.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              isSelected
-                                ? 'bg-blue-50 text-[#1d61e7]'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {ed.badge}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-semibold">
-                            {isSelected ? 'Active Theme' : 'Click to Select'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3. Line Items Table & GST Breakdown */}
+              {/* 2. Line Items Table & GST Breakdown */}
               <div className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
                 {/* Header Toolbar */}
                 <div className="space-y-3 pb-3 border-b border-slate-200">
@@ -1788,25 +1732,19 @@ export default function InvoiceFormDialog({
                 </div>
               </div>
 
-              {/* 4. Notes & Terms */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800">Customer Notes</label>
-                  <textarea
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Instructions, project reference, or thank you note..."
-                    className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] text-slate-800"
-                  />
-                </div>
-
-                <TermsClauseManager
-                  value={terms}
-                  onChange={setTerms}
-                  label="Terms & Conditions"
-                  helperText="Each clause will appear as a separate numbered/bulleted line on customer invoice views and generated PDF."
+              {/* 3. Customer Notes */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-800">Customer Note (Thank You Note)</label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={settings?.defaultNotes || "Thank you and looking forward to a fruitful relationship with our company."}
+                  className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] text-slate-800"
                 />
+                <p className="text-[11px] text-slate-400">
+                  Note printed above the Authorized Signatory on customer invoices.
+                </p>
               </div>
             </>
           )}

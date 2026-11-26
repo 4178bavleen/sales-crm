@@ -75,7 +75,7 @@ export const recordPaymentSchema = z.object({
 export const updateInvoiceSettingsSchema = z.object({
   companyName: z.string().min(1).optional(),
   companyLogo: z.string().nullable().optional(),
-  companyEmail: z.string().email().optional(),
+  companyEmail: z.string().email().or(z.literal('')).optional(),
   companyPhone: z.string().optional(),
   whatsappNumber: z.string().optional(),
   addressLine1: z.string().nullable().optional(),
@@ -97,7 +97,7 @@ export const updateInvoiceSettingsSchema = z.object({
   defaultTemplate: z
     .enum(['MODERN_EXECUTIVE', 'CLASSIC_CORPORATE', 'MINIMALIST_CLEAN', 'VIBRANT_TECH'])
     .optional(),
-  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
+  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).or(z.literal('')).optional(),
   defaultNotes: z.string().nullable().optional(),
   defaultTerms: z.string().nullable().optional(),
 

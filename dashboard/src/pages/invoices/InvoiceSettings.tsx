@@ -16,8 +16,7 @@ import {
   Trash2,
   Lock,
 } from 'lucide-react';
-import { fetchInvoiceSettings, updateInvoiceSettings } from '../../lib/invoices';
-import { TermsClauseManager } from '../../components/ui/TermsClauseManager';
+import { fetchInvoiceSettings, updateInvoiceSettings, resolveOrderNotice } from '../../lib/invoices';
 import type { InvoiceTemplateEdition } from '../../types/invoice';
 import { useSession } from '../../lib/useSession';
 
@@ -73,15 +72,15 @@ export default function InvoiceSettings() {
   const [bankBranch, setBankBranch] = useState('IT Park Branch');
   const [upiId, setUpiId] = useState('8699792040@upi');
 
-  const [invoicePrefix, setInvoicePrefix] = useState('VIS-INV-');
-  const [nextNumber, setNextNumber] = useState<number>(1001);
+  const [invoicePrefix, setInvoicePrefix] = useState('VIS');
+  const [nextNumber, setNextNumber] = useState<number>(40);
   const [defaultTemplate, setDefaultTemplate] = useState<InvoiceTemplateEdition>('VIBRANT_TECH');
   const [brandColor, setBrandColor] = useState('#1d61e7');
   const [defaultNotes, setDefaultNotes] = useState(
     'Thank you for partnering with Vibrantick Infotech Solutions.'
   );
-  const [defaultTerms, setDefaultTerms] = useState(
-    '1. Payment is due within 15 days of invoice date.\n2. Please quote the invoice number when making electronic transfer.\n3. All disputes are subject to local jurisdiction.'
+  const [orderNotice, setOrderNotice] = useState(
+    'Order to be Placed - In favor of VIBRANTICK INFOTECH SOLUTIONS'
   );
 
   const [autoInvoiceOnDealWon, setAutoInvoiceOnDealWon] = useState(true);
@@ -112,12 +111,16 @@ export default function InvoiceSettings() {
           setBankBranch(s.bankBranch || '');
           setUpiId(s.upiId || '');
 
-          setInvoicePrefix(s.invoicePrefix || 'VIS-INV-');
-          setNextNumber(Number(s.nextNumber || 1001));
+          let rawPrefix = s.invoicePrefix || 'VIS';
+          if (/^VIS(?:-INV)?[-/]*$/i.test(rawPrefix)) {
+            rawPrefix = 'VIS';
+          }
+          setInvoicePrefix(rawPrefix);
+          setNextNumber(Number(s.nextNumber || 40));
           setDefaultTemplate(s.defaultTemplate || 'VIBRANT_TECH');
           setBrandColor(s.brandColor || '#1d61e7');
           setDefaultNotes(s.defaultNotes || '');
-          setDefaultTerms(s.defaultTerms || '');
+          setOrderNotice(resolveOrderNotice(null, s.defaultTerms, s.companyName));
           setAutoInvoiceOnDealWon(Boolean(s.autoInvoiceOnDealWon));
           setAutoSyncCashflow(Boolean(s.autoSyncCashflow));
         }
@@ -131,12 +134,20 @@ export default function InvoiceSettings() {
     load();
   }, []);
 
+  const handleOrderNoticeChange = (val: string) => {
+    setOrderNotice(val);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSuccessMsg(null);
     setErrorMsg(null);
     try {
+      const finalTerms =
+        orderNotice.trim() ||
+        `Order to be Placed - In favor of ${(companyName || 'Vibrantick Infotech Solutions').toUpperCase()}`;
+
       await updateInvoiceSettings({
         companyName,
         companyLogo,
@@ -160,7 +171,7 @@ export default function InvoiceSettings() {
         defaultTemplate,
         brandColor,
         defaultNotes,
-        defaultTerms,
+        defaultTerms: finalTerms,
         autoInvoiceOnDealWon,
         autoSyncCashflow,
       });
@@ -492,24 +503,25 @@ export default function InvoiceSettings() {
         </div>
       </div>
 
-      {/* 3. Numbering & Default Templates */}
+      {/* 3. Numbering System */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
         <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
           <FileText className="w-4 h-4 text-indigo-600" />
-          Invoice Editions & Numbering System
+          Invoice Numbering System
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700">Invoice Prefix</label>
             <input
               type="text"
               value={invoicePrefix}
               onChange={(e) => setInvoicePrefix(e.target.value)}
+              placeholder="e.g. VIS"
               className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
               required
             />
-            <p className="text-[11px] text-slate-400">e.g. VIS-INV-</p>
+            <p className="text-[11px] text-slate-400">e.g. VIS (Outputs: VIS/2026-27/040)</p>
           </div>
 
           <div className="space-y-1">
@@ -517,45 +529,45 @@ export default function InvoiceSettings() {
             <input
               type="number"
               value={nextNumber}
-              onChange={(e) => setNextNumber(parseInt(e.target.value, 10) || 1001)}
+              onChange={(e) => setNextNumber(parseInt(e.target.value, 10) || 1)}
               className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
               required
             />
-            <p className="text-[11px] text-slate-400">Next created invoice will use this number</p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Default Template Edition</label>
-            <select
-              value={defaultTemplate}
-              onChange={(e) => setDefaultTemplate(e.target.value as InvoiceTemplateEdition)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="VIBRANT_TECH">Vibrant Tech (VIS Cyan Brand)</option>
-              <option value="MODERN_EXECUTIVE">Modern Executive (Indigo Grid)</option>
-              <option value="CLASSIC_CORPORATE">Classic Corporate (Formal Serif)</option>
-              <option value="MINIMALIST_CLEAN">Minimalist Clean (Monochrome)</option>
-            </select>
+            <p className="text-[11px] text-slate-400">Next created invoice will use this sequence number (3-digit padded)</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        {/* Order Placement Instruction & Default Notes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Default Notes</label>
+            <label className="text-xs font-semibold text-slate-700">
+              Order Placement Instruction (Printed in Terms & Instructions)
+            </label>
+            <input
+              type="text"
+              value={orderNotice}
+              onChange={(e) => handleOrderNoticeChange(e.target.value)}
+              placeholder="e.g. Order to be Placed - In favor of VIBRANTICK INFOTECH SOLUTIONS"
+              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800"
+            />
+            <p className="text-[11px] text-slate-400">
+              First instruction line printed under 'Terms & Instructions' on invoice web views and PDFs.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-700">Default Customer Note (Thank You Note)</label>
             <textarea
               rows={3}
               value={defaultNotes}
               onChange={(e) => setDefaultNotes(e.target.value)}
+              placeholder="Thank you and looking forward to a fruitful relationship with our company."
               className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
+            <p className="text-[11px] text-slate-400">
+              Note printed above the Authorized Signatory on customer invoices.
+            </p>
           </div>
-
-          <TermsClauseManager
-            value={defaultTerms}
-            onChange={setDefaultTerms}
-            label="Default Company Terms & Conditions"
-            helperText="Clauses configured here will automatically pre-populate onto all new invoices generated by your team."
-          />
         </div>
       </div>
 

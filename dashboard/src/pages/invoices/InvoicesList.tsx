@@ -311,7 +311,6 @@ export default function InvoicesList() {
                 <th className="py-3 px-4">Invoice #</th>
                 <th className="py-3 px-4">Customer</th>
                 <th className="py-3 px-4">Issue / Due Date</th>
-                <th className="py-3 px-4">Edition</th>
                 <th className="py-3 px-4 text-right">Grand Total</th>
                 <th className="py-3 px-4 text-right">Balance Due</th>
                 <th className="py-3 px-4 text-center">Status</th>
@@ -321,14 +320,14 @@ export default function InvoicesList() {
             <tbody className="divide-y divide-slate-100">
               {loading && invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <RotateCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1d61e7]" />
                     Loading invoices...
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <FileText className="w-10 h-10 mx-auto mb-3 text-slate-300" />
                     <p className="font-medium text-slate-600">No invoices found</p>
                     <p className="text-xs text-slate-400 mt-1">
@@ -371,29 +370,6 @@ export default function InvoicesList() {
                     <td className="py-3.5 px-4 text-xs text-slate-500">
                       <div className="font-medium text-slate-700">Issued: {new Date(inv.issueDate).toLocaleDateString('en-IN')}</div>
                       <div className="text-slate-400">Due: {new Date(inv.dueDate).toLocaleDateString('en-IN')}</div>
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {inv.templateEdition === 'VIBRANT_TECH' && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                          Vibrant Tech
-                        </span>
-                      )}
-                      {inv.templateEdition === 'MODERN_EXECUTIVE' && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white">
-                          Executive Dark
-                        </span>
-                      )}
-                      {inv.templateEdition === 'CLASSIC_CORPORATE' && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-serif">
-                          Classic Serif
-                        </span>
-                      )}
-                      {inv.templateEdition === 'MINIMALIST_CLEAN' && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white text-slate-700 border border-slate-300">
-                          Minimalist Clean
-                        </span>
-                      )}
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-semibold text-slate-900">

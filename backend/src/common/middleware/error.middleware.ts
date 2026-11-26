@@ -14,17 +14,26 @@ export const errorMiddleware: ErrorRequestHandler = (
     typeof error === 'object' &&
     (error as { type?: string }).type === 'entity.parse.failed'
 
-  const statusCode = isJsonParseError
-    ? 400
-    : error instanceof AppError
-      ? error.statusCode
-      : 500
+  const isPayloadTooLarge =
+    error !== null &&
+    typeof error === 'object' &&
+    ((error as { type?: string }).type === 'entity.too.large' || (error as { name?: string }).name === 'PayloadTooLargeError')
 
-  const message = isJsonParseError
-    ? 'Invalid JSON payload'
-    : error instanceof AppError
-      ? error.message
-      : 'Internal server error'
+  const statusCode = isPayloadTooLarge
+    ? 413
+    : isJsonParseError
+      ? 400
+      : error instanceof AppError
+        ? error.statusCode
+        : 500
+
+  const message = isPayloadTooLarge
+    ? 'Uploaded image or payload is too large. Maximum size is 15MB.'
+    : isJsonParseError
+      ? 'Invalid JSON payload'
+      : error instanceof AppError
+        ? error.message
+        : 'Internal server error'
 
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19)
 

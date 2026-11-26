@@ -5,6 +5,9 @@ import {
   Download,
   Printer,
   Mail,
+  Phone,
+  Smartphone,
+  MapPin,
   MessageSquare,
   CreditCard,
   Edit2,
@@ -14,8 +17,6 @@ import {
   Send,
   ExternalLink,
   X,
-  Landmark,
-  Info,
 } from 'lucide-react';
 import {
   fetchInvoiceById,
@@ -25,8 +26,9 @@ import {
   recordInvoicePayment,
   fetchInvoiceSettings,
   formatInvoiceAmount,
-  parseTermsList,
-  cleanTermClause,
+  numberToWords,
+  formatBillingAddress,
+  resolveOrderNotice,
 } from '../../lib/invoices';
 import InvoiceFormDialog from '../../components/ui/InvoiceFormDialog';
 import type { Invoice, InvoicePaymentMethod, InvoiceSetting } from '../../types/invoice';
@@ -225,15 +227,6 @@ export default function InvoiceView() {
   }
 
   // Theme edition accent colors
-  const editionStyles: Record<string, { banner: string; text: string; light: string }> = {
-    VIBRANT_TECH: { banner: 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white', text: 'text-sky-600', light: 'bg-sky-50' },
-    MODERN_EXECUTIVE: { banner: 'bg-slate-900 text-white', text: 'text-indigo-600', light: 'bg-indigo-50' },
-    CLASSIC_CORPORATE: { banner: 'bg-slate-800 text-white font-serif', text: 'text-slate-800 font-serif', light: 'bg-slate-100' },
-    MINIMALIST_CLEAN: { banner: 'bg-white text-slate-900 border-b-2 border-slate-900', text: 'text-slate-900', light: 'bg-slate-50' },
-  };
-
-  const theme = editionStyles[invoice.templateEdition] || editionStyles.VIBRANT_TECH;
-
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Top Action Toolbar (Hidden during print) */}
@@ -314,39 +307,40 @@ export default function InvoiceView() {
       </div>
 
       {/* Invoice Document Canvas */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none">
-        {/* Banner Header */}
-        <div className={`p-8 ${theme.banner}`}>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-            <div className="flex items-center gap-5 sm:gap-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none min-h-[950px] flex flex-col justify-between">
+        <div>
+          {/* Header (VIS Template) */}
+        <div className="p-8 pb-6 border-b border-slate-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div>
               <img
-                src={settings?.companyLogo || '/favicon/favicon.png'}
+                src={settings?.companyLogo || '/logo/vis-logo.png'}
                 alt={settings?.companyName || 'Company Logo'}
-                className="h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain flex-shrink-0 drop-shadow-md"
+                className="h-14 sm:h-16 object-contain"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/favicon/favicon.png';
+                  (e.target as HTMLImageElement).src = '/logo/vis-logo.png';
                 }}
               />
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-                  {settings?.companyName || 'Vibrantick Infotech Solutions'}
-                </h2>
-                <p className="text-xs opacity-90 mt-1">
-                  {settings?.addressLine1 || 'SCO 12, Level 2, IT Park'}, {settings?.city || 'Mohali'} • GSTIN: {settings?.gstin || '03ABCDE1234F1Z5'}
-                </p>
-                {(settings?.companyEmail || settings?.companyPhone) && (
-                  <p className="text-xs opacity-80 mt-0.5">
-                    {[settings.companyEmail, settings.companyPhone].filter(Boolean).join(' | ')}
-                  </p>
-                )}
+              <div className="text-sm font-bold text-slate-900 mt-2 font-mono">
+                Invoice No: {invoice.invoiceNumber}
               </div>
             </div>
 
-            <div className="sm:text-right flex-shrink-0">
-              <span className="text-xs uppercase tracking-wider opacity-80 font-mono">Invoice Number</span>
-              <div className="text-2xl font-black font-mono tracking-tight">{invoice.invoiceNumber}</div>
-              <div className="text-xs opacity-90 mt-1">
-                Edition: {invoice.templateEdition.replace('_', ' ')}
+            <div className="sm:text-right space-y-1">
+              <img
+                src="/logo/msme-iso-badge.png"
+                alt="MSME & ISO Certified"
+                className="h-10 sm:h-12 object-contain sm:ml-auto"
+              />
+              <div className="text-xs sm:text-sm font-bold text-slate-900 font-mono">
+                GSTIN- {settings?.gstin || '03BINPR6900A1ZK'}
+              </div>
+              <div className="text-xs sm:text-sm text-slate-800">
+                Date: {new Date(invoice.issueDate).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                }).replace(/ /g, '-')}
               </div>
             </div>
           </div>
@@ -373,14 +367,7 @@ export default function InvoiceView() {
                 )}
                 {(invoice.customer?.company?.address || invoice.customer?.company?.city) && (
                   <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-sm">
-                    {[
-                      invoice.customer.company?.address,
-                      invoice.customer.company?.city,
-                      invoice.customer.company?.state,
-                      invoice.customer.company?.country,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
+                    {formatBillingAddress(invoice.customer?.company)}
                   </p>
                 )}
               </div>
@@ -457,129 +444,171 @@ export default function InvoiceView() {
             </table>
           </div>
 
-          {/* Totals & Bank Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-100 items-start">
-            {/* Bank Instructions */}
-            <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Landmark className="w-4 h-4 text-sky-600" />
-                Bank Transfer & UPI Instructions
-              </h4>
-              <div className="text-xs text-slate-600 space-y-1 font-mono">
-                <div>
-                  <span className="text-slate-400">Beneficiary:</span> Vibrantick Infotech Solutions
-                </div>
-                <div>
-                  <span className="text-slate-400">Bank:</span> HDFC Bank (IT Park Branch)
-                </div>
-                <div>
-                  <span className="text-slate-400">Account No:</span> 50200012345678
-                </div>
-                <div>
-                  <span className="text-slate-400">IFSC Code:</span> {settings?.bankIfsc || 'HDFC0001234'}
-                </div>
-                <div>
-                  <span className="text-slate-400">UPI ID:</span> {settings?.upiId || 'Not Configured'}
-                </div>
-                {settings?.whatsappNumber && (
-                  <div className="pt-2 text-emerald-700 font-sans font-semibold">
-                    WhatsApp Support: +91 {settings.whatsappNumber}
+          {/* VIS Template Footer */}
+          <div className="pt-6 border-t border-slate-200 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              {/* Left Column: Thank You & Authorized Signatory */}
+              <div className="space-y-4">
+                <p className="text-xs text-slate-700 italic leading-relaxed">
+                  {(() => {
+                    const isCustomNote =
+                      Boolean(invoice.notes &&
+                      invoice.notes.trim().length > 0 &&
+                      invoice.notes.trim() !== 'Thank you for partnering with Vibrantick Infotech Solutions.' &&
+                      invoice.notes.trim() !== 'Thank you and looking forward to a fruitful relationship with our company.');
+                    return (
+                      (isCustomNote ? invoice.notes?.trim() : null) ||
+                      settings?.defaultNotes?.trim() ||
+                      invoice.notes?.trim() ||
+                      'Thank you and looking forward to a fruitful relationship with our company.'
+                    );
+                  })()}
+                </p>
+
+                <div className="pt-2 space-y-2 text-left">
+                  {/* Space for physical / digital signing */}
+                  <div className="h-14 w-44 border-b border-dashed border-slate-300" />
+                  <div className="text-xs font-bold text-slate-900">Auth. Signatory</div>
+                  <div className="text-xs text-slate-700">
+                    Rakesh Kumar Rai<br />Founder & CEO
                   </div>
+                </div>
+              </div>
+
+              {/* Right Column: Calculations, In Words & Stamp */}
+              <div className="space-y-2 text-sm md:text-right">
+                <div className="flex justify-between md:justify-end md:gap-8 text-slate-700 py-0.5">
+                  <span className="font-medium">Sub Total:</span>
+                  <span className="font-semibold text-slate-900 font-mono">
+                    {formatCurrency(invoice.subtotal)}/-
+                  </span>
+                </div>
+
+                <div className="flex justify-between md:justify-end md:gap-8 text-slate-700 py-0.5">
+                  <span className="font-medium">Discount:</span>
+                  <span className="font-semibold font-mono">
+                    {Number(invoice.totalDiscount) > 0 && Number(invoice.subtotal) > 0
+                      ? `${((Number(invoice.totalDiscount) / Number(invoice.subtotal)) * 100).toFixed(2)}%`
+                      : '0.00%'}
+                  </span>
+                </div>
+
+                {invoice.taxType === 'INTER_STATE' ? (
+                  <div className="flex justify-between md:justify-end md:gap-8 text-slate-600 py-0.5">
+                    <span>IGST (18%):</span>
+                    <span className="font-mono">{formatCurrency(invoice.taxAmount)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between md:justify-end md:gap-8 text-slate-600 py-0.5">
+                      <span>SGST (9%):</span>
+                      <span className="font-mono">{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
+                    </div>
+                    <div className="flex justify-between md:justify-end md:gap-8 text-slate-600 py-0.5">
+                      <span>CGST (9%):</span>
+                      <span className="font-mono">{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
+                    </div>
+                  </>
                 )}
+
+                <div className="pt-2 border-t border-slate-300 flex justify-between md:justify-end md:gap-8 items-center text-slate-900">
+                  <span className="text-sm font-bold">Total Amount:</span>
+                  <span className="text-xl font-black font-mono text-slate-900">
+                    {formatCurrency(invoice.grandTotal)}/-
+                  </span>
+                </div>
+
+                <div className="pt-2 text-left md:text-right space-y-0.5">
+                  <div className="text-[15.5px] font-bold text-slate-700">Total Amount In Words:</div>
+                  <div className="text-[17.5px] font-bold text-slate-900 leading-relaxed">
+                    {numberToWords(Number(invoice.grandTotal), invoice.currency)}
+                  </div>
+                </div>
+
+                {/* Stamped Badge */}
+                <div className="pt-2 flex justify-start md:justify-end">
+                  {invoice.status === 'PAID' ? (
+                    <div className="inline-block border-2 border-emerald-700 rounded px-3.5 py-0.5 font-black tracking-widest text-sm transform -rotate-6 uppercase text-emerald-800 bg-emerald-50/60 shadow-sm">
+                      PAID
+                    </div>
+                  ) : (
+                    <div className="inline-block border border-slate-400 rounded px-2.5 py-0.5 font-bold tracking-wider text-xs uppercase text-slate-700 bg-slate-50">
+                      {invoice.status}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Calculations Box */}
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600 py-1">
-                <span>Subtotal (Taxable):</span>
-                <span className="font-semibold text-slate-900 font-mono">
-                  {formatCurrency(invoice.subtotal)}
-                </span>
+            {/* Terms & Instructions and Contact Details (Matching Reference Template) */}
+            <div className="pt-4 space-y-2.5">
+              <div className="border-b border-slate-300 pb-1.5">
+                <h4 className="text-base sm:text-lg font-bold text-slate-900 tracking-wide">
+                  Terms & Instructions
+                </h4>
               </div>
 
-              {Number(invoice.totalDiscount) > 0 && (
-                <div className="flex justify-between text-emerald-600 py-1">
-                  <span>Discount:</span>
-                  <span className="font-semibold font-mono">
-                    -{formatCurrency(invoice.totalDiscount)}
-                  </span>
-                </div>
-              )}
-
-              {invoice.taxType === 'INTRA_STATE' && (
-                <>
-                  <div className="flex justify-between text-slate-500 text-xs py-0.5">
-                    <span>Central GST (CGST):</span>
-                    <span className="font-mono">{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-1 items-start text-sm text-slate-800">
+                {/* Left Column: Terms & Bank Details (Open layout, fully dynamic) */}
+                <div className="space-y-2 leading-relaxed">
+                  <div className="font-medium text-slate-900">
+                    {resolveOrderNotice(invoice?.terms, settings?.defaultTerms, settings?.companyName)}
                   </div>
-                  <div className="flex justify-between text-slate-500 text-xs py-0.5">
-                    <span>State GST (SGST):</span>
-                    <span className="font-mono">{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
+                  <div className="font-bold text-slate-900 pt-0.5">Payment Details -</div>
+                  <div className="pl-3 space-y-1 text-slate-700 text-xs sm:text-sm">
+                    <div>Name - {settings?.companyName || 'Vibrantick Infotech Solutions'}</div>
+                    <div className="font-mono">Acc No. - {settings?.bankAccountNo || '50200012345678'}</div>
+                    <div className="font-mono">IFSC Code - {settings?.bankIfsc || 'HDFC0001234'}</div>
+                    <div>Bank Name- {settings?.bankName || 'HDFC Bank'}</div>
+                    <div>Branch Name - {settings?.bankBranch || 'IT Park Branch'}</div>
                   </div>
-                </>
-              )}
-
-              {invoice.taxType === 'INTER_STATE' && (
-                <div className="flex justify-between text-slate-500 text-xs py-0.5">
-                  <span>Integrated GST (IGST):</span>
-                  <span className="font-mono">{formatCurrency(invoice.taxAmount)}</span>
                 </div>
-              )}
 
-              <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                <span className="text-base font-bold">Grand Total:</span>
-                <span className="text-2xl font-black font-mono text-slate-900">
-                  {formatCurrency(invoice.grandTotal)}
-                </span>
-              </div>
+                {/* Right Column: Contact Details with Icon Badges (Open layout, fully dynamic) */}
+                <div className="space-y-3 md:pl-10 text-xs sm:text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                      <Phone className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-medium text-slate-900 font-mono">
+                      {settings?.companyPhone || '+91 8699792040'}
+                    </span>
+                  </div>
 
-              {Number(invoice.amountPaid) > 0 && (
-                <div className="flex justify-between text-emerald-600 font-semibold py-1">
-                  <span>Amount Paid:</span>
-                  <span className="font-mono">{formatCurrency(invoice.amountPaid)}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                      <Smartphone className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-medium text-slate-900 font-mono">
+                      {settings?.whatsappNumber || '8699792040'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                      <Mail className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-medium text-slate-900">
+                      {settings?.companyEmail || 'info@vibrantick.in'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded border border-slate-400 flex items-center justify-center text-slate-700 mt-0.5 flex-shrink-0">
+                      <MapPin className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-medium text-slate-900 leading-snug">
+                      {[
+                        settings?.addressLine1 || 'Prosperity Square, Phase 8b',
+                        settings?.city ? (settings.city.toLowerCase().includes('sector') ? settings.city : `Sector 74, ${settings.city}`) : 'Sector 74, Mohali',
+                        settings?.state || 'Punjab',
+                      ].filter(Boolean).join(', ')}
+                    </span>
+                  </div>
                 </div>
-              )}
-
-              <div className="flex justify-between text-rose-600 font-bold py-1 border-t border-slate-100">
-                <span>Balance Due:</span>
-                <span className="font-mono text-lg">{formatCurrency(invoice.amountDue)}</span>
               </div>
             </div>
           </div>
-
-          {/* Notes & Terms - Clean, uncluttered layout matching modern documentation standards */}
-          {(invoice.notes || invoice.terms) && (
-            <div className="pt-8 border-t border-slate-100 space-y-6">
-              {invoice.terms && (
-                <div className="space-y-2.5">
-                  <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                    Terms & Conditions
-                  </h4>
-                  <ul className="space-y-2">
-                    {parseTermsList(invoice.terms).map((clause, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-900 mt-2 shrink-0" />
-                        <span>{cleanTermClause(clause)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {invoice.notes && (
-                <div className="p-3.5 bg-slate-50 border-l-4 border-slate-900 rounded-r-xl">
-                  <div className="font-bold text-slate-900 text-[11px] flex items-center gap-1.5 mb-1 tracking-wider uppercase">
-                    <Info className="w-3.5 h-3.5 text-slate-700" />
-                    NOTE
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                    {invoice.notes}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Payment Receipts History */}
           {invoice.payments && invoice.payments.length > 0 && (
@@ -628,6 +657,17 @@ export default function InvoiceView() {
           )}
         </div>
       </div>
+
+      {/* Document Footer (Pinned at the bottom of the invoice page) */}
+      <div className="mt-auto border-t border-slate-200 bg-slate-50/60 py-4 px-8 text-center space-y-1">
+        <div className="text-xs font-bold text-slate-900">
+          www.vibrantick.in
+        </div>
+        <div className="text-[10px] text-slate-500 tracking-wide">
+          Cyber Security | Web Development | Digital Marketing | Cloud Mgt Services | Mobile Application
+        </div>
+      </div>
+    </div>
 
       {/* Record Payment Modal */}
       {showPaymentModal && (
