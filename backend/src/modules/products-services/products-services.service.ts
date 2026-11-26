@@ -51,6 +51,7 @@ export async function createProductService(
       data: {
         name,
         description: input.description ?? null,
+        hsnCode: input.hsnCode?.trim() ?? null,
         type: input.type,
         isActive: input.isActive,
       },
@@ -64,6 +65,7 @@ export async function createProductService(
       after: {
         name: item.name,
         type: item.type,
+        hsnCode: item.hsnCode,
         isActive: item.isActive,
         description: item.description,
       },
@@ -93,10 +95,11 @@ export async function getProductServices(
   const where: Prisma.ProductServiceWhereInput = {
     ...(search
       ? {
-          name: {
-            contains: search,
-            mode: 'insensitive',
-          },
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { hsnCode: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
         }
       : {}),
     ...(isActive !== undefined
@@ -149,6 +152,7 @@ export async function updateProductService(
       id: true,
       name: true,
       type: true,
+      hsnCode: true,
       isActive: true,
       description: true,
     },
@@ -171,6 +175,9 @@ export async function updateProductService(
           : {}),
         ...(input.description !== undefined
           ? { description: input.description }
+          : {}),
+        ...(input.hsnCode !== undefined
+          ? { hsnCode: input.hsnCode?.trim() || null }
           : {}),
         ...(input.type !== undefined
           ? { type: input.type }

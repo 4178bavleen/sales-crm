@@ -306,6 +306,7 @@ export async function updateInvoiceSettings(input: UpdateInvoiceSettingsInput, u
 export function calculateTotals(
   items: Array<{
     itemName: string
+    hsnCode?: string | null
     description?: string | null
     quantity: number
     unitPrice: number
@@ -337,6 +338,7 @@ export function calculateTotals(
     return {
       productServiceId: item.productServiceId || null,
       itemName: item.itemName,
+      hsnCode: item.hsnCode?.trim() || null,
       description: item.description || null,
       quantity: new Prisma.Decimal(qty),
       unitPrice: new Prisma.Decimal(price),
@@ -492,12 +494,17 @@ export async function createInvoice(input: CreateInvoiceInput, userId: number) {
   if (productIds.length > 0) {
     const existingProducts = await prisma.productService.findMany({
       where: { id: { in: productIds } },
-      select: { id: true },
+      select: { id: true, hsnCode: true },
     })
-    const validIds = new Set(existingProducts.map((p) => p.id))
+    const productMap = new Map(existingProducts.map((p) => [p.id, p]))
     for (const item of input.items) {
-      if (item.productServiceId && !validIds.has(item.productServiceId)) {
-        item.productServiceId = null
+      if (item.productServiceId) {
+        const prod = productMap.get(item.productServiceId)
+        if (!prod) {
+          item.productServiceId = null
+        } else if (!item.hsnCode && prod.hsnCode) {
+          item.hsnCode = prod.hsnCode
+        }
       }
     }
   }
@@ -686,6 +693,7 @@ export async function updateInvoice(id: number, input: UpdateInvoiceInput, userI
   } else if (input.taxType !== undefined || input.totalDiscount !== undefined) {
     const currentItems = existing.items.map((i) => ({
       itemName: i.itemName,
+      hsnCode: i.hsnCode,
       description: i.description,
       quantity: Number(i.quantity),
       unitPrice: Number(i.unitPrice),
@@ -1184,6 +1192,7 @@ export async function generateInvoicePdf(invoiceId: number) {
       : null,
     items: invoice.items.map((i) => ({
       itemName: i.itemName,
+      hsnCode: i.hsnCode,
       description: i.description,
       quantity: Number(i.quantity),
       unitPrice: Number(i.unitPrice),

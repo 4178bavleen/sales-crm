@@ -40,6 +40,7 @@ export interface InvoiceItem {
   id?: number;
   productServiceId?: number | null;
   itemName: string;
+  hsnCode?: string | null;
   description?: string | null;
   quantity: number;
   unitPrice: number;
@@ -167,6 +168,7 @@ export interface CreateInvoicePayload {
   items: Array<{
     productServiceId?: number | null;
     itemName: string;
+    hsnCode?: string | null;
     description?: string | null;
     quantity: number;
     unitPrice: number;

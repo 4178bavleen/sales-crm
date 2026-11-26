@@ -215,6 +215,7 @@ interface InvoicePdfData {
   } | null
   items: Array<{
     itemName: string
+    hsnCode?: string | null
     description?: string | null
     quantity: number
     unitPrice: number
@@ -460,9 +461,10 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         doc.rect(40, itemY, 515, rowHeight).fill(rowBg)
         doc.moveTo(40, itemY + rowHeight).lineTo(555, itemY + rowHeight).strokeColor('#e2e8f0').lineWidth(0.75).stroke()
 
-        // Name & Description
+        // Name & Description (with HSN Code)
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
-        doc.text(item.itemName, 48, itemY + 5, { width: 215 })
+        const nameText = item.hsnCode?.trim() ? `${item.itemName} (HSN: ${item.hsnCode.trim()})` : item.itemName
+        doc.text(nameText, 48, itemY + 5, { width: 215 })
         if (item.description && item.description.trim()) {
           doc.font('Helvetica').fontSize(7.5).fillColor(mutedText)
           doc.text(item.description.trim(), 48, itemY + 5 + nameHeight + 1, { width: 215 })

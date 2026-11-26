@@ -87,6 +87,7 @@ interface FormItem {
   id?: number;
   productServiceId?: number | null;
   itemName: string;
+  hsnCode?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -429,6 +430,7 @@ export default function InvoiceFormDialog({
                 id: i.id,
                 productServiceId: i.productServiceId || null,
                 itemName: i.itemName,
+                hsnCode: i.hsnCode || null,
                 description: i.description || '',
                 quantity: Number(i.quantity) || 1,
                 unitPrice: Number(i.unitPrice) || 0,
@@ -509,6 +511,7 @@ export default function InvoiceFormDialog({
         ...copy[idx],
         productServiceId: product.id,
         itemName: product.name,
+        hsnCode: product.hsnCode || null,
         description: product.description || '',
         unitPrice: Number(product.unitPrice || 0),
         taxPercent: taxType === 'EXEMPT' ? 0 : 18,
@@ -624,6 +627,7 @@ export default function InvoiceFormDialog({
         items: items.map((i) => ({
           productServiceId: i.productServiceId || null,
           itemName: i.itemName.trim(),
+          hsnCode: i.hsnCode?.trim() || null,
           description: i.description?.trim() || null,
           quantity: Number(i.quantity) || 1,
           unitPrice: Number(i.unitPrice) || 0,
@@ -876,7 +880,14 @@ export default function InvoiceFormDialog({
                             <tr key={idx} className="hover:bg-slate-50/50">
                               <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
                               <td className="py-2.5 px-3">
-                                <div className="font-semibold text-slate-900">{it.itemName || 'Untitled Item'}</div>
+                                <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                  <span>{it.itemName || 'Untitled Item'}</span>
+                                  {it.hsnCode && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 bg-slate-100 text-slate-600 rounded">
+                                      HSN: {it.hsnCode}
+                                    </span>
+                                  )}
+                                </div>
                                 {it.description && (
                                   <div className="text-[11px] text-slate-500 mt-0.5">{it.description}</div>
                                 )}
@@ -1473,17 +1484,31 @@ export default function InvoiceFormDialog({
                                 required
                               />
                             </div>
-                            <div>
-                              <label className="text-xs font-semibold text-slate-600">
-                                SAC / Description
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="e.g. SAC: 998314 – Monthly retainership and delivery services"
-                                value={item.description}
-                                onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                                className="mt-1 w-full px-3 py-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
-                              />
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="col-span-1">
+                                <label className="text-xs font-semibold text-slate-600">
+                                  HSN Code
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 8471"
+                                  value={item.hsnCode || ''}
+                                  onChange={(e) => handleItemChange(idx, 'hsnCode', e.target.value)}
+                                  className="mt-1 w-full px-2.5 py-1.5 text-xs font-mono text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-600">
+                                  Description
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Scope or deliverables"
+                                  value={item.description}
+                                  onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                                  className="mt-1 w-full px-2.5 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
+                                />
+                              </div>
                             </div>
                           </div>
 

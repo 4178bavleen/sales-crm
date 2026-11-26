@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const createProductServiceSchema = z.object({
   name: z.string().trim().min(2).max(200),
   description: z.string().trim().max(5000).nullable().optional(),
+  hsnCode: z.string().trim().max(50).nullable().optional(),
   type: z.enum(['PRODUCT', 'SERVICE']).default('PRODUCT'),
   isActive: z.boolean().optional().default(true),
 })
@@ -10,6 +11,7 @@ export const createProductServiceSchema = z.object({
 export const updateProductServiceSchema = z.object({
   name: z.string().trim().min(2).max(200).optional(),
   description: z.string().trim().max(5000).nullable().optional(),
+  hsnCode: z.string().trim().max(50).nullable().optional(),
   type: z.enum(['PRODUCT', 'SERVICE']).optional(),
   isActive: z.boolean().optional(),
 }).refine(

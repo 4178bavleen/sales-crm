@@ -8,6 +8,7 @@ export interface ProductService {
   id: number;
   name: string;
   description: string | null;
+  hsnCode?: string | null;
   type: ProductServiceType;
   isActive: boolean;
   createdAt: string;
@@ -39,6 +40,7 @@ export interface ProductServicesListResponse {
 export interface CreateProductServicePayload {
   name: string;
   description?: string | null;
+  hsnCode?: string | null;
   type?: ProductServiceType;
   isActive?: boolean;
 }
@@ -46,6 +48,7 @@ export interface CreateProductServicePayload {
 export interface UpdateProductServicePayload {
   name?: string;
   description?: string | null;
+  hsnCode?: string | null;
   type?: ProductServiceType;
   isActive?: boolean;
 }

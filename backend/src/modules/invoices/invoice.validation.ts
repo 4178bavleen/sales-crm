@@ -4,6 +4,7 @@ export const invoiceItemSchema = z.object({
   id: z.number().int().positive().optional(),
   productServiceId: z.number().int().positive().nullable().optional(),
   itemName: z.string().min(1, 'Item name is required'),
+  hsnCode: z.string().trim().max(50).nullable().optional(),
   description: z.string().nullable().optional(),
   quantity: z.number().positive('Quantity must be greater than 0'),
   unitPrice: z.number().min(0, 'Unit price must be non-negative'),
