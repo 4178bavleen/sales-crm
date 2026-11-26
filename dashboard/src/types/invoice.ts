@@ -9,6 +9,18 @@ export type InvoiceStatus =
 
 export type InvoiceTaxType = 'INTRA_STATE' | 'INTER_STATE' | 'EXEMPT';
 
+export interface InvoiceCurrency {
+  code: string;
+  symbol: string;
+  name: string;
+  locale: string;
+}
+
+export interface InvoiceCurrenciesResponse {
+  currencies: InvoiceCurrency[];
+  defaultCurrency: string;
+}
+
 export type InvoiceTemplateEdition =
   | 'MODERN_EXECUTIVE'
   | 'CLASSIC_CORPORATE'

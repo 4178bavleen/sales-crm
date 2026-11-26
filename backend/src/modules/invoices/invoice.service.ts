@@ -22,6 +22,31 @@ export class InvoiceServiceError extends AppError {
   }
 }
 
+export interface InvoiceCurrency {
+  code: string
+  symbol: string
+  name: string
+  locale: string
+}
+
+export const SUPPORTED_INVOICE_CURRENCIES: InvoiceCurrency[] = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN' },
+  { code: 'USD', symbol: '$', name: 'US Dollar', locale: 'en-US' },
+  { code: 'EUR', symbol: '€', name: 'Euro', locale: 'de-DE' },
+  { code: 'GBP', symbol: '£', name: 'British Pound', locale: 'en-GB' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-AE' },
+  { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar', locale: 'en-CA' },
+  { code: 'AUD', symbol: 'AU$', name: 'Australian Dollar', locale: 'en-AU' },
+  { code: 'SGD', symbol: 'SG$', name: 'Singapore Dollar', locale: 'en-SG' },
+]
+
+export function getSupportedCurrencies() {
+  return {
+    currencies: SUPPORTED_INVOICE_CURRENCIES,
+    defaultCurrency: 'INR',
+  }
+}
+
 /**
  * Automatically seeds permission codes for invoice module
  */
@@ -513,6 +538,13 @@ export async function updateInvoice(id: number, input: UpdateInvoiceInput, userI
     throw new InvoiceServiceError('Invoice not found or has been deleted', 404)
   }
 
+  const hasPayments = (existing.payments && existing.payments.length > 0) || Number(existing.amountPaid) > 0
+  if (input.currency && input.currency !== existing.currency) {
+    if (hasPayments) {
+      throw new InvoiceServiceError('Cannot change currency on an invoice that has recorded or partial payments', 400)
+    }
+  }
+
   if (input.billingAddress && existing.customer?.companyId) {
     await prisma.company.update({
       where: { id: existing.customer.companyId },
@@ -601,6 +633,7 @@ export async function updateInvoice(id: number, input: UpdateInvoiceInput, userI
         status: newStatus,
         templateEdition: input.templateEdition || existing.templateEdition,
         taxType,
+        ...(input.currency && !hasPayments ? { currency: input.currency } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.terms !== undefined ? { terms: input.terms } : {}),
 

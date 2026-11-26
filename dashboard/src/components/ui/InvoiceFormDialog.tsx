@@ -29,6 +29,8 @@ import {
   fetchInvoiceById,
   fetchInvoiceSettings,
   fetchNextInvoiceNumber,
+  fetchInvoiceCurrencies,
+  formatInvoiceAmount,
   parseTermsList,
   cleanTermClause,
 } from '../../lib/invoices';
@@ -41,6 +43,7 @@ import type {
   InvoiceStatus,
   CreateInvoicePayload,
   InvoiceSetting,
+  InvoiceCurrency,
 } from '../../types/invoice';
 
 // Standard Indian Statutory GST Slabs
@@ -257,11 +260,14 @@ export default function InvoiceFormDialog({
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [settings, setSettings] = useState<InvoiceSetting | null>(null);
+  const [currencies, setCurrencies] = useState<InvoiceCurrency[]>([]);
+  const [hasRecordedPayments, setHasRecordedPayments] = useState(false);
 
   // Form states
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [dealId, setDealId] = useState<number | ''>('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [currency, setCurrency] = useState('INR');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
@@ -294,6 +300,21 @@ export default function InvoiceFormDialog({
     if (!customerId) return null;
     return customers.find((c) => c.id === Number(customerId)) || null;
   }, [customers, customerId]);
+
+  const activeCurrency = useMemo(() => {
+    return (
+      currencies.find((c) => c.code === currency) || {
+        code: currency || 'INR',
+        symbol: currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹',
+        name: currency || 'Indian Rupee',
+        locale: 'en-IN',
+      }
+    );
+  }, [currencies, currency]);
+
+  const fmtMoney = (val: number | string | null | undefined) => {
+    return formatInvoiceAmount(val, activeCurrency.code, activeCurrency.locale, activeCurrency.symbol);
+  };
 
   const customerMeta = useMemo(() => {
     return resolveCustomerInfo(selectedCustomer);
@@ -345,13 +366,14 @@ export default function InvoiceFormDialog({
       setLoading(true);
       setError(null);
       try {
-        const [custRes, prodRes, settingsRes] = await Promise.all([
+        const [custRes, prodRes, settingsRes, currRes] = await Promise.all([
           fetchCustomers({ limit: 100 }).catch((err) => {
             console.error('[InvoiceFormDialog] Error fetching customers:', err);
             return { customers: [] };
           }),
           fetchProductServices().catch(() => ({ productServices: [] })),
           fetchInvoiceSettings().catch(() => null),
+          fetchInvoiceCurrencies().catch(() => ({ currencies: [], defaultCurrency: 'INR' })),
         ]);
 
         if (!isMounted) return;
@@ -364,6 +386,12 @@ export default function InvoiceFormDialog({
         setCustomers(customerList);
         setProducts(prodRes?.productServices || []);
         setSettings(settingsRes);
+        if (currRes && Array.isArray(currRes.currencies)) {
+          setCurrencies(currRes.currencies);
+          if (!isEdit && currRes.defaultCurrency) {
+            setCurrency(currRes.defaultCurrency);
+          }
+        }
 
         if (settingsRes && !isEdit) {
           setTemplateEdition(settingsRes.defaultTemplate || 'VIBRANT_TECH');
@@ -386,6 +414,11 @@ export default function InvoiceFormDialog({
           setStatus(inv.status);
           setTemplateEdition(inv.templateEdition);
           setTaxType(inv.taxType);
+          if (inv.currency) {
+            setCurrency(inv.currency);
+          }
+          const hasPayments = (inv.payments && inv.payments.length > 0) || Number(inv.amountPaid || 0) > 0;
+          setHasRecordedPayments(hasPayments);
           setTotalDiscount(Number(inv.totalDiscount || 0));
           setNotes(inv.notes || '');
           setTerms(inv.terms || '');
@@ -598,7 +631,7 @@ export default function InvoiceFormDialog({
         status,
         templateEdition,
         taxType,
-        currency: 'INR',
+        currency: activeCurrency.code,
         totalDiscount: Number(totalDiscount) || 0,
         notes: notes.trim() || null,
         terms: terms.trim() || null,
@@ -909,7 +942,7 @@ export default function InvoiceFormDialog({
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">{it.quantity}</td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                                ₹{Number(it.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(it.unitPrice)}
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-500">
                                 {it.discountPercent > 0 ? `${it.discountPercent}%` : '—'}
@@ -918,7 +951,7 @@ export default function InvoiceFormDialog({
                                 {taxType === 'EXEMPT' ? '0%' : `${it.taxPercent}%`}
                               </td>
                               <td className="py-2.5 px-3 text-right font-bold font-mono text-slate-900">
-                                ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(lineTotal)}
                               </td>
                             </tr>
                           );
@@ -946,7 +979,7 @@ export default function InvoiceFormDialog({
                       <div className="flex justify-between text-slate-600">
                         <span>Taxable Subtotal:</span>
                         <span className="font-semibold font-mono text-slate-900">
-                          ₹{computedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {fmtMoney(computedTotals.subtotal)}
                         </span>
                       </div>
 
@@ -954,7 +987,7 @@ export default function InvoiceFormDialog({
                         <div className="flex justify-between text-emerald-600">
                           <span>Overall Discount:</span>
                           <span className="font-semibold font-mono">
-                            -₹{Number(totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            -{fmtMoney(totalDiscount)}
                           </span>
                         </div>
                       )}
@@ -964,13 +997,13 @@ export default function InvoiceFormDialog({
                           <div className="flex justify-between text-slate-500 text-[11px]">
                             <span>CGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
                             <span className="font-mono">
-                              ₹{computedTotals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              {fmtMoney(computedTotals.cgst)}
                             </span>
                           </div>
                           <div className="flex justify-between text-slate-500 text-[11px]">
                             <span>SGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
                             <span className="font-mono">
-                              ₹{computedTotals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              {fmtMoney(computedTotals.sgst)}
                             </span>
                           </div>
                         </>
@@ -980,15 +1013,15 @@ export default function InvoiceFormDialog({
                         <div className="flex justify-between text-slate-500 text-[11px]">
                           <span>IGST ({computedTotals.effectiveTaxRate.toFixed(1)}%):</span>
                           <span className="font-mono">
-                            ₹{computedTotals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {fmtMoney(computedTotals.igst)}
                           </span>
                         </div>
                       )}
 
                       <div className="pt-2 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                        <span className="font-bold text-xs uppercase tracking-wider">Grand Total (INR):</span>
+                        <span className="font-bold text-xs uppercase tracking-wider">Grand Total ({activeCurrency.code}):</span>
                         <span className="font-black text-lg text-[#1d61e7] font-mono">
-                          ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {fmtMoney(computedTotals.grandTotal)}
                         </span>
                       </div>
                     </div>
@@ -1202,6 +1235,35 @@ export default function InvoiceFormDialog({
                       <option value="INTRA_STATE">Intra-State: CGST + SGST (50% / 50%)</option>
                       <option value="INTER_STATE">Inter-State: IGST (100%)</option>
                       <option value="EXEMPT">Exempt / Non-GST (0%)</option>
+                    </select>
+                  </div>
+
+                  {/* Currency (Loaded dynamically from Backend) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800">Currency</label>
+                      {hasRecordedPayments && (
+                        <span className="text-[10px] text-amber-600 font-semibold" title="Payments have already been recorded on this invoice.">
+                          Locked (Payment recorded)
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      disabled={hasRecordedPayments}
+                      title={hasRecordedPayments ? 'Currency cannot be updated after payments have been recorded.' : undefined}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] shadow-2xs font-semibold text-slate-900 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    >
+                      {currencies.length > 0 ? (
+                        currencies.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code} ({c.symbol}) — {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={currency}>{currency}</option>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -1494,13 +1556,13 @@ export default function InvoiceFormDialog({
                               required
                             />
                             <p className="mt-1 text-[11px] text-slate-400 font-mono">
-                              Base: ₹{raw.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              Base: {fmtMoney(raw)}
                             </p>
                           </div>
 
                           {/* Rate — col 2 */}
                           <div className="md:col-span-2">
-                            <label className="text-xs font-semibold text-slate-700">Rate (₹)</label>
+                            <label className="text-xs font-semibold text-slate-700">Rate ({activeCurrency.symbol || activeCurrency.code})</label>
                             <input
                               type="number"
                               min="0"
@@ -1511,7 +1573,7 @@ export default function InvoiceFormDialog({
                               required
                             />
                             <p className="mt-1 text-[11px] text-slate-400 font-mono">
-                              Taxable: ₹{taxable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              Taxable: {fmtMoney(taxable)}
                             </p>
                           </div>
 
@@ -1528,7 +1590,7 @@ export default function InvoiceFormDialog({
                             />
                             {disc > 0 && (
                               <p className="mt-1 text-[11px] text-emerald-600 font-mono font-semibold whitespace-nowrap">
-                                −₹{disc.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                −{fmtMoney(disc)}
                               </p>
                             )}
                           </div>
@@ -1555,10 +1617,10 @@ export default function InvoiceFormDialog({
                             {taxRate > 0 && taxType !== 'EXEMPT' && (
                               <div className="mt-1.5 px-2.5 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-[11px] font-mono font-semibold text-blue-700 leading-snug">
                                 {taxType === 'INTRA_STATE' && (
-                                  <>CGST {(taxRate / 2).toFixed(1)}% + SGST {(taxRate / 2).toFixed(1)}%<br />= ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
+                                  <>CGST {(taxRate / 2).toFixed(1)}% + SGST {(taxRate / 2).toFixed(1)}%<br />= {fmtMoney(taxAmount)}</>
                                 )}
                                 {taxType === 'INTER_STATE' && (
-                                  <>IGST {taxRate}% = ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
+                                  <>IGST {taxRate}% = {fmtMoney(taxAmount)}</>
                                 )}
                               </div>
                             )}
@@ -1574,7 +1636,7 @@ export default function InvoiceFormDialog({
                             <span>
                               Taxable Value:{' '}
                               <strong className="text-slate-800 font-mono">
-                                ₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(taxable)}
                               </strong>
                             </span>
                             {taxRate > 0 && (
@@ -1583,7 +1645,7 @@ export default function InvoiceFormDialog({
                                 <span>
                                   GST Amount ({taxRate}%):{' '}
                                   <strong className="text-slate-800 font-mono">
-                                    ₹{taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    {fmtMoney(taxAmount)}
                                   </strong>
                                 </span>
                               </>
@@ -1592,7 +1654,7 @@ export default function InvoiceFormDialog({
                               <>
                                 <span className="text-slate-300">|</span>
                                 <span className="text-emerald-600 font-semibold font-mono">
-                                  Discount: −₹{disc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  Discount: −{fmtMoney(disc)}
                                 </span>
                               </>
                             )}
@@ -1600,7 +1662,7 @@ export default function InvoiceFormDialog({
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Line Total:</span>
                             <span className="text-base font-black font-mono text-[#1d61e7]">
-                              ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              {fmtMoney(lineTotal)}
                             </span>
                           </div>
                         </div>
@@ -1613,7 +1675,7 @@ export default function InvoiceFormDialog({
                 <div className="pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-end gap-5">
                   <div className="space-y-3 w-full md:w-72">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Extra Overall Discount (₹)</label>
+                      <label className="text-xs font-bold text-slate-700">Extra Overall Discount ({activeCurrency.symbol || activeCurrency.code})</label>
                       <input
                         type="number"
                         min="0"
@@ -1655,7 +1717,7 @@ export default function InvoiceFormDialog({
                     <div className="flex justify-between text-slate-600">
                       <span>Gross Item Total:</span>
                       <span className="font-semibold text-slate-800 font-mono">
-                        ₹{computedTotals.grossTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.grossTotal)}
                       </span>
                     </div>
 
@@ -1663,7 +1725,7 @@ export default function InvoiceFormDialog({
                       <div className="flex justify-between text-emerald-600">
                         <span>Total Item Discounts:</span>
                         <span className="font-semibold font-mono">
-                          -₹{computedTotals.itemDiscountsTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          -{fmtMoney(computedTotals.itemDiscountsTotal)}
                         </span>
                       </div>
                     )}
@@ -1671,7 +1733,7 @@ export default function InvoiceFormDialog({
                     <div className="flex justify-between text-slate-700 font-semibold pt-1 border-t border-slate-100">
                       <span>Net Taxable Value:</span>
                       <span className="font-bold text-slate-900 font-mono">
-                        ₹{computedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.subtotal)}
                       </span>
                     </div>
 
@@ -1679,7 +1741,7 @@ export default function InvoiceFormDialog({
                       <div className="flex justify-between text-emerald-600">
                         <span>Overall Invoice Discount:</span>
                         <span className="font-semibold font-mono">
-                          -₹{Number(totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          -{fmtMoney(totalDiscount)}
                         </span>
                       </div>
                     )}
@@ -1691,7 +1753,7 @@ export default function InvoiceFormDialog({
                             CGST (Central GST @ {(computedTotals.effectiveTaxRate / 2).toFixed(1).replace(/\.0$/, '')}%):
                           </span>
                           <span className="font-mono font-medium text-slate-800">
-                            ₹{computedTotals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {fmtMoney(computedTotals.cgst)}
                           </span>
                         </div>
                         <div className="flex justify-between text-slate-600 text-[11px]">
@@ -1699,7 +1761,7 @@ export default function InvoiceFormDialog({
                             SGST (State GST @ {(computedTotals.effectiveTaxRate / 2).toFixed(1).replace(/\.0$/, '')}%):
                           </span>
                           <span className="font-mono font-medium text-slate-800">
-                            ₹{computedTotals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {fmtMoney(computedTotals.sgst)}
                           </span>
                         </div>
                       </div>
@@ -1711,15 +1773,15 @@ export default function InvoiceFormDialog({
                           IGST (Integrated GST @ {computedTotals.effectiveTaxRate.toFixed(1).replace(/\.0$/, '')}%):
                         </span>
                         <span className="font-mono font-medium text-slate-800">
-                          ₹{computedTotals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {fmtMoney(computedTotals.igst)}
                         </span>
                       </div>
                     )}
 
                     <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                      <span className="font-bold text-xs uppercase tracking-wider">Grand Total (INR):</span>
+                      <span className="font-bold text-xs uppercase tracking-wider">Grand Total ({activeCurrency.code}):</span>
                       <span className="font-black text-xl text-[#1d61e7] font-mono">
-                        ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.grandTotal)}
                       </span>
                     </div>
                   </div>
@@ -1752,9 +1814,9 @@ export default function InvoiceFormDialog({
           {/* Sticky Modal Bottom Footer */}
           <div className="border-t border-slate-200 pt-4 flex items-center justify-between sticky bottom-0 bg-white">
             <div className="text-xs text-slate-500 font-medium">
-              Grand Total:{' '}
+              Grand Total ({activeCurrency.code}):{' '}
               <span className="font-black text-slate-900 font-mono">
-                ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {fmtMoney(computedTotals.grandTotal)}
               </span>
             </div>
 

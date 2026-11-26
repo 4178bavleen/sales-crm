@@ -9,6 +9,7 @@ import type {
   CreateInvoicePayload,
   UpdateInvoicePayload,
   RecordPaymentPayload,
+  InvoiceCurrenciesResponse,
 } from '../types/invoice';
 
 function getToken(): string | undefined {
@@ -59,6 +60,36 @@ export async function fetchNextInvoiceNumber(): Promise<string> {
   const res = await request<any>(`${ENDPOINTS.invoices.list}/next-number`, { token });
   const data = res?.data !== undefined ? res.data : res;
   return data?.invoiceNumber || '';
+}
+
+export async function fetchInvoiceCurrencies(): Promise<InvoiceCurrenciesResponse> {
+  const token = getToken();
+  const res = await request<any>(ENDPOINTS.invoices.currencies, { token });
+  const data = res?.data !== undefined ? res.data : res;
+  return {
+    currencies: Array.isArray(data) ? data : data?.currencies || [],
+    defaultCurrency: res?.defaultCurrency || data?.defaultCurrency || 'INR',
+  };
+}
+
+export function formatInvoiceAmount(
+  amount: number | string | null | undefined,
+  currencyCode = 'INR',
+  locale = 'en-IN',
+  symbol?: string
+): string {
+  const num = Number(amount || 0);
+  try {
+    return new Intl.NumberFormat(locale || 'en-IN', {
+      style: 'currency',
+      currency: currencyCode || 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    const formattedNum = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${symbol || currencyCode || '₹'} ${formattedNum}`;
+  }
 }
 
 export async function createInvoice(payload: CreateInvoicePayload): Promise<Invoice> {

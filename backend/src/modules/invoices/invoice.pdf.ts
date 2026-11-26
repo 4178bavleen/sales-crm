@@ -148,6 +148,29 @@ interface InvoicePdfData {
   }
 }
 
+function getPdfCurrency(currency?: string): { code: string; label: string; locale: string } {
+  const c = (currency || 'INR').toUpperCase()
+  switch (c) {
+    case 'USD':
+      return { code: 'USD', label: '$', locale: 'en-US' }
+    case 'EUR':
+      return { code: 'EUR', label: 'EUR', locale: 'de-DE' }
+    case 'GBP':
+      return { code: 'GBP', label: 'GBP', locale: 'en-GB' }
+    case 'AED':
+      return { code: 'AED', label: 'AED', locale: 'en-AE' }
+    case 'CAD':
+      return { code: 'CAD', label: 'CA$', locale: 'en-CA' }
+    case 'AUD':
+      return { code: 'AUD', label: 'AU$', locale: 'en-AU' }
+    case 'SGD':
+      return { code: 'SGD', label: 'SG$', locale: 'en-SG' }
+    case 'INR':
+    default:
+      return { code: 'INR', label: 'Rs.', locale: 'en-IN' }
+  }
+}
+
 export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Buffer> {
   const logoBuffer = await resolveLogoBuffer(data.settings.companyLogo)
 
@@ -173,6 +196,7 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       const mutedText = '#64748b'
       const lightBg = '#f8fafc'
       const borderColor = '#e2e8f0'
+      const pdfCurr = getPdfCurrency(data.currency)
 
       // ==========================================
       // 1. HEADER SECTION (Brand & Invoice Badge)
@@ -330,10 +354,10 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       
       doc.text('ITEM & DESCRIPTION', 48, tableTop + 5, { width: 215 })
       doc.text('QTY', 268, tableTop + 5, { width: 35, align: 'center' })
-      doc.text('RATE (Rs.)', 308, tableTop + 5, { width: 68, align: 'right' })
+      doc.text(`RATE (${pdfCurr.label})`, 308, tableTop + 5, { width: 68, align: 'right' })
       doc.text('DISC %', 382, tableTop + 5, { width: 42, align: 'center' })
       doc.text('TAX %', 428, tableTop + 5, { width: 42, align: 'center' })
-      doc.text('TOTAL (Rs.)', 475, tableTop + 5, { width: 72, align: 'right' })
+      doc.text(`TOTAL (${pdfCurr.label})`, 475, tableTop + 5, { width: 72, align: 'right' })
 
       let itemY = tableTop + 22
       data.items.forEach((item, index) => {
@@ -364,14 +388,14 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         doc.text(item.quantity.toString(), 268, midY, { width: 35, align: 'center' })
         
         doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-        doc.text(item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 308, midY, {
+        doc.text(item.unitPrice.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 308, midY, {
           width: 68,
           align: 'right',
         })
         
         doc.text(`${item.discountPercent}%`, 382, midY, { width: 42, align: 'center' })
         doc.text(`${item.taxPercent}%`, 428, midY, { width: 42, align: 'center' })
-        doc.font('Helvetica-Bold').text(item.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 475, midY, {
+        doc.font('Helvetica-Bold').text(item.lineTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 475, midY, {
           width: 72,
           align: 'right',
         })
@@ -426,7 +450,7 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
           .font(isBold ? 'Helvetica-Bold' : 'Helvetica')
           .fontSize(isBold ? 9 : 8.5)
           .fillColor(isAccent ? accent : darkText)
-          .text(`Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valX, tY, {
+          .text(`${pdfCurr.label} ${amount.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}`, valX, tY, {
             width: valWidth,
             align: 'right',
           })
@@ -451,9 +475,9 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
 
       // Grand Total Box
       doc.rect(totX - 10, tY - 4, 240, 26).fill(accent)
-      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text('TOTAL AMOUNT:', totX, tY + 4)
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text(`TOTAL AMOUNT (${pdfCurr.code}):`, totX, tY + 4)
       doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text(
-        `Rs. ${data.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `${pdfCurr.label} ${data.grandTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}`,
         valX,
         tY + 4,
         { width: valWidth, align: 'right' }

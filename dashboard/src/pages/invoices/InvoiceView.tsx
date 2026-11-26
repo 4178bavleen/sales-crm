@@ -24,6 +24,7 @@ import {
   sendInvoiceWhatsApp,
   recordInvoicePayment,
   fetchInvoiceSettings,
+  formatInvoiceAmount,
   parseTermsList,
   cleanTermClause,
 } from '../../lib/invoices';
@@ -192,10 +193,7 @@ export default function InvoiceView() {
   };
 
   const formatCurrency = (val: number | string) => {
-    return `₹${Number(val || 0).toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return formatInvoiceAmount(val, invoice?.currency || 'INR');
   };
 
   if (loading) {
@@ -433,7 +431,7 @@ export default function InvoiceView() {
                   <th className="py-3 px-4 text-right">Unit Price</th>
                   <th className="py-3 px-3 text-center">Disc %</th>
                   <th className="py-3 px-3 text-center">GST %</th>
-                  <th className="py-3 px-4 text-right">Amount (₹)</th>
+                  <th className="py-3 px-4 text-right">Amount ({invoice.currency || '₹'})</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -446,12 +444,12 @@ export default function InvoiceView() {
                     </td>
                     <td className="py-4 px-3 text-center text-slate-700">{Number(item.quantity)}</td>
                     <td className="py-4 px-4 text-right font-mono text-slate-700">
-                      ₹{Number(item.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      {formatCurrency(item.unitPrice)}
                     </td>
                     <td className="py-4 px-3 text-center text-slate-500">{Number(item.discountPercent)}%</td>
                     <td className="py-4 px-3 text-center text-slate-500">{Number(item.taxPercent)}%</td>
                     <td className="py-4 px-4 text-right font-bold text-slate-900 font-mono">
-                      ₹{Number(item.lineTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      {formatCurrency(item.lineTotal)}
                     </td>
                   </tr>
                 ))}
@@ -647,7 +645,7 @@ export default function InvoiceView() {
 
             <form onSubmit={handleRecordPayment} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Payment Amount (₹)</label>
+                <label className="text-xs font-semibold text-slate-700">Payment Amount ({invoice.currency || '₹'})</label>
                 <input
                   type="number"
                   step="any"

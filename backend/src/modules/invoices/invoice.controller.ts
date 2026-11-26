@@ -272,6 +272,23 @@ export async function getNextInvoiceNumberController(
   }
 }
 
+export async function getSupportedCurrenciesController(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = invoiceService.getSupportedCurrencies()
+    res.status(200).json({
+      success: true,
+      data: data.currencies,
+      defaultCurrency: data.defaultCurrency,
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
 export async function updateInvoiceSettingsController(
   req: AuthenticatedRequest,
   res: Response,

@@ -204,6 +204,7 @@ export const ENDPOINTS = {
 
   invoices: {
     list: "/invoices",
+    currencies: "/invoices/currencies",
     settings: "/invoices/settings",
     byId: (id: number) => `/invoices/${id}`,
     create: "/invoices",

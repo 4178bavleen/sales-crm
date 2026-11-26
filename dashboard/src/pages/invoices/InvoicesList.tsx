@@ -22,7 +22,7 @@ import {
 import StatCard from '../../components/ui/StatCard';
 import { TablePagination } from '../../components/ui/DataTable';
 import InvoiceFormDialog from '../../components/ui/InvoiceFormDialog';
-import { fetchInvoices, deleteInvoice, downloadInvoicePdf, fetchInvoiceSettings } from '../../lib/invoices';
+import { fetchInvoices, deleteInvoice, downloadInvoicePdf, fetchInvoiceSettings, formatInvoiceAmount } from '../../lib/invoices';
 import type { Invoice, InvoiceStatus, InvoiceSummaryStats, InvoiceSetting } from '../../types/invoice';
 
 export default function InvoicesList() {
@@ -156,11 +156,8 @@ export default function InvoicesList() {
     }
   };
 
-  const formatCurrency = (val: number | string) => {
-    return `₹${Number(val || 0).toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+  const formatCurrency = (val: number | string, currency = 'INR') => {
+    return formatInvoiceAmount(val, currency);
   };
 
   return (
@@ -400,14 +397,14 @@ export default function InvoicesList() {
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-semibold text-slate-900">
-                      {formatCurrency(inv.grandTotal)}
+                      {formatCurrency(inv.grandTotal, inv.currency)}
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-medium">
                       {Number(inv.amountDue) > 0 ? (
-                        <span className="text-amber-600 font-semibold">{formatCurrency(inv.amountDue)}</span>
+                        <span className="text-amber-600 font-semibold">{formatCurrency(inv.amountDue, inv.currency)}</span>
                       ) : (
-                        <span className="text-emerald-600">₹0.00</span>
+                        <span className="text-emerald-600">{formatCurrency(0, inv.currency)}</span>
                       )}
                     </td>
 
