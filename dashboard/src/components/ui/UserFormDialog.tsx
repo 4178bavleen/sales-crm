@@ -353,14 +353,14 @@ export default function UserFormDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-900/60 backdrop-blur-sm transition-opacity"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm transition-opacity sm:p-6"
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 my-8">
+      <div className="relative my-3 flex max-h-[calc(100vh-3rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl sm:my-6 sm:max-h-[calc(100vh-6rem)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center gap-3">
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-xl ${
                 isCreate
@@ -370,11 +370,11 @@ export default function UserFormDialog({
             >
               {isCreate ? <User size={20} /> : <Shield size={20} />}
             </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-bold text-slate-900 sm:text-base">
                 {isCreate ? "Add New Employee" : "Edit Employee"}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="line-clamp-2 text-[11px] text-slate-500 sm:text-xs">
                 {isCreate
                   ? "Set up employee credentials and workspace access."
                   : `Updating details for ${initialUser?.name || "employee"}.`}
@@ -385,16 +385,16 @@ export default function UserFormDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             aria-label="Close dialog"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {errorMessage && (
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5">
+            {errorMessage && (
             <div
               role="alert"
               className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800"
@@ -509,8 +509,8 @@ export default function UserFormDialog({
           </div>
 
           <div>
-            <div className="flex items-center justify-between gap-3 mb-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <label className="min-w-0 text-xs font-semibold text-slate-700">
                 Phone Numbers{" "}
                 <span className="text-slate-400 font-normal">
                   (optional, multiple countries supported)
@@ -519,7 +519,7 @@ export default function UserFormDialog({
               <button
                 type="button"
                 onClick={addPhoneEntry}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
               >
                 <Plus size={13} /> Add number
               </button>
@@ -541,7 +541,7 @@ export default function UserFormDialog({
                           dialCode: country.dialCode,
                         });
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     >
                       {COUNTRY_OPTIONS.map((country) => (
                         <option key={country.code} value={country.code}>
@@ -562,7 +562,7 @@ export default function UserFormDialog({
                           updatePhoneEntry(index, { number: e.target.value })
                         }
                         placeholder="98765 43210"
-                        className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className="w-full min-w-0 rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       />
                     </div>
                   </div>
@@ -575,9 +575,9 @@ export default function UserFormDialog({
                         updatePhoneEntry(index, { label: e.target.value })
                       }
                       placeholder="Location / label (e.g. Office, WhatsApp)"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
-                    <label className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-600 cursor-pointer">
+                    <label className="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-600 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={Boolean(entry.isPrimary)}
@@ -598,7 +598,7 @@ export default function UserFormDialog({
                       onClick={() => removePhoneEntry(index)}
                       disabled={phoneEntries.length === 1}
                       aria-label={`Remove phone number ${index + 1}`}
-                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -709,8 +709,8 @@ export default function UserFormDialog({
 
           {/* Active Status Toggle (For Edit mode) */}
           {!isCreate && (
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-              <div>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-slate-800">
                   Employee Status
                 </p>
@@ -748,14 +748,14 @@ export default function UserFormDialog({
           {/* Password Section */}
           {isCreate ? (
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
                 <label className="text-xs font-semibold text-slate-700">
                   Password <span className="text-rose-500">*</span>
                 </label>
                 <button
                   type="button"
                   onClick={handleQuickGenerate}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700 cursor-pointer"
+                  className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700 cursor-pointer"
                 >
                   <Sparkles size={12} />
                   Generate Strong
@@ -805,29 +805,29 @@ export default function UserFormDialog({
               <button
                 type="button"
                 onClick={() => setEnablePasswordReset((prev) => !prev)}
-                className="w-full flex items-center justify-between p-3.5 bg-slate-50/70 hover:bg-slate-50 text-left transition"
+                className="flex w-full items-center justify-between gap-2 bg-slate-50/70 p-3.5 text-left transition hover:bg-slate-50"
               >
-                <div className="flex items-center gap-2">
-                  <KeyRound size={15} className="text-slate-500" />
-                  <span className="text-xs font-semibold text-slate-800">
+                <div className="flex min-w-0 items-center gap-2">
+                  <KeyRound size={15} className="shrink-0 text-slate-500" />
+                  <span className="truncate text-xs font-semibold text-slate-800">
                     Reset Employee Password
                   </span>
                 </div>
-                <span className="text-xs font-medium text-blue-600">
+                <span className="shrink-0 text-right text-xs font-medium text-blue-600">
                   {enablePasswordReset ? "Cancel reset" : "Change password"}
                 </span>
               </button>
 
               {enablePasswordReset && (
                 <div className="p-3.5 border-t border-slate-100 bg-white space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 text-[11px] text-slate-500">
                       Enter a new password for this employee:
                     </span>
                     <button
                       type="button"
                       onClick={handleQuickGenerate}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700"
+                      className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700"
                     >
                       <Sparkles size={11} />
                       Generate
@@ -868,20 +868,21 @@ export default function UserFormDialog({
             </div>
           )}
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:gap-2.5 sm:px-6">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+              className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || Boolean(rolesError)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d61e7] px-5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-50 sm:flex-none sm:px-5"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
               {isCreate ? "Add Employee" : "Save Changes"}

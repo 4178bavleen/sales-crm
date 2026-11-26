@@ -7,6 +7,7 @@ import {
   CheckSquare,
   CalendarClock,
   CalendarDays,
+  CalendarCheck2,
   PhoneCall,
   Calendar,
   GitFork,
@@ -115,6 +116,12 @@ const navSections: NavSection[] = [
         path: "/employees",
         icon: UserCog,
         aliases: ["/user-management", "/employee-management", "/users"],
+      },
+      {
+        name: "Attendance",
+        path: "/attendance",
+        icon: CalendarCheck2,
+        aliases: ["/employee-attendance", "/attendance-management"],
       },
       {
         name: "Roles & Permissions",

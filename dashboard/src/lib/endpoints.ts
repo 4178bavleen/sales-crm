@@ -215,6 +215,16 @@ export const ENDPOINTS = {
     whatsapp: (id: number) => `/invoices/${id}/whatsapp`,
   },
 
+  attendance: {
+    list: "/attendance",
+    options: "/attendance/options",
+    bulk: "/attendance/bulk",
+    byId: (id: number) => `/attendance/${id}`,
+    create: "/attendance",
+    update: (id: number) => `/attendance/${id}`,
+    delete: (id: number) => `/attendance/${id}`,
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */
