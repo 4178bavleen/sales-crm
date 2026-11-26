@@ -113,26 +113,11 @@ export async function createUser(input: CreateUserInput) {
         phone: primaryPhone ? formatEmployeePhone(primaryPhone) : input.phone,
         joiningDate: parseJoiningDate(input.joiningDate),
         roleId: role.id,
-
         isActive: true,
       },
       select: { id: true },
     })
-
-    void logAudit({
-      action: 'CREATE',
-      entityType: 'USER',
-      entityId: user.id,
-      after: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role?.name,
-      },
-    })
-
-    return user
+    createdUserId = user.id
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -150,7 +135,22 @@ export async function createUser(input: CreateUserInput) {
   }
 
   await syncEmployeePhones(createdUserId, input.phones)
-  return getUserById(createdUserId)
+  const createdUser = await getUserById(createdUserId)
+
+  void logAudit({
+    action: 'CREATE',
+    entityType: 'USER',
+    entityId: createdUser.id,
+    after: {
+      id: createdUser.id,
+      name: createdUser.name,
+      email: createdUser.email,
+      phone: createdUser.phone,
+      role: createdUser.role?.name,
+    },
+  })
+
+  return createdUser
 }
 
 export async function getUsers(input: ListUsersInput) {
@@ -286,39 +286,8 @@ export async function updateUser(id: number, input: UpdateUserInput) {
     await prisma.user.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        role: { select: { id: true, name: true } },
-    
-      },
+      select: { id: true },
     })
-
-    void logAudit({
-      action: 'UPDATE',
-      entityType: 'USER',
-      entityId: updated.id,
-      before: {
-        name: existingUser.name,
-        email: existingUser.email,
-        phone: existingUser.phone,
-        isActive: existingUser.isActive,
-      },
-      after: {
-        name: updated.name,
-        email: updated.email,
-        phone: updated.phone,
-        isActive: updated.isActive,
-        role: updated.role?.name,
-      },
-    })
-
-    return updated
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -332,8 +301,31 @@ export async function updateUser(id: number, input: UpdateUserInput) {
     throw error
   }
 
-  await syncEmployeePhones(id, input.phones)
-  return getUserById(id)
+  if (input.phones !== undefined) {
+    await syncEmployeePhones(id, input.phones)
+  }
+  const updatedUser = await getUserById(id)
+
+  void logAudit({
+    action: 'UPDATE',
+    entityType: 'USER',
+    entityId: updatedUser.id,
+    before: {
+      name: existingUser.name,
+      email: existingUser.email,
+      phone: existingUser.phone,
+      isActive: existingUser.isActive,
+    },
+    after: {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      isActive: updatedUser.isActive,
+      role: updatedUser.role?.name,
+    },
+  })
+
+  return updatedUser
 }
 
 export async function deleteUser(id: number, actorId: number) {
