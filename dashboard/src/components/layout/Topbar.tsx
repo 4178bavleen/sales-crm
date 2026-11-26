@@ -321,7 +321,7 @@ export default function Topbar() {
     if (activeCategory === "ALL" || activeCategory === "USERS") {
       userResults.forEach((u) =>
         list.push({
-          url: `/users?search=${encodeURIComponent(u.name)}`,
+          url: `/employees?search=${encodeURIComponent(u.name)}`,
           label: `${u.name} (User)`,
           kind: "User",
         })
@@ -388,7 +388,7 @@ export default function Topbar() {
     } else if (targetResults.length > 0 && leadResults.length === 0) {
       navigate(`/targets`);
     } else if (userResults.length > 0 && leadResults.length === 0) {
-      navigate(`/users?search=${encodeURIComponent(query)}`);
+      navigate(`/employees?search=${encodeURIComponent(query)}`);
     } else {
       navigate(`/leads?search=${encodeURIComponent(query)}`);
     }
@@ -550,7 +550,7 @@ export default function Topbar() {
                       { id: "TASKS", label: `Tasks (${taskResults.length})` },
                       { id: "MEETINGS", label: `Meetings (${meetingResults.length})` },
                       { id: "TARGETS", label: `Targets (${targetResults.length})` },
-                      { id: "USERS", label: `Users (${userResults.length})` },
+                      { id: "USERS", label: `Employees (${userResults.length})` },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -969,14 +969,14 @@ export default function Topbar() {
                         userResults.length > 0 && (
                           <div className="p-2">
                             <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                              <span>Users & Team ({userResults.length})</span>
+                              <span>Employees ({userResults.length})</span>
                               <span className="text-sky-600">Staff</span>
                             </div>
                             {userResults.map((user) => (
                               <button
                                 key={`user-${user.id}`}
                                 type="button"
-                                onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(user.name)}`)}
+                                onClick={() => handleSelectResult(`/employees?search=${encodeURIComponent(user.name)}`)}
                                 className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 cursor-pointer"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -993,7 +993,7 @@ export default function Topbar() {
                                   </div>
                                 </div>
                                 <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
-                                  {user.role?.name || "User"}
+                                  {user.role?.name || "Employee"}
                                 </span>
                               </button>
                             ))}
@@ -1065,10 +1065,10 @@ export default function Topbar() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(search)}`)}
+                      onClick={() => handleSelectResult(`/employees?search=${encodeURIComponent(search)}`)}
                       className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:text-blue-600 shadow-2xs cursor-pointer"
                     >
-                      Users
+                      Employees
                     </button>
                   </div>
 
@@ -1603,7 +1603,7 @@ export default function Topbar() {
                     <button
                       key={`m-user-${u.id}`}
                       type="button"
-                      onClick={() => handleSelectResult(`/users?search=${encodeURIComponent(u.name)}`)}
+                      onClick={() => handleSelectResult(`/employees?search=${encodeURIComponent(u.name)}`)}
                       className="flex w-full items-center justify-between p-2 text-left text-xs hover:bg-slate-50"
                     >
                       <div className="min-w-0">

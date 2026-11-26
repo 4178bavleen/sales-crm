@@ -58,7 +58,7 @@ export const SYSTEM_PAGES: SystemPageItem[] = [
   { name: "Documents", path: "/documents", icon: FileText, tags: ["documents", "files", "contracts", "proposals", "agreements", "attachments", "vault", "docs", "versions"] },
   { name: "Invoices", path: "/invoices", icon: Receipt, tags: ["invoices", "invoice", "billing", "bill", "tax", "gst", "receipts", "payments", "vibrantick"] },
   { name: "Expense Management", path: "/expenses", icon: CreditCard, tags: ["expenses", "expense", "finance", "money", "received", "spent", "income", "transactions", "cashflow", "financial"] },
-  { name: "User Management", path: "/users", icon: UserCog, tags: ["users", "team", "members", "staff", "employees", "user management", "accounts", "reps", "admin"] },
+  { name: "Employee Management", path: "/employees", icon: UserCog, tags: ["users", "team", "members", "staff", "employees", "user management", "employee management", "accounts", "reps", "admin"] },
   { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck, tags: ["permissions", "roles", "access", "security", "privileges", "rbac", "authorization"] },
   { name: "Audit Logs", path: "/audit-logs", icon: Shield, tags: ["audit logs", "audit", "system activity", "logs", "security logs", "compliance", "history", "actions", "events"] },
   { name: "Notifications", path: "/notifications", icon: Bell, tags: ["notifications", "alerts", "inbox", "reminders", "unread notifications", "activity feed"] },

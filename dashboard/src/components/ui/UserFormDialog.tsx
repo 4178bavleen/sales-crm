@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   X,
   User,
@@ -13,14 +13,27 @@ import {
   AlertCircle,
   CheckCircle2,
   Lock,
+  Plus,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 import type {
   CreateUserInput,
+  EmployeePhoneInput,
   RoleName,
   UserRow,
   UserUpdateValues,
 } from "../../types/user";
-import { ROLE_CONFIG, roleNames } from "../../lib/users";
+import {
+  COUNTRY_OPTIONS,
+  ROLE_CONFIG,
+  countryOption,
+  employeeJoiningDate,
+  formatEmployeePhone,
+  joiningDateInputValue,
+  roleLabel,
+} from "../../lib/users";
+import { fetchRoles, type RoleItem } from "../../lib/permissions";
 
 export type UserFormDialogProps = {
   mode: "create" | "edit";
@@ -41,6 +54,32 @@ function generatePassword(): string {
   return pwd;
 }
 
+function blankPhoneEntry(isPrimary = false): EmployeePhoneInput {
+  return {
+    countryCode: "IN",
+    dialCode: "+91",
+    number: "",
+    label: "",
+    isPrimary,
+  };
+}
+
+function phoneEntryFromLegacy(value?: string | null): EmployeePhoneInput {
+  const raw = (value ?? "").trim();
+  if (!raw) return blankPhoneEntry(true);
+  const country = COUNTRY_OPTIONS.find((option) =>
+    raw.startsWith(option.dialCode),
+  );
+  if (!country) return { ...blankPhoneEntry(true), number: raw };
+  return {
+    countryCode: country.code,
+    dialCode: country.dialCode,
+    number: raw.slice(country.dialCode.length).trim(),
+    label: "",
+    isPrimary: true,
+  };
+}
+
 export default function UserFormDialog({
   mode,
   initialUser,
@@ -54,10 +93,32 @@ export default function UserFormDialog({
 
   const [name, setName] = useState(initialUser?.name ?? "");
   const [email, setEmail] = useState(initialUser?.email ?? "");
-  const [phone, setPhone] = useState(initialUser?.phone ?? "");
-  const [roleName, setRoleName] = useState<RoleName>(
-    (initialUser?.role?.name as RoleName) ?? "SALES_EMPLOYEE",
+  const [joiningDate, setJoiningDate] = useState(() =>
+    joiningDateInputValue(
+      initialUser ? employeeJoiningDate(initialUser) : undefined,
+    ),
   );
+  const [phoneEntries, setPhoneEntries] = useState<EmployeePhoneInput[]>(
+    () => {
+      if (initialUser?.phones?.length) {
+        return initialUser.phones.map((entry) => ({
+          countryCode: entry.countryCode,
+          dialCode: entry.dialCode,
+          number: entry.number,
+          label: entry.label ?? "",
+          isPrimary: entry.isPrimary,
+        }));
+      }
+      if (initialUser?.phone) return [phoneEntryFromLegacy(initialUser.phone)];
+      return [blankPhoneEntry(true)];
+    },
+  );
+  const [roleName, setRoleName] = useState<string>(
+    initialUser?.role?.name ?? "SALES_EMPLOYEE",
+  );
+  const [availableRoles, setAvailableRoles] = useState<RoleItem[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState("");
   const [isActive, setIsActive] = useState<boolean>(initialUser?.isActive ?? true);
 
   // Password fields
@@ -72,7 +133,111 @@ export default function UserFormDialog({
     name?: string;
     email?: string;
     password?: string;
+    role?: string;
+    phones?: string;
+    joiningDate?: string;
   }>({});
+
+  const initialUserId = initialUser?.id;
+  const initialRoleName = initialUser?.role?.name;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    setRolesLoading(true);
+    setRolesError("");
+    fetchRoles()
+      .then((roles) => {
+        if (!active) return;
+        const options = [...roles];
+        if (
+          initialRoleName &&
+          !options.some((role) => role.name === initialRoleName)
+        ) {
+          options.push({
+            id: -1,
+            name: initialRoleName,
+            description: null,
+            _count: { users: 0, permissions: 0 },
+          });
+        }
+        setAvailableRoles(options);
+        if (!initialUserId) {
+          const preferred =
+            options.find((role) => role.name === "SALES_EMPLOYEE") ?? options[0];
+          if (preferred) setRoleName(preferred.name);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setRolesError(
+            err instanceof Error ? err.message : "Failed to load roles.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setRolesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, initialUserId, initialRoleName]);
+
+  function updatePhoneEntry(
+    index: number,
+    patch: Partial<EmployeePhoneInput>,
+  ): void {
+    setPhoneEntries((prev) =>
+      prev.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)),
+    );
+    if (fieldErrors.phones) {
+      setFieldErrors((prev) => ({ ...prev, phones: undefined }));
+    }
+  }
+
+  function addPhoneEntry(): void {
+    setPhoneEntries((prev) => [
+      ...prev,
+      blankPhoneEntry(prev.length === 0),
+    ]);
+    if (fieldErrors.phones) {
+      setFieldErrors((prev) => ({ ...prev, phones: undefined }));
+    }
+  }
+
+  function removePhoneEntry(index: number): void {
+    setPhoneEntries((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) return [blankPhoneEntry(true)];
+      if (!next.some((entry) => entry.isPrimary)) {
+        next[0] = { ...next[0], isPrimary: true };
+      }
+      return next;
+    });
+    if (fieldErrors.phones) {
+      setFieldErrors((prev) => ({ ...prev, phones: undefined }));
+    }
+  }
+
+  function normalizedPhones(): EmployeePhoneInput[] {
+    const entries = phoneEntries
+      .filter((entry) => entry.number.trim())
+      .map((entry) => ({
+        countryCode: entry.countryCode.toUpperCase(),
+        dialCode: countryOption(entry.countryCode).dialCode,
+        number: entry.number.trim(),
+        label: entry.label?.trim() || undefined,
+        isPrimary: Boolean(entry.isPrimary),
+      }));
+
+    const hasPrimary = entries.some((entry) => entry.isPrimary);
+    const normalized = entries.map((entry, index) => ({
+      ...entry,
+      isPrimary: hasPrimary ? entry.isPrimary : index === 0,
+    }));
+    if (!hasPrimary && normalized[0]) normalized[0].isPrimary = true;
+    return normalized;
+  }
 
   if (!isOpen) return null;
 
@@ -91,6 +256,23 @@ export default function UserFormDialog({
       errors.email = "Email address is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       errors.email = "Please enter a valid email address";
+    }
+
+    if (!joiningDate) {
+      errors.joiningDate = "Joining date is required";
+    }
+
+    const phones = normalizedPhones();
+    if (phones.filter((entry) => entry.isPrimary).length > 1) {
+      errors.phones = "Only one phone number can be primary";
+    } else if (
+      phones.some((entry) => !/^[\d\s()-]{3,30}$/.test(entry.number))
+    ) {
+      errors.phones = "Use digits, spaces, dashes or brackets only";
+    }
+
+    if (!roleName) {
+      errors.role = "Select a role for this employee";
     }
 
     if (isCreate) {
@@ -118,6 +300,8 @@ export default function UserFormDialog({
     if (!validate()) return;
 
     setIsSubmitting(true);
+    const phones = normalizedPhones();
+    const primaryPhone = phones.find((entry) => entry.isPrimary);
     try {
       if (isCreate) {
         if (!onSubmitCreate) return;
@@ -125,7 +309,9 @@ export default function UserFormDialog({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          phone: phone.trim() ? phone.trim() : undefined,
+          phone: primaryPhone ? formatEmployeePhone(primaryPhone) : undefined,
+          phones,
+          joiningDate,
           roleName,
         });
       } else {
@@ -133,7 +319,9 @@ export default function UserFormDialog({
         const payload: UserUpdateValues = {
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          phone: phone.trim() ? phone.trim() : null,
+          phone: primaryPhone ? formatEmployeePhone(primaryPhone) : null,
+          phones,
+          joiningDate,
           roleName,
           isActive,
         };
@@ -184,12 +372,12 @@ export default function UserFormDialog({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                {isCreate ? "Add New Team Member" : "Edit User Account"}
+                {isCreate ? "Add New Employee" : "Edit Employee"}
               </h2>
               <p className="text-xs text-slate-500">
                 {isCreate
-                  ? "Set up account credentials and workspace permissions."
-                  : `Updating profile details for ${initialUser?.name || "user"}.`}
+                  ? "Set up employee credentials and workspace access."
+                  : `Updating details for ${initialUser?.name || "employee"}.`}
               </p>
             </div>
           </div>
@@ -285,24 +473,145 @@ export default function UserFormDialog({
             </div>
           </div>
 
-          {/* Phone Number */}
-          <div>
+          <div className="max-w-xs">
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Phone Number <span className="text-slate-400 font-normal">(optional)</span>
+              Joining Date <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Phone
+              <Calendar
                 size={16}
                 className="absolute left-3 top-2.5 text-slate-400"
               />
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 234-5678"
-                className="w-full rounded-xl border border-slate-200 pl-9 pr-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                type="date"
+                value={joiningDate}
+                onChange={(e) => {
+                  setJoiningDate(e.target.value);
+                  if (fieldErrors.joiningDate) {
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      joiningDate: undefined,
+                    }));
+                  }
+                }}
+                className={`w-full rounded-xl border pl-9 pr-3.5 py-2 text-xs text-slate-800 outline-none transition ${
+                  fieldErrors.joiningDate
+                    ? "border-rose-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+                    : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                }`}
               />
             </div>
+            {fieldErrors.joiningDate && (
+              <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                {fieldErrors.joiningDate}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Phone Numbers{" "}
+                <span className="text-slate-400 font-normal">
+                  (optional, multiple countries supported)
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={addPhoneEntry}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+              >
+                <Plus size={13} /> Add number
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {phoneEntries.map((entry, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2.5"
+                >
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+                    <select
+                      value={entry.countryCode}
+                      onChange={(e) => {
+                        const country = countryOption(e.target.value);
+                        updatePhoneEntry(index, {
+                          countryCode: country.code,
+                          dialCode: country.dialCode,
+                        });
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      {COUNTRY_OPTIONS.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name} ({country.dialCode})
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="relative">
+                      <Phone
+                        size={14}
+                        className="absolute left-3 top-2.5 text-slate-400"
+                      />
+                      <input
+                        type="tel"
+                        value={entry.number}
+                        onChange={(e) =>
+                          updatePhoneEntry(index, { number: e.target.value })
+                        }
+                        placeholder="98765 43210"
+                        className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                    <input
+                      type="text"
+                      value={entry.label ?? ""}
+                      onChange={(e) =>
+                        updatePhoneEntry(index, { label: e.target.value })
+                      }
+                      placeholder="Location / label (e.g. Office, WhatsApp)"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <label className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(entry.isPrimary)}
+                        onChange={() =>
+                          setPhoneEntries((prev) =>
+                            prev.map((item, i) => ({
+                              ...item,
+                              isPrimary: i === index,
+                            })),
+                          )
+                        }
+                        className="h-3.5 w-3.5 accent-blue-600"
+                      />
+                      Primary
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removePhoneEntry(index)}
+                      disabled={phoneEntries.length === 1}
+                      aria-label={`Remove phone number ${index + 1}`}
+                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {fieldErrors.phones && (
+              <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                {fieldErrors.phones}
+              </p>
+            )}
           </div>
 
           {/* Role Selection */}
@@ -311,42 +620,91 @@ export default function UserFormDialog({
               Role & System Access <span className="text-rose-500">*</span>
             </label>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {roleNames.map((nameKey: RoleName) => {
-                const config = ROLE_CONFIG[nameKey];
-                const isSelected = roleName === nameKey;
-                return (
+              {rolesLoading ? (
+                <div className="col-span-full flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3 text-xs text-slate-500">
+                  <Loader2 size={14} className="animate-spin text-blue-600" />
+                  Loading roles…
+                </div>
+              ) : rolesError ? (
+                <div className="col-span-full flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs text-rose-700">
+                  <span>{rolesError}</span>
                   <button
-                    key={nameKey}
                     type="button"
-                    onClick={() => setRoleName(nameKey)}
-                    className={`relative flex flex-col text-left p-3 rounded-xl border transition-all ${
-                      isSelected
-                        ? "border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-sm"
-                        : "border-slate-200 bg-white hover:bg-slate-50/80"
-                    }`}
+                    onClick={() => {
+                      setRolesError("");
+                      setRolesLoading(true);
+                      fetchRoles()
+                        .then((roles) => {
+                          setAvailableRoles(roles);
+                          if (!initialUserId && roles.length > 0) {
+                            setRoleName(roles[0].name);
+                          }
+                        })
+                        .catch((err: unknown) => {
+                          setRolesError(
+                            err instanceof Error
+                              ? err.message
+                              : "Failed to load roles.",
+                          );
+                        })
+                        .finally(() => setRolesLoading(false));
+                    }}
+                    className="font-semibold underline cursor-pointer"
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-xs font-bold text-slate-900">
-                        {config.label}
-                      </span>
-                      {isSelected ? (
-                        <CheckCircle2
-                          size={15}
-                          className="text-blue-600 shrink-0"
-                        />
-                      ) : (
-                        <span
-                          className={`h-2.5 w-2.5 rounded-full ${config.dotColor}`}
-                        />
-                      )}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">
-                      {config.description}
-                    </p>
+                    Retry
                   </button>
-                );
-              })}
+                </div>
+              ) : availableRoles.length === 0 ? (
+                <div className="col-span-full rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-700">
+                  No roles found. Create one in Employee Management → Roles first.
+                </div>
+              ) : (
+                availableRoles.map((role) => {
+                  const config = ROLE_CONFIG[role.name as RoleName];
+                  const label = config?.label ?? roleLabel(role.name);
+                  const description =
+                    config?.description ?? role.description ?? "Custom role";
+                  const dotColor = config?.dotColor ?? "bg-slate-400";
+                  const isSelected = roleName === role.name;
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => setRoleName(role.name)}
+                      className={`relative flex flex-col text-left p-3 rounded-xl border transition-all ${
+                        isSelected
+                          ? "border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-sm"
+                          : "border-slate-200 bg-white hover:bg-slate-50/80"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-bold text-slate-900">
+                          {label}
+                        </span>
+                        {isSelected ? (
+                          <CheckCircle2
+                            size={15}
+                            className="text-blue-600 shrink-0"
+                          />
+                        ) : (
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${dotColor}`}
+                          />
+                        )}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">
+                        {description}
+                      </p>
+                    </button>
+                  );
+                })
+              )}
             </div>
+            {fieldErrors.role && (
+              <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                {fieldErrors.role}
+              </p>
+            )}
           </div>
 
           {/* Active Status Toggle (For Edit mode) */}
@@ -354,12 +712,12 @@ export default function UserFormDialog({
             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
               <div>
                 <p className="text-xs font-semibold text-slate-800">
-                  Account Status
+                  Employee Status
                 </p>
                 <p className="text-[11px] text-slate-500">
                   {isActive
-                    ? "User can sign in and access the CRM."
-                    : "User account is suspended; login attempts are blocked."}
+                    ? "Employee can sign in and access the CRM."
+                    : "Employee account is suspended; login attempts are blocked."}
                 </p>
                 {isSelf && (
                   <p className="text-[10px] text-amber-600 mt-0.5">
@@ -452,7 +810,7 @@ export default function UserFormDialog({
                 <div className="flex items-center gap-2">
                   <KeyRound size={15} className="text-slate-500" />
                   <span className="text-xs font-semibold text-slate-800">
-                    Reset User Password
+                    Reset Employee Password
                   </span>
                 </div>
                 <span className="text-xs font-medium text-blue-600">
@@ -464,7 +822,7 @@ export default function UserFormDialog({
                 <div className="p-3.5 border-t border-slate-100 bg-white space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-slate-500">
-                      Enter a new password for this user:
+                      Enter a new password for this employee:
                     </span>
                     <button
                       type="button"
@@ -522,11 +880,11 @@ export default function UserFormDialog({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || Boolean(rolesError)}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d61e7] px-5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition disabled:opacity-50"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {isCreate ? "Create Account" : "Save Changes"}
+              {isCreate ? "Add Employee" : "Save Changes"}
             </button>
           </div>
         </form>

@@ -16,6 +16,8 @@ const permissions = [
   ['users.create', 'Create users'],
   ['users.edit', 'Edit users'],
   ['users.delete', 'Delete users'],
+  ['permissions.view', 'View roles and permissions'],
+  ['permissions.manage', 'Manage roles and permissions'],
   ['roles.view', 'View roles and permissions'],
   ['roles.manage', 'Manage roles and permissions'],
   ['leads.view', 'View leads'],

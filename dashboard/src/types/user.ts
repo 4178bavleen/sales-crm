@@ -6,11 +6,26 @@ export type RoleName =
 
 export type UserRole = { id: number; name: string };
 
+export type EmployeePhoneInput = {
+  countryCode: string;
+  dialCode: string;
+  number: string;
+  label?: string | null;
+  isPrimary?: boolean;
+};
+
+export type EmployeePhone = EmployeePhoneInput & {
+  id: number;
+  isPrimary: boolean;
+};
+
 export type UserRow = {
   id: number;
   name: string;
   email: string;
   phone: string | null;
+  phones?: EmployeePhone[];
+  joiningDate?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,7 +37,9 @@ export type CreateUserInput = {
   email: string;
   password?: string;
   phone?: string | null;
-  roleName: RoleName;
+  phones?: EmployeePhoneInput[];
+  joiningDate?: string | null;
+  roleName: string;
   isActive?: boolean;
 };
 
@@ -31,13 +48,15 @@ export type UserUpdateValues = {
   email?: string;
   password?: string;
   phone?: string | null;
-  roleName?: RoleName;
+  phones?: EmployeePhoneInput[];
+  joiningDate?: string | null;
+  roleName?: string;
   isActive?: boolean;
 };
 
 export type UsersFilterState = {
   search: string;
-  role: RoleName | "ALL";
+  role: string;
   status: "ALL" | "ACTIVE" | "INACTIVE";
 };
 

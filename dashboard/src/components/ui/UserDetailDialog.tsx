@@ -11,7 +11,13 @@ import {
   Hash,
 } from "lucide-react";
 import type { UserRow } from "../../types/user";
-import { ROLE_CONFIG, roleLabel } from "../../lib/users";
+import {
+  ROLE_CONFIG,
+  countryOption,
+  employeeJoiningDate,
+  formatEmployeePhone,
+  roleLabel,
+} from "../../lib/users";
 
 export type UserDetailDialogProps = {
   user: UserRow | null;
@@ -44,7 +50,7 @@ export default function UserDetailDialog({
   const roleName = user.role.name as keyof typeof ROLE_CONFIG;
   const config = ROLE_CONFIG[roleName] || {
     label: roleLabel(user.role.name),
-    description: "CRM System User",
+    description: "CRM Employee",
     badgeBg: "bg-slate-100",
     badgeText: "text-slate-700",
     badgeBorder: "border-slate-200",
@@ -68,7 +74,7 @@ export default function UserDetailDialog({
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 bg-white">
           <div>
-            <p className="text-xs font-medium text-slate-500">User details</p>
+            <p className="text-xs font-medium text-slate-500">Employee details</p>
             <h2 className="mt-0.5 text-lg font-bold text-slate-900 flex items-center gap-2">
               <span>{user.name}</span>
               {isSelf && (
@@ -139,7 +145,7 @@ export default function UserDetailDialog({
                   {config.label}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  User ID #{user.id}
+                  Employee ID #{user.id}
                 </span>
               </div>
             </div>
@@ -148,7 +154,7 @@ export default function UserDetailDialog({
           {/* Account Details */}
           <div>
             <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-              Account Information
+              Employee Information
             </h3>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
@@ -164,25 +170,13 @@ export default function UserDetailDialog({
               </div>
 
               <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <Phone size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-slate-400">Phone Number</p>
-                  <p className="truncate text-xs font-semibold text-slate-800">
-                    {user.phone || "No phone listed"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                   <Calendar size={16} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-slate-400">Joined Date</p>
+                  <p className="text-[10px] font-medium text-slate-400">Joining Date</p>
                   <p className="truncate text-xs font-semibold text-slate-800">
-                    {new Date(user.createdAt).toLocaleDateString(undefined, {
+                    {new Date(employeeJoiningDate(user)).toLocaleDateString(undefined, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
@@ -202,6 +196,62 @@ export default function UserDetailDialog({
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Phone Numbers
+              </h3>
+              <span className="text-[11px] font-semibold text-slate-500">
+                {user.phones?.length ?? (user.phone ? 1 : 0)} listed
+              </span>
+            </div>
+            <div className="space-y-2">
+              {user.phones && user.phones.length > 0 ? (
+                user.phones.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                        <Phone size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold text-slate-800">
+                            {formatEmployeePhone(entry)}
+                          </span>
+                          {entry.isPrimary && (
+                            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-[10px] text-slate-400">
+                          {countryOption(entry.countryCode).name} ({entry.countryCode})
+                          {entry.label ? ` · ${entry.label}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : user.phone ? (
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <Phone size={16} />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-800">
+                    {user.phone}
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-3 text-xs text-slate-400">
+                  No phone numbers listed
+                </div>
+              )}
             </div>
           </div>
 
@@ -260,7 +310,7 @@ export default function UserDetailDialog({
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
             >
               <Pencil size={13} />
-              Edit User
+              Edit Employee
             </button>
           </div>
         </div>
