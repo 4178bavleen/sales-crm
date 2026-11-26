@@ -1,6 +1,7 @@
 
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../config/database.js'
+import type { Prisma } from '../../generated/prisma/client.js'
 import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateUserInput,
@@ -16,6 +17,65 @@ export class UserServiceError extends Error {
     super(message)
     this.name = 'UserServiceError'
   }
+}
+
+const employeePhoneSelect = {
+  orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }],
+  select: {
+    id: true,
+    countryCode: true,
+    dialCode: true,
+    number: true,
+    label: true,
+    isPrimary: true,
+  },
+} satisfies Prisma.EmployeePhoneFindManyArgs
+
+type EmployeePhoneInput = NonNullable<CreateUserInput['phones']>[number]
+
+function formatEmployeePhone(phone: EmployeePhoneInput): string {
+  return `${phone.dialCode}${phone.number.replace(/\s+/g, '')}`
+}
+
+function parseJoiningDate(value?: string | null): Date | null {
+  return value ? new Date(`${value}T00:00:00.000Z`) : null
+}
+
+async function syncEmployeePhones(
+  userId: number,
+  phones?: EmployeePhoneInput[],
+): Promise<void> {
+  if (!phones) return
+
+  const entries = phones
+    .map((phone, index) => ({
+      countryCode: phone.countryCode.toUpperCase(),
+      dialCode: phone.dialCode,
+      number: phone.number.trim(),
+      label: phone.label?.trim() || null,
+      isPrimary: phones.some((item) => item.isPrimary)
+        ? Boolean(phone.isPrimary)
+        : index === 0,
+    }))
+    .filter((phone) => phone.number.length > 0)
+
+  const primary = entries.find((phone) => phone.isPrimary) ?? entries[0]
+  if (primary) primary.isPrimary = true
+
+  await prisma.$transaction([
+    prisma.employeePhone.deleteMany({ where: { userId } }),
+    ...(entries.length > 0
+      ? [
+          prisma.employeePhone.createMany({
+            data: entries.map((phone) => ({ ...phone, userId })),
+          }),
+        ]
+      : []),
+    prisma.user.update({
+      where: { id: userId },
+      data: { phone: primary ? formatEmployeePhone(primary) : null },
+    }),
+  ])
 }
 
 export async function createUser(input: CreateUserInput) {
@@ -41,28 +101,22 @@ export async function createUser(input: CreateUserInput) {
 
 
   const passwordHash = await bcrypt.hash(input.password, 12)
+  const primaryPhone = input.phones?.find((phone) => phone.isPrimary) ?? input.phones?.[0]
 
+  let createdUserId: number
   try {
     const user = await prisma.user.create({
       data: {
         name: input.name,
         email: input.email,
         passwordHash,
-        phone: input.phone,
+        phone: primaryPhone ? formatEmployeePhone(primaryPhone) : input.phone,
+        joiningDate: parseJoiningDate(input.joiningDate),
         roleId: role.id,
-    
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        isActive: true,
-        createdAt: true,
-        role: { select: { id: true, name: true } },
 
+        isActive: true,
       },
+      select: { id: true },
     })
 
     void logAudit({
@@ -94,6 +148,9 @@ export async function createUser(input: CreateUserInput) {
 
     throw error
   }
+
+  await syncEmployeePhones(createdUserId, input.phones)
+  return getUserById(createdUserId)
 }
 
 export async function getUsers(input: ListUsersInput) {
@@ -109,6 +166,11 @@ export async function getUsers(input: ListUsersInput) {
             { name: { contains: search, mode: 'insensitive' as const } },
             { email: { contains: search, mode: 'insensitive' as const } },
             { phone: { contains: search, mode: 'insensitive' as const } },
+            {
+              phones: {
+                some: { number: { contains: search, mode: 'insensitive' as const } },
+              },
+            },
           ],
         }
       : {}),
@@ -126,10 +188,11 @@ export async function getUsers(input: ListUsersInput) {
         email: true,
         phone: true,
         isActive: true,
+        joiningDate: true,
         createdAt: true,
         updatedAt: true,
         role: { select: { id: true, name: true } },
-       
+        phones: employeePhoneSelect,
       },
     }),
     prisma.user.count({ where }),
@@ -155,10 +218,11 @@ export async function getUserById(id: number) {
       email: true,
       phone: true,
       isActive: true,
+      joiningDate: true,
       createdAt: true,
       updatedAt: true,
       role: { select: { id: true, name: true } },
-  
+      phones: employeePhoneSelect,
     },
   })
 
@@ -184,14 +248,18 @@ export async function updateUser(id: number, input: UpdateUserInput) {
     email?: string
     passwordHash?: string
     phone?: string | null
+    joiningDate?: Date | null
     roleId?: number
-   
+
     isActive?: boolean
   } = {}
 
   if (input.name !== undefined) data.name = input.name
   if (input.email !== undefined) data.email = input.email
   if (input.phone !== undefined) data.phone = input.phone
+  if (input.joiningDate !== undefined) {
+    data.joiningDate = parseJoiningDate(input.joiningDate)
+  }
   if (input.isActive !== undefined) data.isActive = input.isActive
  
 
@@ -215,7 +283,7 @@ export async function updateUser(id: number, input: UpdateUserInput) {
 
 
   try {
-    const updated = await prisma.user.update({
+    await prisma.user.update({
       where: { id },
       data,
       select: {
@@ -263,6 +331,9 @@ export async function updateUser(id: number, input: UpdateUserInput) {
 
     throw error
   }
+
+  await syncEmployeePhones(id, input.phones)
+  return getUserById(id)
 }
 
 export async function deleteUser(id: number, actorId: number) {

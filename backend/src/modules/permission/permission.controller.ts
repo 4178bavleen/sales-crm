@@ -108,6 +108,7 @@ export async function deleteRole(
   next: NextFunction,
 ): Promise<void> {
   try {
+    
     const roleId = roleIdSchema.parse(req.params.roleId)
     const rawReassign =
       req.query.reassignToRoleId ??

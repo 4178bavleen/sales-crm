@@ -36,7 +36,7 @@ export default function UserDeleteDialog({
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Could not delete user account.");
+        setError("Could not remove employee.");
       }
     } finally {
       setIsDeleting(false);
@@ -69,7 +69,7 @@ export default function UserDeleteDialog({
 
           <div className="mt-4">
             <h3 className="text-base font-bold text-slate-900">
-              Deactivate & Remove Account
+              Deactivate & Remove Employee
             </h3>
             <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
               Are you sure you want to remove{" "}
@@ -127,7 +127,7 @@ export default function UserDeleteDialog({
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-rose-600/25 hover:bg-rose-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isDeleting && <Loader2 size={14} className="animate-spin" />}
-              Revoke & Remove User
+              Remove Employee
             </button>
           </div>
         </div>

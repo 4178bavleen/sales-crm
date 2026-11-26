@@ -139,6 +139,62 @@ enum TransactionStatus {
   CANCELLED
 }
 
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+  WEEKEND
+  HOLIDAY
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  EARNED
+  UNPAID
+  MATERNITY
+  PATERNITY
+  COMP_OFF
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
+  CANCELLED
+}
+
 // ---------------------------------------------------------------------
 // 1. USERS & ACCESS
 // ---------------------------------------------------------------------
@@ -196,6 +252,7 @@ model User {
   teamId       Int?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  joiningDate  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -233,10 +290,189 @@ model User {
   facebookDefaultOwners FacebookSetting[]  @relation("FacebookDefaultOwner")
   financialTransactions FinancialTransaction[] @relation("TransactionCreatedBy")
   invoicesCreated       Invoice[]              @relation("InvoiceCreatedBy")
+  phones                EmployeePhone[]
+  employeeProfile       EmployeeProfile?
+  hrManagedProfiles     EmployeeProfile[]      @relation("EmployeeManager")
+  hrHeadedDepartments   HrDepartment[]         @relation("HRDepartmentHead")
+  hrAttendance          Attendance[]           @relation("HRAttendance")
+  hrLeaveRequests       LeaveRequest[]         @relation("HRLeaveEmployee")
+  hrApprovedLeaves      LeaveRequest[]         @relation("HRLeaveApprover")
+  hrPayrollRecords      PayrollRecord[]        @relation("HRPayroll")
+  hrDocuments           EmployeeDocument[]     @relation("HRDocument")
 
   @@index([roleId])
   @@index([teamId])
   @@map("users")
+}
+
+model EmployeePhone {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  countryCode String
+  dialCode    String
+  number      String
+  label       String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("employee_phones")
+}
+
+model HrDepartment {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  headUserId  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  head         User?            @relation("HRDepartmentHead", fields: [headUserId], references: [id])
+  profiles     EmployeeProfile[]
+  designations HrDesignation[]
+
+  @@map("hr_departments")
+}
+
+model HrDesignation {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  departmentId Int?
+  level        Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department HrDepartment?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  profiles   EmployeeProfile[]
+
+  @@index([departmentId])
+  @@map("hr_designations")
+}
+
+model EmployeeProfile {
+  id                     Int            @id @default(autoincrement())
+  userId                 Int            @unique
+  employeeCode           String?        @unique
+  departmentId           Int?
+  designationId          Int?
+  managerId              Int?
+  employmentType         EmploymentType @default(FULL_TIME)
+  workLocation           String?
+  shiftStart             String?
+  shiftEnd               String?
+  dateOfBirth            DateTime?      @db.Date
+  gender                 Gender?
+  maritalStatus          MaritalStatus?
+  nationality            String?
+  bloodGroup             String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  state                  String?
+  postalCode             String?
+  countryCode            String?        @default("IN")
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+  bankName               String?
+  bankAccountNumber      String?
+  bankIfscCode           String?
+  taxId                  String?
+  salary                 Decimal?       @db.Decimal(14, 2)
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  HrDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  designation HrDesignation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  manager     User?         @relation("EmployeeManager", fields: [managerId], references: [id])
+
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([managerId])
+  @@map("employee_profiles")
+}
+
+model Attendance {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  date           DateTime         @db.Date
+  checkIn        DateTime?
+  checkOut       DateTime?
+  status         AttendanceStatus @default(PRESENT)
+  workingMinutes Int              @default(0)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user User @relation("HRAttendance", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("hr_attendance")
+}
+
+model LeaveRequest {
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  leaveType    LeaveType
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  approvedById Int?
+  approvedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user       User @relation("HRLeaveEmployee", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy User? @relation("HRLeaveApprover", fields: [approvedById], references: [id])
+
+  @@index([userId, status])
+  @@map("hr_leave_requests")
+}
+
+model PayrollRecord {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  periodStart DateTime      @db.Date
+  periodEnd   DateTime      @db.Date
+  basic       Decimal       @default(0) @db.Decimal(14, 2)
+  allowances  Decimal       @default(0) @db.Decimal(14, 2)
+  deductions  Decimal       @default(0) @db.Decimal(14, 2)
+  grossPay    Decimal       @default(0) @db.Decimal(14, 2)
+  netPay      Decimal       @default(0) @db.Decimal(14, 2)
+  status      PayrollStatus @default(DRAFT)
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user User @relation("HRPayroll", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart, periodEnd])
+  @@index([status])
+  @@map("hr_payroll_records")
+}
+
+model EmployeeDocument {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  type        String
+  name        String?
+  filePath    String?
+  issuedAt    DateTime? @db.Date
+  expiresAt   DateTime? @db.Date
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation("HRDocument", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("hr_employee_documents")
 }
 
 // ---------------------------------------------------------------------

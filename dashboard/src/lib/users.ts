@@ -32,7 +32,7 @@ export const ROLE_CONFIG: Record<
     badgeText: "text-purple-700",
     badgeBorder: "border-purple-200",
     permissions: [
-      "Manage all users and assign roles",
+      "Manage all employees and assign roles",
       "Full access to leads, deals, tasks and contacts",
       "Manage system settings and configurations",
       "Export and import CRM datasets",
@@ -96,6 +96,98 @@ export function roleLabel(name: string): string {
       .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
       .join(" ")
   );
+}
+
+export type CountryOption = {
+  code: string;
+  dialCode: string;
+  name: string;
+};
+
+export const COUNTRY_OPTIONS: CountryOption[] = [
+  { code: "IN", dialCode: "+91", name: "India" },
+  { code: "US", dialCode: "+1", name: "United States" },
+  { code: "GB", dialCode: "+44", name: "United Kingdom" },
+  { code: "AE", dialCode: "+971", name: "United Arab Emirates" },
+  { code: "CA", dialCode: "+1", name: "Canada" },
+  { code: "AU", dialCode: "+61", name: "Australia" },
+  { code: "SG", dialCode: "+65", name: "Singapore" },
+  { code: "MY", dialCode: "+60", name: "Malaysia" },
+  { code: "SA", dialCode: "+966", name: "Saudi Arabia" },
+  { code: "QA", dialCode: "+974", name: "Qatar" },
+  { code: "KW", dialCode: "+965", name: "Kuwait" },
+  { code: "BH", dialCode: "+973", name: "Bahrain" },
+  { code: "OM", dialCode: "+968", name: "Oman" },
+  { code: "IL", dialCode: "+972", name: "Israel" },
+  { code: "TR", dialCode: "+90", name: "Turkey" },
+  { code: "DE", dialCode: "+49", name: "Germany" },
+  { code: "FR", dialCode: "+33", name: "France" },
+  { code: "IT", dialCode: "+39", name: "Italy" },
+  { code: "ES", dialCode: "+34", name: "Spain" },
+  { code: "NL", dialCode: "+31", name: "Netherlands" },
+  { code: "BE", dialCode: "+32", name: "Belgium" },
+  { code: "CH", dialCode: "+41", name: "Switzerland" },
+  { code: "AT", dialCode: "+43", name: "Austria" },
+  { code: "SE", dialCode: "+46", name: "Sweden" },
+  { code: "NO", dialCode: "+47", name: "Norway" },
+  { code: "DK", dialCode: "+45", name: "Denmark" },
+  { code: "FI", dialCode: "+358", name: "Finland" },
+  { code: "PL", dialCode: "+48", name: "Poland" },
+  { code: "IE", dialCode: "+353", name: "Ireland" },
+  { code: "PT", dialCode: "+351", name: "Portugal" },
+  { code: "RU", dialCode: "+7", name: "Russia" },
+  { code: "UA", dialCode: "+380", name: "Ukraine" },
+  { code: "BR", dialCode: "+55", name: "Brazil" },
+  { code: "MX", dialCode: "+52", name: "Mexico" },
+  { code: "AR", dialCode: "+54", name: "Argentina" },
+  { code: "CL", dialCode: "+56", name: "Chile" },
+  { code: "CO", dialCode: "+57", name: "Colombia" },
+  { code: "ZA", dialCode: "+27", name: "South Africa" },
+  { code: "NG", dialCode: "+234", name: "Nigeria" },
+  { code: "KE", dialCode: "+254", name: "Kenya" },
+  { code: "EG", dialCode: "+20", name: "Egypt" },
+  { code: "PK", dialCode: "+92", name: "Pakistan" },
+  { code: "BD", dialCode: "+880", name: "Bangladesh" },
+  { code: "NP", dialCode: "+977", name: "Nepal" },
+  { code: "LK", dialCode: "+94", name: "Sri Lanka" },
+  { code: "CN", dialCode: "+86", name: "China" },
+  { code: "JP", dialCode: "+81", name: "Japan" },
+  { code: "KR", dialCode: "+82", name: "South Korea" },
+  { code: "ID", dialCode: "+62", name: "Indonesia" },
+  { code: "TH", dialCode: "+66", name: "Thailand" },
+  { code: "VN", dialCode: "+84", name: "Vietnam" },
+  { code: "PH", dialCode: "+63", name: "Philippines" },
+  { code: "TW", dialCode: "+886", name: "Taiwan" },
+  { code: "HK", dialCode: "+852", name: "Hong Kong" },
+  { code: "NZ", dialCode: "+64", name: "New Zealand" },
+];
+
+export function countryOption(code: string): CountryOption {
+  return (
+    COUNTRY_OPTIONS.find((option) => option.code === code) ?? {
+      code,
+      dialCode: "",
+      name: code,
+    }
+  );
+}
+
+export function formatEmployeePhone(phone: {
+  dialCode: string;
+  number: string;
+}): string {
+  return `${phone.dialCode}${phone.number.replace(/\s+/g, "")}`.trim();
+}
+
+export function employeeJoiningDate(user: {
+  joiningDate?: string | null;
+  createdAt: string;
+}): string {
+  return user.joiningDate ?? user.createdAt;
+}
+
+export function joiningDateInputValue(value?: string | null): string {
+  return value ? value.slice(0, 10) : new Date().toISOString().slice(0, 10);
 }
 
 function authToken(): string {
@@ -181,15 +273,31 @@ export async function deleteUser(id: number): Promise<void> {
 
 export function exportUsersToCsv(users: UserRow[]): void {
   const escapeCsv = (val: string) => `"${val.replace(/"/g, '""')}"`;
-  const headers = ["ID", "Name", "Email", "Phone", "Role", "Status", "Created At"];
+  const headers = [
+    "ID",
+    "Name",
+    "Email",
+    "Phone",
+    "Other Phone Numbers",
+    "Role",
+    "Status",
+    "Joining Date",
+  ];
   const rows = users.map((u) => [
     String(u.id),
     u.name,
     u.email,
     u.phone || "",
+    (u.phones ?? [])
+      .filter((phone) => !phone.isPrimary)
+      .map(
+        (phone) =>
+          `${formatEmployeePhone(phone)}${phone.label ? ` (${phone.label})` : ""}`,
+      )
+      .join("; "),
     roleLabel(u.role?.name || ""),
     u.isActive ? "Active" : "Inactive",
-    u.createdAt,
+    employeeJoiningDate(u),
   ]);
 
   const csv = [headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\n");

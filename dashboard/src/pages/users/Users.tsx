@@ -34,16 +34,18 @@ import {
   createUser as createUserApi,
   updateUser as updateUserApi,
   deleteUser as deleteUserApi,
+  employeeJoiningDate,
   exportUsersToCsv,
   roleLabel,
 } from "../../lib/users";
 import { ApiError } from "../../lib/api";
 import { getSession } from "../../lib/auth";
+import { fetchRoles, type RoleItem } from "../../lib/permissions";
 import TableSettings, { type TableSettingsColumn } from "../../components/ui/TableSettings";
 import StatCard from "../../components/ui/StatCard";
 
 const userColumnOptions: TableSettingsColumn[] = [
-  { key: "member", label: "Team Member" },
+  { key: "member", label: "Employee" },
   { key: "role", label: "System Role" },
   { key: "phone", label: "Phone" },
   { key: "status", label: "Status" },
@@ -53,9 +55,12 @@ const userColumnOptions: TableSettingsColumn[] = [
 import UserFormDialog from "../../components/ui/UserFormDialog";
 import UserDeleteDialog from "../../components/ui/UserDeleteDialog";
 import UserDetailDialog from "../../components/ui/UserDetailDialog";
+import EmployeeRolesPanel from "./EmployeeRolesPanel";
 
 export default function UsersPage() {
+  const [activeTab, setActiveTab] = useState<"employees" | "roles">("employees");
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +150,7 @@ export default function UsersPage() {
         setError(
           err instanceof ApiError
             ? err.message
-            : "Failed to load users from the server.",
+            : "Failed to load employees from the server.",
         );
       }
     } finally {
@@ -157,6 +162,20 @@ export default function UsersPage() {
   useEffect(() => {
     void loadUsersData();
   }, [loadUsersData]);
+
+  useEffect(() => {
+    let active = true;
+    fetchRoles()
+      .then((roles) => {
+        if (active) setRoleOptions(roles);
+      })
+      .catch(() => {
+        if (active) setRoleOptions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Derived filtered users
   const filteredUsers = useMemo(() => {
@@ -183,23 +202,32 @@ export default function UsersPage() {
     });
   }, [users, filters]);
 
-  // Role counters for badges
+  const roleFilterOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    for (const role of roleOptions) {
+      options.set(role.name, roleLabel(role.name));
+    }
+    for (const user of users) {
+      if (user.role?.name) {
+        options.set(user.role.name, roleLabel(user.role.name));
+      }
+    }
+    return [...options.entries()].map(([name, label]) => ({ name, label }));
+  }, [roleOptions, users]);
+
   const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      ALL: users.length,
-      ADMIN: 0,
-      SALES_MANAGER: 0,
-      SALES_EMPLOYEE: 0,
-      REPORT_VIEWER: 0,
-    };
-    for (const u of users) {
-      const name = u.role?.name;
-      if (name && name in counts) {
-        counts[name] = (counts[name] || 0) + 1;
+    const counts: Record<string, number> = { ALL: users.length };
+    for (const option of roleFilterOptions) {
+      counts[option.name] = 0;
+    }
+    for (const user of users) {
+      const name = user.role?.name;
+      if (name) {
+        counts[name] = (counts[name] ?? 0) + 1;
       }
     }
     return counts;
-  }, [users]);
+  }, [users, roleFilterOptions]);
 
   // KPI statistics
   const stats = useMemo(() => {
@@ -223,7 +251,7 @@ export default function UsersPage() {
   async function handleCreateUser(data: CreateUserInput) {
     const created = await createUserApi(data);
     setUsers((prev) => [created, ...prev]);
-    showToast("success", `User "${created.name}" created successfully.`);
+    showToast("success", `Employee "${created.name}" added successfully.`);
   }
 
   async function handleEditUser(id: number, data: UserUpdateValues) {
@@ -232,7 +260,7 @@ export default function UsersPage() {
     if (detailUser && detailUser.id === updated.id) {
       setDetailUser(updated);
     }
-    showToast("success", `Account for "${updated.name}" updated successfully.`);
+    showToast("success", `Employee "${updated.name}" updated successfully.`);
   }
 
   async function handleDeleteUser(user: UserRow) {
@@ -242,7 +270,7 @@ export default function UsersPage() {
       setDetailOpen(false);
       setDetailUser(null);
     }
-    showToast("success", `Account "${user.name}" has been removed.`);
+    showToast("success", `Employee "${user.name}" has been removed.`);
   }
 
   async function handleToggleActive(user: UserRow) {
@@ -267,7 +295,7 @@ export default function UsersPage() {
     } catch (err: unknown) {
       showToast(
         "error",
-        err instanceof Error ? err.message : "Failed to change user status.",
+        err instanceof Error ? err.message : "Failed to change employee status.",
       );
     } finally {
       setTogglingId(null);
@@ -312,7 +340,7 @@ export default function UsersPage() {
             Administrator Access Required
           </h2>
           <p className="mx-auto mt-2 max-w-md text-xs text-slate-600 leading-relaxed">
-            User Management is restricted to system administrators. Your current
+            Employee Management is restricted to system administrators. Your current
             signed-in role is{" "}
             <strong className="text-slate-800">
               {currentSession?.user.role ?? "UNKNOWN"}
@@ -350,19 +378,20 @@ export default function UsersPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              User Management
+              Employee Management
             </h1>
             <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              {users.length} {users.length === 1 ? "Member" : "Members"}
+              {users.length} {users.length === 1 ? "Employee" : "Employees"}
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-600">
-            Administer team member accounts, assign system roles, and configure
-            CRM workspace permissions.
+            Manage employee accounts, assign system roles, and configure CRM
+            workspace access.
           </p>
         </div>
 
         {/* Action buttons */}
+        {activeTab === "employees" && (
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
@@ -378,7 +407,7 @@ export default function UsersPage() {
             type="button"
             onClick={() => void loadUsersData(true)}
             disabled={refreshing}
-            title="Refresh user list"
+            title="Refresh employee list"
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50 cursor-pointer"
           >
             <RotateCw
@@ -398,22 +427,50 @@ export default function UsersPage() {
             className="inline-flex items-center gap-2 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition cursor-pointer"
           >
             <UserPlus size={15} />
-            <span>Add User</span>
+            <span>Add Employee</span>
           </button>
         </div>
+        )}
       </div>
 
+      <div className="flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("employees")}
+          className={`rounded-lg px-4 py-2 text-xs font-semibold transition cursor-pointer ${
+            activeTab === "employees"
+              ? "bg-[#1d61e7] text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Employees
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("roles")}
+          className={`rounded-lg px-4 py-2 text-xs font-semibold transition cursor-pointer ${
+            activeTab === "roles"
+              ? "bg-[#1d61e7] text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Roles
+        </button>
+      </div>
+
+      {activeTab === "employees" && (
+        <>
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Accounts"
+          label="Total Employees"
           value={stats.total}
-          subtext="CRM workspace accounts"
+          subtext="Employee records in CRM"
           icon={Users}
           color="blue"
         />
         <StatCard
-          label="Active Accounts"
+          label="Active Employees"
           value={stats.active}
           subtext={`${stats.activePercentage}% active`}
           icon={CheckCircle2}
@@ -491,13 +548,9 @@ export default function UsersPage() {
                   <span>
                     {filters.role === "ALL"
                       ? "All Roles"
-                      : filters.role === "ADMIN"
-                      ? "Admins"
-                      : filters.role === "SALES_MANAGER"
-                      ? "Sales Managers"
-                      : filters.role === "SALES_EMPLOYEE"
-                      ? "Sales Reps"
-                      : "Report Viewers"}
+                      : (roleFilterOptions.find(
+                          (option) => option.name === filters.role,
+                        )?.label ?? roleLabel(filters.role))}
                   </span>
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
@@ -523,11 +576,12 @@ export default function UsersPage() {
                     </div>
                     <div className="space-y-0.5 mt-1">
                       {[
-                        { id: "ALL" as const, label: "All Roles", count: roleCounts.ALL },
-                        { id: "ADMIN" as const, label: "Admins", count: roleCounts.ADMIN },
-                        { id: "SALES_MANAGER" as const, label: "Sales Managers", count: roleCounts.SALES_MANAGER },
-                        { id: "SALES_EMPLOYEE" as const, label: "Sales Reps", count: roleCounts.SALES_EMPLOYEE },
-                        { id: "REPORT_VIEWER" as const, label: "Report Viewers", count: roleCounts.REPORT_VIEWER },
+                        { id: "ALL", label: "All Roles", count: roleCounts.ALL },
+                        ...roleFilterOptions.map((option) => ({
+                          id: option.name,
+                          label: option.label,
+                          count: roleCounts[option.name] ?? 0,
+                        })),
                       ].map((opt) => {
                         const isSelected = filters.role === opt.id;
                         return (
@@ -703,7 +757,7 @@ export default function UsersPage() {
         <div className="flex items-center justify-between px-5 py-2.5 bg-slate-50/70 border-b border-slate-100 text-xs text-slate-500">
           <span>
             Showing <strong className="text-slate-800">{filteredUsers.length}</strong>{" "}
-            of <strong className="text-slate-800">{users.length}</strong> accounts
+            of <strong className="text-slate-800">{users.length}</strong> employees
           </span>
         </div>
 
@@ -712,7 +766,7 @@ export default function UsersPage() {
           <div className="m-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
             <AlertCircle size={16} className="shrink-0 text-rose-600 mt-0.5" />
             <div>
-              <p className="font-bold">Error loading users</p>
+              <p className="font-bold">Error loading employees</p>
               <p className="mt-0.5 text-rose-700">{error}</p>
             </div>
           </div>
@@ -722,7 +776,7 @@ export default function UsersPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500">
             <Loader2 size={32} className="animate-spin text-blue-600" />
-            <p className="mt-3 text-xs font-medium">Loading user accounts…</p>
+            <p className="mt-3 text-xs font-medium">Loading employees…</p>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -730,12 +784,12 @@ export default function UsersPage() {
               <Users size={28} />
             </div>
             <h3 className="mt-3 text-sm font-bold text-slate-800">
-              No team accounts found
+              No employees found
             </h3>
             <p className="mt-1 max-w-sm text-xs text-slate-500">
               {hasActiveFilters
-                ? "No users matched your active search or filter criteria."
-                : "No accounts have been created yet."}
+                ? "No employees matched your active search or filter criteria."
+                : "No employees have been added yet."}
             </p>
             {hasActiveFilters ? (
               <button
@@ -756,7 +810,7 @@ export default function UsersPage() {
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition"
               >
                 <UserPlus size={14} />
-                Add First User
+                Add First Employee
               </button>
             )}
           </div>
@@ -768,7 +822,7 @@ export default function UsersPage() {
                 <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                   <th className="w-14 px-4 py-3 text-center">S.No</th>
                   {!hiddenColumns.includes("member") && (
-                    <th className="px-4 py-3">Team Member</th>
+                    <th className="px-4 py-3">Employee</th>
                   )}
                   {!hiddenColumns.includes("role") && (
                     <th className="px-4 py-3">System Role</th>
@@ -881,7 +935,7 @@ export default function UsersPage() {
                       {/* Joined Date */}
                       {!hiddenColumns.includes("joinedDate") && (
                         <td className="px-4 py-3 text-xs font-medium text-slate-700">
-                          {new Date(user.createdAt).toLocaleDateString(undefined, {
+                          {new Date(employeeJoiningDate(user)).toLocaleDateString(undefined, {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
@@ -899,7 +953,7 @@ export default function UsersPage() {
                                 setDetailUser(user);
                                 setDetailOpen(true);
                               }}
-                              title="View user details & permissions"
+                              title="View employee details & permissions"
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
                             >
                               <Eye size={15} />
@@ -912,7 +966,7 @@ export default function UsersPage() {
                                 setFormMode("edit");
                                 setFormOpen(true);
                               }}
-                              title="Edit user profile & role"
+                              title="Edit employee & role"
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
                             >
                               <Pencil size={15} />
@@ -928,7 +982,7 @@ export default function UsersPage() {
                               title={
                                 isSelf
                                   ? "Cannot delete own account"
-                                  : "Deactivate & delete user"
+                                  : "Deactivate & remove employee"
                               }
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                             >
@@ -1024,7 +1078,7 @@ export default function UsersPage() {
                         <Calendar size={13} className="text-slate-400 shrink-0" />
                         <span className="truncate">
                           Joined{" "}
-                          {new Date(user.createdAt).toLocaleDateString(undefined, {
+                          {new Date(employeeJoiningDate(user)).toLocaleDateString(undefined, {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
@@ -1080,7 +1134,7 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Add / Edit User Modal */}
+      {/* Add / Edit Employee Modal */}
       {formOpen && (
         <UserFormDialog
           mode={formMode}
@@ -1115,7 +1169,7 @@ export default function UsersPage() {
         />
       )}
 
-      {/* Delete User Dialog */}
+      {/* Delete Employee Dialog */}
       {deleteOpen && (
         <UserDeleteDialog
           user={userToDelete}
@@ -1128,6 +1182,10 @@ export default function UsersPage() {
           onConfirm={handleDeleteUser}
         />
       )}
+        </>
+      )}
+
+      {activeTab === "roles" && <EmployeeRolesPanel />}
     </div>
   );
 }
