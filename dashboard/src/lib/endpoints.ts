@@ -226,6 +226,15 @@ export const ENDPOINTS = {
     delete: (id: number) => `/attendance/${id}`,
   },
 
+  leaves: {
+    my: "/leaves/my",
+    myStats: "/leaves/my/stats",
+    apply: "/leaves/my",
+    cancel: (id: number) => `/leaves/my/${id}/cancel`,
+    list: "/leaves",
+    review: (id: number) => `/leaves/${id}/review`,
+  },
+
 } as const;
 
 /** Join the base URL with a path into an absolute request URL. */

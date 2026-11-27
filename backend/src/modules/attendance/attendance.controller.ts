@@ -42,7 +42,9 @@ export async function listAttendanceController(
 ): Promise<void> {
   try {
     const input = listAttendanceSchema.parse(req.query)
-    const viewer = req.user ? { id: req.user.id, role: req.user.role } : undefined
+    const viewer = req.user
+      ? { id: req.user.id, role: req.user.role, permissions: req.user.permissions }
+      : undefined
     const result = await attendanceService.listAttendance(input, viewer)
 
     res.status(200).json({

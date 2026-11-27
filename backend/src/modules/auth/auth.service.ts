@@ -17,7 +17,15 @@ export class AuthError extends AppError {
 export async function loginUser(input: LoginInput) {
   const user = await prisma.user.findUnique({
     where: { email: input.email },
-    include: { role: true },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      },
+    },
   })
 
   // Use the same response for unknown emails and incorrect passwords.
@@ -45,6 +53,10 @@ export async function loginUser(input: LoginInput) {
     data: { lastLoginAt: new Date() },
   })
 
+  const permissions = user.role.permissions
+    .map((p) => p.permission?.code)
+    .filter((code): code is string => typeof code === 'string')
+
   return {
     token,
     user: {
@@ -53,6 +65,7 @@ export async function loginUser(input: LoginInput) {
       email: user.email,
       phone: user.phone,
       role: user.role.name,
+      permissions,
     },
   }
 }
@@ -64,12 +77,24 @@ export async function getUserProfile(userId: number) {
       isActive: true,
       deletedAt: null,
     },
-    include: { role: true },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      },
+    },
   })
 
   if (!user) {
     throw new AuthError('User not found or inactive', 401)
   }
+
+  const permissions = user.role.permissions
+    .map((p) => p.permission?.code)
+    .filter((code): code is string => typeof code === 'string')
 
   return {
     id: user.id,
@@ -77,5 +102,6 @@ export async function getUserProfile(userId: number) {
     email: user.email,
     phone: user.phone,
     role: user.role.name,
+    permissions,
   }
 }

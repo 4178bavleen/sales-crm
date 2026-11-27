@@ -29,6 +29,8 @@ export type AuthUser = {
   phone: string | null;
   /** Role.name, resolved through the Role relation. */
   role: string;
+  /** Granted permission codes from role_permissions relation. */
+  permissions?: string[];
 };
 
 /** Response body of POST /auth/login. */

@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarCheck2,
+  CalendarOff,
   PhoneCall,
   Calendar,
   GitFork,
@@ -72,6 +73,7 @@ const navSections: NavSection[] = [
         aliases: ["/product-services", "/product-service", "/productservices", "/products", "/product", "/services"],
       },
       { name: "Sales Targets", path: "/targets", icon: Target },
+      { name: "Reports", path: "/reports", icon: BarChart3 },
     ],
   },
   {
@@ -108,6 +110,24 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    key: "hrms",
+    title: "HRMS",
+    items: [
+      {
+        name: "Attendance",
+        path: "/attendance",
+        icon: CalendarCheck2,
+        aliases: ["/employee-attendance", "/attendance-management"],
+      },
+      {
+        name: "Leave Requests",
+        path: "/leaves",
+        icon: CalendarOff,
+        aliases: ["/leave-management", "/leaves-management", "/my-leaves"],
+      },
+    ],
+  },
+  {
     key: "management",
     title: "MANAGEMENT",
     items: [
@@ -118,19 +138,12 @@ const navSections: NavSection[] = [
         aliases: ["/user-management", "/employee-management", "/users"],
       },
       {
-        name: "Attendance",
-        path: "/attendance",
-        icon: CalendarCheck2,
-        aliases: ["/employee-attendance", "/attendance-management"],
-      },
-      {
         name: "Roles & Permissions",
         path: "/permissions",
         icon: ShieldCheck,
         aliases: ["/roles-permissions"],
       },
       { name: "Audit Logs", path: "/audit-logs", icon: Shield },
-      { name: "Reports", path: "/reports", icon: BarChart3 },
       { name: "Documents", path: "/documents", icon: FileText },
       { name: "Notifications", path: "/notifications", icon: Bell },
       { name: "Settings", path: "/settings", icon: SettingsIcon },

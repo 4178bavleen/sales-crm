@@ -19,6 +19,7 @@ import Calendar from "./pages/calendar/Calendar";
 import Profile from "./pages/profile/Profile";
 import Employees from "./pages/users/Users";
 import Attendance from "./pages/attendance/Attendance";
+import Leaves from "./pages/leaves/Leaves";
 import RolesAndPermissions from "./pages/permissions/RolesAndPermissions";
 import Notifications from "./pages/notifications/Notifications";
 import AuditLogs from "./pages/audit-logs/AuditLogs";
@@ -78,6 +79,9 @@ function AppShell() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/employee-attendance" element={<Attendance />} />
             <Route path="/attendance-management" element={<Attendance />} />
+            <Route path="/leaves" element={<Leaves />} />
+            <Route path="/leave-management" element={<Leaves />} />
+            <Route path="/my-leaves" element={<Leaves />} />
             <Route path="/permissions" element={<RolesAndPermissions />} />
             <Route path="/roles-permissions" element={<RolesAndPermissions />} />
             <Route path="/settings" element={<Settings />} />

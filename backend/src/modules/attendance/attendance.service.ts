@@ -21,6 +21,7 @@ export class AttendanceServiceError extends AppError {
 export type AttendanceViewer = {
   id: number
   role: string
+  permissions?: string[]
 }
 
 export type AttendanceSummary = Record<AttendanceStatus, number> & { total: number }
@@ -105,7 +106,9 @@ function buildWhere(
     }
   }
 
-  if (viewer?.role === 'SALES_EMPLOYEE') {
+  // If user does not have attendance.manage permission and is not Admin, restrict to their own records
+  const canManage = viewer?.role === 'ADMIN' || Boolean(viewer?.permissions?.includes('attendance.manage'))
+  if (viewer && !canManage) {
     where.userId = viewer.id
   }
 
@@ -158,32 +161,47 @@ export async function ensureAttendancePermissions() {
       select: { id: true, code: true },
     })
 
-    const managers = await prisma.role.findMany({
-      where: { name: { in: ['ADMIN', 'SALES_MANAGER'] } },
-      select: { id: true },
+    const allRoles = await prisma.role.findMany({
+      select: { id: true, name: true },
     })
 
-    for (const role of managers) {
-      await prisma.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          roleId: role.id,
-          permissionId: permission.id,
-        })),
-        skipDuplicates: true,
-      })
-    }
+    const viewPermission = permissions.find((p) => p.code === 'attendance.view')
+    const managePermission = permissions.find((p) => p.code === 'attendance.manage')
 
-    const employeeRole = await prisma.role.findUnique({
-      where: { name: 'SALES_EMPLOYEE' },
-      select: { id: true },
-    })
-    const viewPermission = permissions.find((permission) => permission.code === 'attendance.view')
+    for (const role of allRoles) {
+      // All employees across all departments get attendance.view
+      if (viewPermission) {
+        await prisma.rolePermission.upsert({
+          where: {
+            roleId_permissionId: {
+              roleId: role.id,
+              permissionId: viewPermission.id,
+            },
+          },
+          update: {},
+          create: {
+            roleId: role.id,
+            permissionId: viewPermission.id,
+          },
+        })
+      }
 
-    if (employeeRole && viewPermission) {
-      await prisma.rolePermission.createMany({
-        data: [{ roleId: employeeRole.id, permissionId: viewPermission.id }],
-        skipDuplicates: true,
-      })
+      // ADMIN role gets attendance.manage by default
+      if (role.name === 'ADMIN' && managePermission) {
+        await prisma.rolePermission.upsert({
+          where: {
+            roleId_permissionId: {
+              roleId: role.id,
+              permissionId: managePermission.id,
+            },
+          },
+          update: {},
+          create: {
+            roleId: role.id,
+            permissionId: managePermission.id,
+          },
+        })
+      }
     }
   } catch (error) {
     console.error('[AttendanceService] Failed to ensure attendance permissions:', error)
