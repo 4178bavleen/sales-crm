@@ -15,6 +15,7 @@ import {
   Calendar,
   Trash2,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 import {
   LEAVE_TYPES,
@@ -197,54 +198,76 @@ export default function ApplyLeaveModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Leave Type Selector */}
+          {/* Leave Type Selector Dropdown */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Leave Category <span className="text-rose-500">*</span>
-              </label>
-              {currentPolicy && (
-                <span className="text-[10px] text-slate-500 font-medium">
-                  Allowance: <span className="font-semibold text-slate-800">{currentPolicy.quota} Days</span> / {currentPolicy.period === "MONTHLY" ? "Month" : "Year"}
-                </span>
-              )}
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Leave Category <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={leaveType}
+                onChange={(e) => setLeaveType(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white pl-3.5 pr-10 py-2.5 text-xs font-semibold text-slate-900 shadow-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition cursor-pointer"
+                required
+              >
+                {(policies.length > 0 ? policies : LEAVE_TYPES.map((t) => ({ code: t, name: getLeaveTypeDetails(t).label, id: 0, quota: 12, period: "YEARLY" as const, isPaid: true, requiresDocument: t === "SICK", sortOrder: 0, isActive: true }))).map((cat: any) => {
+                  let periodLabel = "Per Year";
+                  if (cat.period === "MONTHLY") periodLabel = "Per Month";
+                  else if (cat.period === "QUARTERLY") periodLabel = "Per Quarter";
+                  else if (cat.period === "HALF_YEARLY") periodLabel = "Per Half-Year";
+
+                  return (
+                    <option key={cat.code} value={cat.code}>
+                      {cat.name} ({cat.quota} Days • {periodLabel} • {cat.isPaid ? "Paid" : "Unpaid"}{cat.requiresDocument ? " • Document Required" : ""})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(policies.length > 0 ? policies : LEAVE_TYPES.map((t) => ({ code: t, name: getLeaveTypeDetails(t).label, id: 0, quota: 12, period: "YEARLY" as const, isPaid: true, requiresDocument: t === "SICK", sortOrder: 0, isActive: true }))).map((cat: any) => {
-                const isSelected = leaveType === cat.code;
-                const Icon = getCategoryPillIcon(cat.code, cat.name);
-                return (
-                  <button
-                    key={cat.code}
-                    type="button"
-                    onClick={() => setLeaveType(cat.code)}
-                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-medium transition cursor-pointer text-left ${
-                      isSelected
-                        ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-xs ring-1 ring-blue-600"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 border transition ${
-                        isSelected
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-slate-50 text-slate-600 border-slate-200"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="truncate flex-1">
-                      <div className="font-semibold truncate text-slate-900">{cat.name}</div>
-                      {cat.quota !== undefined && (
-                        <div className="text-[10px] text-slate-500 font-medium">
-                          {cat.quota}d • {cat.isPaid ? "Paid" : "Unpaid"}
-                        </div>
+
+            {/* Selected Category Details Card */}
+            {currentPolicy && (
+              <div className="mt-2.5 flex items-center justify-between p-3 rounded-xl border border-blue-100 bg-blue-50/40 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
+                    {React.createElement(getCategoryPillIcon(currentPolicy.code, currentPolicy.name), {
+                      className: "h-4 w-4",
+                    })}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 truncate">{currentPolicy.name}</span>
+                      {currentPolicy.requiresDocument && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded">
+                          Doc Required
+                        </span>
                       )}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                    {currentPolicy.description ? (
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{currentPolicy.description}</p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5">Code: {currentPolicy.code}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <span className="font-semibold text-blue-800 bg-blue-100/70 px-2 py-0.5 rounded-md text-[10px]">
+                    {currentPolicy.quota} Days / {currentPolicy.period === "MONTHLY" ? "Month" : currentPolicy.period === "QUARTERLY" ? "Quarter" : currentPolicy.period === "HALF_YEARLY" ? "Half-Year" : "Year"}
+                  </span>
+                  <span
+                    className={`font-semibold px-2 py-0.5 rounded-md text-[10px] border ${
+                      currentPolicy.isPaid
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-700 border-slate-200"
+                    }`}
+                  >
+                    {currentPolicy.isPaid ? "Paid" : "Unpaid"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Dates & Duration */}

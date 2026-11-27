@@ -122,7 +122,7 @@ export function formatNotificationTime(dateString: string): string {
 }
 
 export type NotificationMetadata = {
-  category: "task" | "lead" | "deal" | "meeting" | "document" | "target" | "followup" | "proposal" | "general";
+  category: "task" | "lead" | "deal" | "meeting" | "document" | "target" | "followup" | "proposal" | "leave" | "general";
   categoryLabel: string;
   targetUrl: string | null;
   badgeClass: string;
@@ -230,6 +230,18 @@ export function getNotificationMetadata(item: NotificationItem): NotificationMet
       badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
       iconBgClass: "bg-purple-50",
       iconTextClass: "text-purple-600",
+    };
+  }
+
+  // Leave notifications
+  if (typeUpper.includes("LEAVE") || entityType === "leave_request") {
+    return {
+      category: "leave",
+      categoryLabel: "Leave",
+      targetUrl: "/leaves",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      iconBgClass: "bg-amber-50",
+      iconTextClass: "text-amber-600",
     };
   }
 

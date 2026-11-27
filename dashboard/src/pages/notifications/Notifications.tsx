@@ -173,6 +173,8 @@ export default function Notifications() {
         return <Target size={18} className="text-emerald-600" />;
       case "followup":
         return <PhoneCall size={18} className="text-teal-600" />;
+      case "leave":
+        return <CalendarDays size={18} className="text-amber-600" />;
       default:
         return <Bell size={18} className="text-slate-600" />;
     }

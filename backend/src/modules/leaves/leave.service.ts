@@ -2,6 +2,7 @@ import fs from 'fs'
 import { prisma } from '../../config/database.js'
 import { AppError } from '../../common/errors/AppErrors.js'
 import { logAudit } from '../audit/audit.service.js'
+import { createInAppNotification } from '../notifications/notification.service.js'
 import type { Prisma } from '../../generated/prisma/client.js'
 import type {
   ApplyLeaveInput,
@@ -362,7 +363,7 @@ export async function applyLeave(
               OR: [
                 { name: { in: ['ADMIN', 'MANAGER', 'HR_MANAGER'], mode: 'insensitive' } },
                 { name: { contains: 'MANAGER', mode: 'insensitive' } },
-                { rolePermissions: { some: { permission: { code: 'leave.manage' } } } },
+                { permissions: { some: { permission: { code: 'leave.manage' } } } },
               ],
             },
           },
@@ -374,16 +375,20 @@ export async function applyLeave(
 
     if (managers.length > 0) {
       const recipientIds = Array.from(new Set(managers.map((m) => m.id)))
-      await prisma.notification.createMany({
-        data: recipientIds.map((mId) => ({
-          userId: mId,
-          type: 'LEAVE_REQUESTED',
-          title: `New Leave Request from ${user.name}`,
-          body: `${user.name} applied for ${input.leaveType} leave from ${input.startDate} to ${input.endDate}.${document ? ' (Supporting document attached)' : ''}`,
-          entityType: 'LEAVE_REQUEST',
-          entityId: leave.id,
-        })),
-      })
+      const bodyReason = input.reason?.trim() ? ` Reason: ${input.reason.trim()}` : ''
+      const bodyDoc = document ? ' (Supporting document attached)' : ''
+      await Promise.allSettled(
+        recipientIds.map((mId) =>
+          createInAppNotification({
+            userId: mId,
+            type: 'LEAVE_REQUESTED',
+            title: `New Leave Request from ${user.name}`,
+            body: `${user.name} applied for ${input.leaveType} leave from ${input.startDate} to ${input.endDate}.${bodyReason}${bodyDoc}`,
+            entityType: 'LEAVE_REQUEST',
+            entityId: leave.id,
+          })
+        )
+      )
     }
   } catch (err) {
     console.error('[LeaveService] Failed to send leave notification:', err)
@@ -712,15 +717,13 @@ export async function reviewLeave(
 
   // Notify the employee
   try {
-    await prisma.notification.create({
-      data: {
-        userId: leave.userId,
-        type: newStatus === 'APPROVED' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED',
-        title: `Leave Request ${newStatus === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-        body: `Your leave request for ${formatDate(leave.startDate)} to ${formatDate(leave.endDate)} has been ${newStatus.toLowerCase()}.${input.remarks ? ` Note: ${input.remarks}` : ''}`,
-        entityType: 'LEAVE_REQUEST',
-        entityId: leave.id,
-      },
+    await createInAppNotification({
+      userId: leave.userId,
+      type: newStatus === 'APPROVED' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED',
+      title: `Leave Request ${newStatus === 'APPROVED' ? 'Approved' : 'Rejected'}`,
+      body: `Your leave request for ${formatDate(leave.startDate)} to ${formatDate(leave.endDate)} has been ${newStatus.toLowerCase()}.${input.remarks ? ` Note: ${input.remarks}` : ''}`,
+      entityType: 'LEAVE_REQUEST',
+      entityId: leave.id,
     })
   } catch (err) {
     console.error('[LeaveService] Failed to notify employee:', err)
