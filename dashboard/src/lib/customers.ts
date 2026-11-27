@@ -76,6 +76,10 @@ export async function createCustomer(payload: {
   ownerId?: number | null;
   convertedAt?: string;
   notes?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
 }): Promise<Customer> {
   return await request<Customer>(ENDPOINTS.customers.create, {
     method: "POST",
@@ -94,6 +98,10 @@ export async function updateCustomer(
     ownerId?: number | null;
     convertedAt?: string;
     notes?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
   }
 ): Promise<Customer> {
   return await request<Customer>(ENDPOINTS.customers.update(id), {

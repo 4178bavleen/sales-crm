@@ -9,6 +9,18 @@ export type InvoiceStatus =
 
 export type InvoiceTaxType = 'INTRA_STATE' | 'INTER_STATE' | 'EXEMPT';
 
+export interface InvoiceCurrency {
+  code: string;
+  symbol: string;
+  name: string;
+  locale: string;
+}
+
+export interface InvoiceCurrenciesResponse {
+  currencies: InvoiceCurrency[];
+  defaultCurrency: string;
+}
+
 export type InvoiceTemplateEdition =
   | 'MODERN_EXECUTIVE'
   | 'CLASSIC_CORPORATE'
@@ -28,6 +40,7 @@ export interface InvoiceItem {
   id?: number;
   productServiceId?: number | null;
   itemName: string;
+  hsnCode?: string | null;
   description?: string | null;
   quantity: number;
   unitPrice: number;
@@ -141,6 +154,7 @@ export interface InvoiceSetting {
 export interface CreateInvoicePayload {
   customerId: number;
   dealId?: number | null;
+  billingAddress?: string | null;
   invoiceNumber?: string;
   issueDate: string;
   dueDate: string;
@@ -154,6 +168,7 @@ export interface CreateInvoicePayload {
   items: Array<{
     productServiceId?: number | null;
     itemName: string;
+    hsnCode?: string | null;
     description?: string | null;
     quantity: number;
     unitPrice: number;

@@ -224,6 +224,18 @@ export async function createCustomer(input: CreateCustomerInput) {
     include: customerInclude,
   })
 
+  if (companyId && (input.address !== undefined || input.city !== undefined || input.state !== undefined || input.country !== undefined)) {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        ...(input.address !== undefined ? { address: input.address?.trim() || null } : {}),
+        ...(input.city !== undefined ? { city: input.city?.trim() || null } : {}),
+        ...(input.state !== undefined ? { state: input.state?.trim() || null } : {}),
+        ...(input.country !== undefined ? { country: input.country?.trim() || null } : {}),
+      },
+    }).catch(() => null)
+  }
+
   void logAudit({
     action: 'CREATE',
     entityType: 'CUSTOMER',
@@ -307,7 +319,7 @@ export async function getCustomerById(id: number) {
 }
 
 export async function updateCustomer(id: number, input: UpdateCustomerInput) {
-  await getCustomerById(id)
+  const existing = await getCustomerById(id)
 
   const resolvedCompanyId = await resolveCompany(input.companyId, input.companyName)
   const resolvedContactId = await resolvePrimaryContact(
@@ -338,6 +350,19 @@ export async function updateCustomer(id: number, input: UpdateCustomerInput) {
   }
   if (input.notes !== undefined) {
     updateData.notes = input.notes
+  }
+
+  const targetCompanyId = resolvedCompanyId !== undefined ? resolvedCompanyId : existing.companyId
+  if (targetCompanyId && (input.address !== undefined || input.city !== undefined || input.state !== undefined || input.country !== undefined)) {
+    await prisma.company.update({
+      where: { id: targetCompanyId },
+      data: {
+        ...(input.address !== undefined ? { address: input.address?.trim() || null } : {}),
+        ...(input.city !== undefined ? { city: input.city?.trim() || null } : {}),
+        ...(input.state !== undefined ? { state: input.state?.trim() || null } : {}),
+        ...(input.country !== undefined ? { country: input.country?.trim() || null } : {}),
+      },
+    }).catch(() => null)
   }
 
   const updated = await prisma.customer.update({

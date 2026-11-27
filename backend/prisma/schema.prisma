@@ -519,6 +519,7 @@ model ProductService {
   id          Int                @id @default(autoincrement())
   name        String             @unique @db.VarChar(200)
   description String?            @db.Text
+  hsnCode     String?            @db.VarChar(50)
   type        ProductServiceType @default(PRODUCT)
   isActive    Boolean            @default(true)
   createdAt   DateTime           @default(now())
@@ -530,6 +531,7 @@ model ProductService {
   invoiceItems InvoiceItem[]
 
   @@index([type, isActive])
+  @@index([hsnCode])
   @@map("products_services")
 }
 
@@ -1414,6 +1416,7 @@ model InvoiceItem {
   invoiceId        Int
   productServiceId Int?
   itemName         String   @db.VarChar(255)
+  hsnCode          String?  @db.VarChar(50)
   description      String?  @db.Text
   quantity         Decimal  @default(1) @db.Decimal(10, 2)
   unitPrice        Decimal  @db.Decimal(14, 2)

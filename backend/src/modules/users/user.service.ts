@@ -2,6 +2,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../config/database.js'
 import type { Prisma } from '../../generated/prisma/client.js'
+import { logAudit } from '../audit/audit.service.js'
 import type {
   CreateUserInput,
   ListUsersInput,
@@ -112,7 +113,6 @@ export async function createUser(input: CreateUserInput) {
         phone: primaryPhone ? formatEmployeePhone(primaryPhone) : input.phone,
         joiningDate: parseJoiningDate(input.joiningDate),
         roleId: role.id,
-
         isActive: true,
       },
       select: { id: true },
@@ -135,7 +135,22 @@ export async function createUser(input: CreateUserInput) {
   }
 
   await syncEmployeePhones(createdUserId, input.phones)
-  return getUserById(createdUserId)
+  const createdUser = await getUserById(createdUserId)
+
+  void logAudit({
+    action: 'CREATE',
+    entityType: 'USER',
+    entityId: createdUser.id,
+    after: {
+      id: createdUser.id,
+      name: createdUser.name,
+      email: createdUser.email,
+      phone: createdUser.phone,
+      role: createdUser.role?.name,
+    },
+  })
+
+  return createdUser
 }
 
 export async function getUsers(input: ListUsersInput) {
@@ -221,7 +236,7 @@ export async function getUserById(id: number) {
 export async function updateUser(id: number, input: UpdateUserInput) {
   const existingUser = await prisma.user.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, name: true, email: true, phone: true, isActive: true, roleId: true },
   })
 
   if (!existingUser) {
@@ -286,8 +301,31 @@ export async function updateUser(id: number, input: UpdateUserInput) {
     throw error
   }
 
-  await syncEmployeePhones(id, input.phones)
-  return getUserById(id)
+  if (input.phones !== undefined) {
+    await syncEmployeePhones(id, input.phones)
+  }
+  const updatedUser = await getUserById(id)
+
+  void logAudit({
+    action: 'UPDATE',
+    entityType: 'USER',
+    entityId: updatedUser.id,
+    before: {
+      name: existingUser.name,
+      email: existingUser.email,
+      phone: existingUser.phone,
+      isActive: existingUser.isActive,
+    },
+    after: {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      isActive: updatedUser.isActive,
+      role: updatedUser.role?.name,
+    },
+  })
+
+  return updatedUser
 }
 
 export async function deleteUser(id: number, actorId: number) {
@@ -297,7 +335,7 @@ export async function deleteUser(id: number, actorId: number) {
 
   const user = await prisma.user.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, name: true, email: true },
   })
 
   if (!user) {
@@ -310,6 +348,14 @@ export async function deleteUser(id: number, actorId: number) {
       deletedAt: new Date(),
       isActive: false,
     },
+  })
+
+  void logAudit({
+    actorId,
+    action: 'DELETE',
+    entityType: 'USER',
+    entityId: id,
+    before: { id: user.id, name: user.name, email: user.email },
   })
 
   return { id, deleted: true }

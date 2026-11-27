@@ -12,6 +12,7 @@ import {
   getInvoiceSettingsController,
   updateInvoiceSettingsController,
   getNextInvoiceNumberController,
+  getSupportedCurrenciesController,
   downloadInvoicePdfController,
   sendInvoiceEmailController,
   sendInvoiceWhatsAppController,
@@ -30,6 +31,9 @@ router.put('/settings', requireAdmin, updateInvoiceSettingsController)
 
 // Sequence helper (preview next invoice number)
 router.get('/next-number', requirePermission('invoices.view'), getNextInvoiceNumberController)
+
+// Supported currencies from backend
+router.get('/currencies', requirePermission('invoices.view'), getSupportedCurrenciesController)
 
 // CRUD
 router.get('/', requirePermission('invoices.view'), listInvoicesController)

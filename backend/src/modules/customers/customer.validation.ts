@@ -11,6 +11,10 @@ export const createCustomerSchema = z.object({
   ownerId: z.number().int().positive().nullable().optional(),
   convertedAt: z.coerce.date().optional(),
   notes: optionalText(5000),
+  address: optionalText(500),
+  city: optionalText(100),
+  state: optionalText(100),
+  country: optionalText(100),
 })
 
 export const updateCustomerSchema = z.object({
@@ -21,6 +25,10 @@ export const updateCustomerSchema = z.object({
   ownerId: z.number().int().positive().nullable().optional(),
   convertedAt: z.coerce.date().optional(),
   notes: z.string().trim().max(5000).nullable().optional(),
+  address: optionalText(500),
+  city: optionalText(100),
+  state: optionalText(100),
+  country: optionalText(100),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: 'Provide at least one field to update' },

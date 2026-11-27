@@ -11,16 +11,16 @@ import {
   Receipt,
   Sparkles,
   Eye,
-  Check,
   User,
   Phone,
+  Smartphone,
   Mail,
-  Palette,
   Copy,
   ArrowUp,
   ArrowDown,
   ShieldCheck,
   CheckCircle2,
+  MapPin,
 } from 'lucide-react';
 import {
   createInvoice,
@@ -28,10 +28,13 @@ import {
   fetchInvoiceById,
   fetchInvoiceSettings,
   fetchNextInvoiceNumber,
-  parseTermsList,
-  cleanTermClause,
+  fetchInvoiceCurrencies,
+  formatInvoiceAmount,
+  numberToWords,
+  formatBillingAddress,
+  cleanAddress,
+  resolveOrderNotice,
 } from '../../lib/invoices';
-import { TermsClauseManager } from './TermsClauseManager';
 import { fetchCustomers } from '../../lib/customers';
 import { fetchProductServices } from '../../lib/products-services';
 import type {
@@ -40,6 +43,7 @@ import type {
   InvoiceStatus,
   CreateInvoicePayload,
   InvoiceSetting,
+  InvoiceCurrency,
 } from '../../types/invoice';
 
 // Standard Indian Statutory GST Slabs
@@ -83,6 +87,7 @@ interface FormItem {
   id?: number;
   productServiceId?: number | null;
   itemName: string;
+  hsnCode?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -256,11 +261,14 @@ export default function InvoiceFormDialog({
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [settings, setSettings] = useState<InvoiceSetting | null>(null);
+  const [currencies, setCurrencies] = useState<InvoiceCurrency[]>([]);
+  const [hasRecordedPayments, setHasRecordedPayments] = useState(false);
 
   // Form states
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [dealId, setDealId] = useState<number | ''>('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [currency, setCurrency] = useState('INR');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
@@ -268,6 +276,7 @@ export default function InvoiceFormDialog({
     return d.toISOString().slice(0, 10);
   });
   const [status, setStatus] = useState<InvoiceStatus>('DRAFT');
+  const [billingAddress, setBillingAddress] = useState('');
   const [templateEdition, setTemplateEdition] = useState<InvoiceTemplateEdition>('VIBRANT_TECH');
   const [taxType, setTaxType] = useState<InvoiceTaxType>('INTRA_STATE');
   const [totalDiscount, setTotalDiscount] = useState<number>(0);
@@ -278,10 +287,11 @@ export default function InvoiceFormDialog({
 
   const [items, setItems] = useState<FormItem[]>([
     {
-      itemName: 'Software Development & Consulting',
-      description: 'Monthly retainership and delivery services',
+      itemName: '',
+      hsnCode: '',
+      description: '',
       quantity: 1,
-      unitPrice: 50000,
+      unitPrice: 0,
       discountPercent: 0,
       taxPercent: 18,
     },
@@ -293,8 +303,37 @@ export default function InvoiceFormDialog({
     return customers.find((c) => c.id === Number(customerId)) || null;
   }, [customers, customerId]);
 
+  const activeCurrency = useMemo(() => {
+    return (
+      currencies.find((c) => c.code === currency) || {
+        code: currency || 'INR',
+        symbol: currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹',
+        name: currency || 'Indian Rupee',
+        locale: 'en-IN',
+      }
+    );
+  }, [currencies, currency]);
+
+  const fmtMoney = (val: number | string | null | undefined) => {
+    return formatInvoiceAmount(val, activeCurrency.code, activeCurrency.locale, activeCurrency.symbol);
+  };
+
   const customerMeta = useMemo(() => {
     return resolveCustomerInfo(selectedCustomer);
+  }, [selectedCustomer]);
+
+  // When customer changes, auto-populate billing address from customer's company details
+  useEffect(() => {
+    if (!selectedCustomer) {
+      if (!isEdit) setBillingAddress('');
+      return;
+    }
+    const company = (selectedCustomer as any).companyDetails || selectedCustomer.company;
+    const addr = formatBillingAddress(typeof company === 'object' ? company : null);
+
+    if (addr && (!billingAddress || !isEdit)) {
+      setBillingAddress(addr);
+    }
   }, [selectedCustomer]);
 
   // Handle re-generating or refreshing next invoice number
@@ -320,13 +359,14 @@ export default function InvoiceFormDialog({
       setLoading(true);
       setError(null);
       try {
-        const [custRes, prodRes, settingsRes] = await Promise.all([
+        const [custRes, prodRes, settingsRes, currRes] = await Promise.all([
           fetchCustomers({ limit: 100 }).catch((err) => {
             console.error('[InvoiceFormDialog] Error fetching customers:', err);
             return { customers: [] };
           }),
           fetchProductServices().catch(() => ({ productServices: [] })),
           fetchInvoiceSettings().catch(() => null),
+          fetchInvoiceCurrencies().catch(() => ({ currencies: [], defaultCurrency: 'INR' })),
         ]);
 
         if (!isMounted) return;
@@ -339,10 +379,16 @@ export default function InvoiceFormDialog({
         setCustomers(customerList);
         setProducts(prodRes?.productServices || []);
         setSettings(settingsRes);
+        if (currRes && Array.isArray(currRes.currencies)) {
+          setCurrencies(currRes.currencies);
+          if (!isEdit && currRes.defaultCurrency) {
+            setCurrency(currRes.defaultCurrency);
+          }
+        }
 
         if (settingsRes && !isEdit) {
           setTemplateEdition(settingsRes.defaultTemplate || 'VIBRANT_TECH');
-          setNotes(settingsRes.defaultNotes || 'Thank you for partnering with Vibrantick Infotech Solutions.');
+          setNotes('');
           setTerms(
             settingsRes.defaultTerms ||
               '1. Payment is due within 15 days of invoice date.\n2. Please quote the invoice number when making electronic transfer.\n3. All disputes are subject to local jurisdiction.'
@@ -361,9 +407,23 @@ export default function InvoiceFormDialog({
           setStatus(inv.status);
           setTemplateEdition(inv.templateEdition);
           setTaxType(inv.taxType);
+          if (inv.currency) {
+            setCurrency(inv.currency);
+          }
+          const hasPayments = (inv.payments && inv.payments.length > 0) || Number(inv.amountPaid || 0) > 0;
+          setHasRecordedPayments(hasPayments);
           setTotalDiscount(Number(inv.totalDiscount || 0));
-          setNotes(inv.notes || '');
+          const isLegacyDefaultNote =
+            inv.notes?.trim() === 'Thank you for partnering with Vibrantick Infotech Solutions.' ||
+            inv.notes?.trim() === 'Thank you and looking forward to a fruitful relationship with our company.' ||
+            (settingsRes?.defaultNotes && inv.notes?.trim() === settingsRes.defaultNotes.trim());
+          setNotes(isLegacyDefaultNote ? '' : (inv.notes || ''));
           setTerms(inv.terms || '');
+
+          const editAddr = formatBillingAddress(inv.customer?.company);
+          if (editAddr) {
+            setBillingAddress(editAddr);
+          }
 
           if (inv.items && inv.items.length > 0) {
             setItems(
@@ -371,6 +431,7 @@ export default function InvoiceFormDialog({
                 id: i.id,
                 productServiceId: i.productServiceId || null,
                 itemName: i.itemName,
+                hsnCode: i.hsnCode || null,
                 description: i.description || '',
                 quantity: Number(i.quantity) || 1,
                 unitPrice: Number(i.unitPrice) || 0,
@@ -380,7 +441,18 @@ export default function InvoiceFormDialog({
             );
           }
         } else {
-          // CREATE MODE: Automatically generate and populate next invoice number!
+          // CREATE MODE: Reset line items to blank un-prefilled state
+          setItems([
+            {
+              itemName: '',
+              hsnCode: '',
+              description: '',
+              quantity: 1,
+              unitPrice: 0,
+              discountPercent: 0,
+              taxPercent: 18,
+            },
+          ]);
           try {
             const nextNum = await fetchNextInvoiceNumber();
             if (isMounted && nextNum) {
@@ -451,6 +523,7 @@ export default function InvoiceFormDialog({
         ...copy[idx],
         productServiceId: product.id,
         itemName: product.name,
+        hsnCode: product.hsnCode || null,
         description: product.description || '',
         unitPrice: Number(product.unitPrice || 0),
         taxPercent: taxType === 'EXEMPT' ? 0 : 18,
@@ -552,19 +625,21 @@ export default function InvoiceFormDialog({
       const payload: CreateInvoicePayload = {
         customerId: Number(customerId),
         dealId: dealId ? Number(dealId) : null,
+        billingAddress: cleanAddress(billingAddress.trim()) || undefined,
         invoiceNumber: invoiceNumber.trim() || undefined,
         issueDate,
         dueDate,
         status,
         templateEdition,
         taxType,
-        currency: 'INR',
+        currency: activeCurrency.code,
         totalDiscount: Number(totalDiscount) || 0,
         notes: notes.trim() || null,
         terms: terms.trim() || null,
         items: items.map((i) => ({
           productServiceId: i.productServiceId || null,
           itemName: i.itemName.trim(),
+          hsnCode: i.hsnCode?.trim() || null,
           description: i.description?.trim() || null,
           quantity: Number(i.quantity) || 1,
           unitPrice: Number(i.unitPrice) || 0,
@@ -589,10 +664,6 @@ export default function InvoiceFormDialog({
     }
   };
 
-  const activeThemeMeta = useMemo(() => {
-    return TEMPLATE_EDITIONS.find((t) => t.id === templateEdition) || TEMPLATE_EDITIONS[0];
-  }, [templateEdition]);
-
   if (!isOpen) return null;
 
   return (
@@ -609,15 +680,7 @@ export default function InvoiceFormDialog({
                 <h3 className="text-base font-bold text-slate-900">
                   {isEdit ? `Edit Invoice ${invoiceNumber || ''}` : 'Create New Invoice'}
                 </h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-[#1d61e7] border border-blue-200">
-                  {activeThemeMeta.name}
-                </span>
               </div>
-              <p className="text-xs text-slate-500">
-                {isEdit
-                  ? 'Update line items, tax details, customer notes or invoice styling'
-                  : 'Generate a professional GST tax invoice with live calculations and edition preview'}
-              </p>
             </div>
           </div>
 
@@ -702,76 +765,43 @@ export default function InvoiceFormDialog({
               <p className="text-xs font-semibold text-slate-600">Loading invoice form & client data...</p>
             </div>
           ) : activeTab === 'preview' ? (
-            /* TAB 2: LIVE TEMPLATE DESIGN PREVIEW */
+            /* TAB 2: LIVE INVOICE PREVIEW */
             <div className="space-y-6">
-              {/* Quick Edition Switcher Bar */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[#1d61e7]" />
-                  <span className="text-xs font-bold text-slate-800">Selected Template Edition:</span>
-                  <span className="text-xs font-bold text-[#1d61e7]">{activeThemeMeta.name}</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {TEMPLATE_EDITIONS.map((ed) => (
-                    <button
-                      key={ed.id}
-                      type="button"
-                      onClick={() => setTemplateEdition(ed.id)}
-                      className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition ${
-                        templateEdition === ed.id
-                          ? 'bg-[#1d61e7] text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {ed.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Rendered Live Invoice Preview Sheet */}
-              <div
-                className={`bg-white rounded-xl border shadow-lg overflow-hidden transition-all ${
-                  templateEdition === 'CLASSIC_CORPORATE'
-                    ? 'border-2 border-slate-800 font-serif'
-                    : templateEdition === 'MINIMALIST_CLEAN'
-                    ? 'border border-slate-300'
-                    : 'border-slate-200'
-                }`}
-              >
-                {/* Header Banner */}
-                <div className={`p-6 ${activeThemeMeta.headerClass}`}>
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div className="flex items-center gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden min-h-[900px] flex flex-col justify-between">
+                <div>
+                  {/* Header (VIS Template) */}
+                <div className="p-6 border-b border-slate-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div>
                       <img
-                        src={settings?.companyLogo || '/favicon/favicon.png'}
+                        src={settings?.companyLogo || '/logo/vis-logo.png'}
                         alt={settings?.companyName || 'Company Logo'}
-                        className="h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32 object-contain flex-shrink-0 drop-shadow-md"
+                        className="h-12 sm:h-14 object-contain"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/favicon/favicon.png';
+                          (e.target as HTMLImageElement).src = '/logo/vis-logo.png';
                         }}
                       />
-                      <div>
-                        <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-                          {settings?.companyName || 'Vibrantick Infotech Solutions'}
-                        </h2>
-                        <p className="text-xs opacity-90 mt-0.5">
-                          GSTIN: {settings?.gstin || '03ABCDE1234F1Z5'} • PAN: {settings?.panNumber || 'ABCDE1234F'}
-                        </p>
-                        <p className="text-xs opacity-80 mt-0.5">
-                          {settings?.addressLine1 || 'SCO 12, IT Park'}, {settings?.city || 'Mohali'},{' '}
-                          {settings?.state || 'Punjab'} - {settings?.pincode || '160071'}
-                        </p>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 mt-2 font-mono">
+                        Invoice No: {invoiceNumber || 'VIS/2026-27/040'}
                       </div>
                     </div>
 
-                    <div className="text-right sm:border-l sm:border-white/20 sm:pl-6 flex-shrink-0">
-                      <div className="text-xs uppercase tracking-wider font-semibold opacity-80">Tax Invoice</div>
-                      <div className="text-lg font-black font-mono mt-0.5">
-                        {invoiceNumber || 'VIS-INV-PREVIEW'}
+                    <div className="sm:text-right space-y-1">
+                      <img
+                        src="/logo/msme-iso-badge.png"
+                        alt="MSME & ISO Certified"
+                        className="h-9 sm:h-11 object-contain sm:ml-auto"
+                      />
+                      <div className="text-[11px] sm:text-xs font-bold text-slate-900 font-mono">
+                        GSTIN- {settings?.gstin || '03BINPR6900A1ZK'}
                       </div>
-                      <div className="text-xs opacity-90 mt-1">
-                        Status: <span className="font-bold underline">{status}</span>
+                      <div className="text-[11px] sm:text-xs text-slate-800">
+                        Date: {new Date(issueDate).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        }).replace(/ /g, '-')}
                       </div>
                     </div>
                   </div>
@@ -793,6 +823,12 @@ export default function InvoiceFormDialog({
                       )}
                       {customerMeta.phone && (
                         <div className="text-slate-500 mt-0.5">Phone: {customerMeta.phone}</div>
+                      )}
+                      {billingAddress && (
+                        <div className="text-slate-600 mt-2 text-[11px] leading-relaxed bg-slate-50/80 p-2 rounded-lg border border-slate-200/60">
+                          <span className="font-semibold text-slate-500 block text-[9px] uppercase tracking-wider mb-0.5">Billing Address:</span>
+                          {billingAddress}
+                        </div>
                       )}
                     </div>
 
@@ -856,14 +892,21 @@ export default function InvoiceFormDialog({
                             <tr key={idx} className="hover:bg-slate-50/50">
                               <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
                               <td className="py-2.5 px-3">
-                                <div className="font-semibold text-slate-900">{it.itemName || 'Untitled Item'}</div>
+                                <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                  <span>{it.itemName || 'Untitled Item'}</span>
+                                  {it.hsnCode && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 bg-slate-100 text-slate-600 rounded">
+                                      HSN: {it.hsnCode}
+                                    </span>
+                                  )}
+                                </div>
                                 {it.description && (
                                   <div className="text-[11px] text-slate-500 mt-0.5">{it.description}</div>
                                 )}
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">{it.quantity}</td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                                ₹{Number(it.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(it.unitPrice)}
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-500">
                                 {it.discountPercent > 0 ? `${it.discountPercent}%` : '—'}
@@ -872,7 +915,7 @@ export default function InvoiceFormDialog({
                                 {taxType === 'EXEMPT' ? '0%' : `${it.taxPercent}%`}
                               </td>
                               <td className="py-2.5 px-3 text-right font-bold font-mono text-slate-900">
-                                ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(lineTotal)}
                               </td>
                             </tr>
                           );
@@ -881,102 +924,183 @@ export default function InvoiceFormDialog({
                     </table>
                   </div>
 
-                  {/* Calculations & Bank Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
-                    <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
-                        Payment Instructions & Bank Details
+                  {/* VIS Template Footer */}
+                  <div className="pt-6 border-t border-slate-200 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                      {/* Left Column: Thank You & Authorized Signatory */}
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-700 italic leading-relaxed">
+                          {(() => {
+                            const isCustomNote =
+                              Boolean(notes &&
+                              notes.trim().length > 0 &&
+                              notes.trim() !== 'Thank you for partnering with Vibrantick Infotech Solutions.' &&
+                              notes.trim() !== 'Thank you and looking forward to a fruitful relationship with our company.');
+                            return (
+                              (isCustomNote ? notes.trim() : null) ||
+                              settings?.defaultNotes?.trim() ||
+                              notes?.trim() ||
+                              'Thank you and looking forward to a fruitful relationship with our company.'
+                            );
+                          })()}
+                        </p>
+
+                        <div className="pt-2 space-y-1.5 text-left">
+                          {/* Space for signature */}
+                          <div className="h-10 w-36 border-b border-dashed border-slate-300" />
+                          <div className="text-xs font-bold text-slate-900">Auth. Signatory</div>
+                          <div className="text-[11px] text-slate-700">
+                            Rakesh Kumar Rai<br />Founder & CEO
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1 text-slate-600 text-[11px]">
-                        <div>Bank: <span className="font-semibold text-slate-800">{settings?.bankName || 'HDFC Bank'}</span></div>
-                        <div>Account No: <span className="font-mono font-semibold text-slate-800">{settings?.bankAccountNo || '50200012345678'}</span></div>
-                        <div>IFSC: <span className="font-mono font-semibold text-slate-800">{settings?.bankIfsc || 'HDFC0001234'}</span></div>
-                        <div>Branch: <span className="text-slate-800">{settings?.bankBranch || 'IT Park'}</span></div>
-                        <div>UPI ID: <span className="font-mono text-[#1d61e7] font-semibold">{settings?.upiId || '8699792040@upi'}</span></div>
+
+                      {/* Right Column: Calculations, In Words & Stamp */}
+                      <div className="space-y-2 text-xs sm:text-right">
+                        <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-700 py-0.5">
+                          <span className="font-medium">Sub Total:</span>
+                          <span className="font-semibold text-slate-900 font-mono">
+                            {fmtMoney(computedTotals.subtotal)}/-
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-700 py-0.5">
+                          <span className="font-medium">Discount:</span>
+                          <span className="font-semibold font-mono">
+                            {totalDiscount > 0 && computedTotals.subtotal > 0
+                              ? `${((totalDiscount / computedTotals.subtotal) * 100).toFixed(2)}%`
+                              : '0.00%'}
+                          </span>
+                        </div>
+
+                        {taxType === 'INTER_STATE' ? (
+                          <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                            <span>IGST (18%):</span>
+                            <span className="font-mono">{fmtMoney(computedTotals.igst)}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                              <span>SGST (9%):</span>
+                              <span className="font-mono">{fmtMoney(computedTotals.sgst)}</span>
+                            </div>
+                            <div className="flex justify-between sm:justify-end sm:gap-6 text-slate-600 py-0.5">
+                              <span>CGST (9%):</span>
+                              <span className="font-mono">{fmtMoney(computedTotals.cgst)}</span>
+                            </div>
+                          </>
+                        )}
+
+                        <div className="pt-2 border-t border-slate-300 flex justify-between sm:justify-end sm:gap-6 items-center text-slate-900">
+                          <span className="text-xs font-bold">Total Amount:</span>
+                          <span className="text-base font-black font-mono text-slate-900">
+                            {fmtMoney(computedTotals.grandTotal)}/-
+                          </span>
+                        </div>
+
+                        <div className="pt-2 text-left sm:text-right space-y-0.5">
+                          <div className="text-[15px] font-bold text-slate-700">Total Amount In Words:</div>
+                          <div className="text-[16px] font-bold text-slate-900 leading-relaxed">
+                            {numberToWords(computedTotals.grandTotal, activeCurrency.code)}
+                          </div>
+                        </div>
+
+                        {/* Stamped Badge */}
+                        <div className="pt-1 flex justify-start sm:justify-end">
+                          <div className={`inline-block border-2 rounded px-3 py-0.5 font-extrabold tracking-widest text-xs transform -rotate-6 uppercase shadow-sm ${
+                            status === 'PAID'
+                              ? 'border-emerald-700 text-emerald-800 bg-emerald-50/50'
+                              : 'border-slate-700 text-slate-800 bg-slate-50'
+                          }`}>
+                            {status || 'DRAFT'}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Taxable Subtotal:</span>
-                        <span className="font-semibold font-mono text-slate-900">
-                          ₹{computedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
+                    {/* Terms & Instructions and Contact Details (Matching Reference Template) */}
+                    <div className="pt-4 space-y-2.5">
+                      <div className="border-b border-slate-300 pb-1.5">
+                        <h4 className="text-base sm:text-lg font-bold text-slate-900 tracking-wide">
+                          Terms & Instructions
+                        </h4>
                       </div>
 
-                      {totalDiscount > 0 && (
-                        <div className="flex justify-between text-emerald-600">
-                          <span>Overall Discount:</span>
-                          <span className="font-semibold font-mono">
-                            -₹{Number(totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1 items-start text-xs sm:text-sm text-slate-800">
+                        {/* Left Column: Terms & Bank Details (Open layout, fully dynamic) */}
+                        <div className="space-y-2 leading-relaxed">
+                          <div className="font-medium text-slate-900">
+                            {resolveOrderNotice(terms, settings?.defaultTerms, settings?.companyName)}
+                          </div>
+                          <div className="font-bold text-slate-900 pt-0.5">Payment Details -</div>
+                          <div className="pl-3 space-y-1 text-slate-700 text-xs sm:text-[13px]">
+                            <div>Name - {settings?.companyName || 'VIBRANTICK INFOTECH SOLUTIONS'}</div>
+                            <div className="font-mono">Acc No. - {settings?.bankAccountNo || '50200012345678'}</div>
+                            <div className="font-mono">IFSC Code - {settings?.bankIfsc || 'HDFC0001234'}</div>
+                            <div>Bank Name- {settings?.bankName || 'HDFC Bank'}</div>
+                            <div>Branch Name - {settings?.bankBranch || 'IT Park Branch'}</div>
+                          </div>
                         </div>
-                      )}
 
-                      {taxType === 'INTRA_STATE' && (
-                        <>
-                          <div className="flex justify-between text-slate-500 text-[11px]">
-                            <span>CGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
-                            <span className="font-mono">
-                              ₹{computedTotals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {/* Right Column: Contact Details with Icon Badges (Open layout, fully dynamic) */}
+                        <div className="space-y-2.5 sm:pl-6 text-xs sm:text-[13px]">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Phone className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 font-mono">
+                              {settings?.companyPhone || '+91 8699792040'}
                             </span>
                           </div>
-                          <div className="flex justify-between text-slate-500 text-[11px]">
-                            <span>SGST ({(computedTotals.effectiveTaxRate / 2).toFixed(1)}%):</span>
-                            <span className="font-mono">
-                              ₹{computedTotals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Smartphone className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 font-mono">
+                              {settings?.whatsappNumber || '8699792040'}
                             </span>
                           </div>
-                        </>
-                      )}
 
-                      {taxType === 'INTER_STATE' && (
-                        <div className="flex justify-between text-slate-500 text-[11px]">
-                          <span>IGST ({computedTotals.effectiveTaxRate.toFixed(1)}%):</span>
-                          <span className="font-mono">
-                            ₹{computedTotals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 flex-shrink-0">
+                              <Mail className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900">
+                              {settings?.companyEmail || 'info@vibrantick.in'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-5 h-5 rounded border border-slate-400 flex items-center justify-center text-slate-700 mt-0.5 flex-shrink-0">
+                              <MapPin className="w-3 h-3" />
+                            </div>
+                            <span className="font-medium text-slate-900 leading-snug">
+                              {[
+                                settings?.addressLine1 || 'Prosperity Square, Phase 8b',
+                                settings?.city ? (settings.city.toLowerCase().includes('sector') ? settings.city : `Sector 74, ${settings.city}`) : 'Sector 74, Mohali',
+                                settings?.state || 'Punjab',
+                              ].filter(Boolean).join(', ')}
+                            </span>
+                          </div>
                         </div>
-                      )}
-
-                      <div className="pt-2 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                        <span className="font-bold text-xs uppercase tracking-wider">Grand Total (INR):</span>
-                        <span className="font-black text-lg text-[#1d61e7] font-mono">
-                          ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Notes & Terms - Clean documentation style */}
-                  {(notes || terms) && (
-                    <div className="pt-4 border-t border-slate-200 text-xs text-slate-700 space-y-3">
-                      {terms && (
-                        <div>
-                          <div className="font-bold text-slate-900 text-xs mb-2">Terms & Conditions</div>
-                          <ul className="space-y-1.5 pl-0.5">
-                            {parseTermsList(terms).map((clause, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-700">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 shrink-0" />
-                                <span>{cleanTermClause(clause)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {notes && (
-                        <div className="p-2.5 bg-slate-50 border-l-4 border-slate-900 rounded-r-lg text-[11px] leading-relaxed">
-                          <span className="font-bold text-slate-900 block mb-0.5 tracking-wider uppercase text-[10px]">
-                            NOTE
-                          </span>
-                          <span className="text-slate-600">{notes}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {/* Document Footer Bar (Pinned at footer) */}
+              <div className="mt-auto border-t border-slate-200 bg-slate-50/60 py-3.5 px-6 text-center space-y-0.5">
+                <div className="text-xs font-bold text-slate-900">
+                  www.vibrantick.in
+                </div>
+                <div className="text-[10px] text-slate-500 tracking-wide">
+                  Cyber Security | Web Development | Digital Marketing | Cloud Mgt Services | Mobile Application
                 </div>
               </div>
             </div>
+          </div>
           ) : (
             /* TAB 1: INTERACTIVE FORM */
             <>
@@ -1026,30 +1150,50 @@ export default function InvoiceFormDialog({
 
                     {/* Rich Customer Information Card when selected */}
                     {selectedCustomer && (
-                      <div className="mt-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-2xs flex flex-wrap items-center gap-y-2 gap-x-4 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
-                          <Building className="w-3.5 h-3.5 text-[#1d61e7]" />
-                          <span>{customerMeta.title}</span>
+                      <>
+                        <div className="mt-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-2xs flex flex-wrap items-center gap-y-2 gap-x-4 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                            <Building className="w-3.5 h-3.5 text-[#1d61e7]" />
+                            <span>{customerMeta.title}</span>
+                          </div>
+                          {customerMeta.contactName && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{customerMeta.contactName}</span>
+                            </div>
+                          )}
+                          {customerMeta.phone && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{customerMeta.phone}</span>
+                            </div>
+                          )}
+                          {customerMeta.email && (
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Mail className="w-3.5 h-3.5 text-sky-600" />
+                              <span>{customerMeta.email}</span>
+                            </div>
+                          )}
                         </div>
-                        {customerMeta.contactName && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{customerMeta.contactName}</span>
-                          </div>
-                        )}
-                        {customerMeta.phone && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>{customerMeta.phone}</span>
-                          </div>
-                        )}
-                        {customerMeta.email && (
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Mail className="w-3.5 h-3.5 text-sky-600" />
-                            <span>{customerMeta.email}</span>
-                          </div>
-                        )}
-                      </div>
+
+                        {/* Editable Client Billing Address */}
+                        <div className="mt-2.5 space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#1d61e7]" />
+                              Client Billing Address (Printed on Invoice)
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-normal">Auto-filled from company, editable</span>
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={billingAddress}
+                            onChange={(e) => setBillingAddress(e.target.value)}
+                            placeholder="e.g. SCO 12, Floor 2, IT Park, Mohali, Punjab - 160071"
+                            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] shadow-2xs text-slate-800 placeholder:text-slate-400 font-normal"
+                          />
+                        </div>
+                      </>
                     )}
                   </div>
 
@@ -1075,7 +1219,7 @@ export default function InvoiceFormDialog({
                         type="text"
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
-                        placeholder="e.g. VIS-INV-2026-1001"
+                        placeholder="e.g. VIS/2026-27/040"
                         className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] font-mono font-semibold text-slate-900 shadow-2xs"
                         required
                       />
@@ -1138,88 +1282,39 @@ export default function InvoiceFormDialog({
                       <option value="EXEMPT">Exempt / Non-GST (0%)</option>
                     </select>
                   </div>
-                </div>
-              </div>
 
-              {/* 2. Visual Edition & Theme Picker */}
-              <div className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-[#1d61e7]" />
-                      Invoice Theme & Design Edition
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Choose an edition to preview its layout, typography and color banner
-                    </p>
+                  {/* Currency (Loaded dynamically from Backend) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800">Currency</label>
+                      {hasRecordedPayments && (
+                        <span className="text-[10px] text-amber-600 font-semibold" title="Payments have already been recorded on this invoice.">
+                          Locked (Payment recorded)
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      disabled={hasRecordedPayments}
+                      title={hasRecordedPayments ? 'Currency cannot be updated after payments have been recorded.' : undefined}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] shadow-2xs font-semibold text-slate-900 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    >
+                      {currencies.length > 0 ? (
+                        currencies.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code} ({c.symbol}) — {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={currency}>{currency}</option>
+                      )}
+                    </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('preview')}
-                    className="inline-flex items-center gap-1 text-xs text-[#1d61e7] hover:underline font-bold"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    Preview Full Page
-                  </button>
-                </div>
-
-                {/* 4 Interactive Visual Design Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                  {TEMPLATE_EDITIONS.map((ed) => {
-                    const isSelected = templateEdition === ed.id;
-                    return (
-                      <div
-                        key={ed.id}
-                        onClick={() => setTemplateEdition(ed.id)}
-                        className={`cursor-pointer rounded-xl border p-3 flex flex-col justify-between transition-all relative overflow-hidden bg-white shadow-2xs ${
-                          isSelected
-                            ? 'border-[#1d61e7] ring-2 ring-[#1d61e7]/20 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#1d61e7] text-white flex items-center justify-center shadow-2xs">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </div>
-                        )}
-
-                        <div>
-                          {/* Mini Layout Mockup Bar */}
-                          <div className={`h-8 rounded-lg mb-2.5 flex items-center px-2.5 ${ed.previewBg}`}>
-                            <div className="w-2.5 h-2.5 rounded-full bg-white/70 mr-1.5" />
-                            <div className="h-1.5 w-12 rounded-full bg-white/60" />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-900">{ed.name}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{ed.subtitle}</p>
-                          <p className="text-[10px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
-                            {ed.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              isSelected
-                                ? 'bg-blue-50 text-[#1d61e7]'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {ed.badge}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-semibold">
-                            {isSelected ? 'Active Theme' : 'Click to Select'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 
-              {/* 3. Line Items Table & GST Breakdown */}
+              {/* 2. Line Items Table & GST Breakdown */}
               <div className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
                 {/* Header Toolbar */}
                 <div className="space-y-3 pb-3 border-b border-slate-200">
@@ -1401,17 +1496,31 @@ export default function InvoiceFormDialog({
                                 required
                               />
                             </div>
-                            <div>
-                              <label className="text-xs font-semibold text-slate-600">
-                                SAC / Description
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="e.g. SAC: 998314 – Monthly retainership and delivery services"
-                                value={item.description}
-                                onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                                className="mt-1 w-full px-3 py-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
-                              />
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="col-span-1">
+                                <label className="text-xs font-semibold text-slate-600">
+                                  HSN Code
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 8471"
+                                  value={item.hsnCode || ''}
+                                  onChange={(e) => handleItemChange(idx, 'hsnCode', e.target.value)}
+                                  className="mt-1 w-full px-2.5 py-1.5 text-xs font-mono text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-600">
+                                  Description
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Scope or deliverables"
+                                  value={item.description}
+                                  onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                                  className="mt-1 w-full px-2.5 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1d61e7]"
+                                />
+                              </div>
                             </div>
                           </div>
 
@@ -1428,13 +1537,13 @@ export default function InvoiceFormDialog({
                               required
                             />
                             <p className="mt-1 text-[11px] text-slate-400 font-mono">
-                              Base: ₹{raw.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              Base: {fmtMoney(raw)}
                             </p>
                           </div>
 
                           {/* Rate — col 2 */}
                           <div className="md:col-span-2">
-                            <label className="text-xs font-semibold text-slate-700">Rate (₹)</label>
+                            <label className="text-xs font-semibold text-slate-700">Rate ({activeCurrency.symbol || activeCurrency.code})</label>
                             <input
                               type="number"
                               min="0"
@@ -1445,7 +1554,7 @@ export default function InvoiceFormDialog({
                               required
                             />
                             <p className="mt-1 text-[11px] text-slate-400 font-mono">
-                              Taxable: ₹{taxable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              Taxable: {fmtMoney(taxable)}
                             </p>
                           </div>
 
@@ -1462,7 +1571,7 @@ export default function InvoiceFormDialog({
                             />
                             {disc > 0 && (
                               <p className="mt-1 text-[11px] text-emerald-600 font-mono font-semibold whitespace-nowrap">
-                                −₹{disc.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                −{fmtMoney(disc)}
                               </p>
                             )}
                           </div>
@@ -1489,10 +1598,10 @@ export default function InvoiceFormDialog({
                             {taxRate > 0 && taxType !== 'EXEMPT' && (
                               <div className="mt-1.5 px-2.5 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-[11px] font-mono font-semibold text-blue-700 leading-snug">
                                 {taxType === 'INTRA_STATE' && (
-                                  <>CGST {(taxRate / 2).toFixed(1)}% + SGST {(taxRate / 2).toFixed(1)}%<br />= ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
+                                  <>CGST {(taxRate / 2).toFixed(1)}% + SGST {(taxRate / 2).toFixed(1)}%<br />= {fmtMoney(taxAmount)}</>
                                 )}
                                 {taxType === 'INTER_STATE' && (
-                                  <>IGST {taxRate}% = ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
+                                  <>IGST {taxRate}% = {fmtMoney(taxAmount)}</>
                                 )}
                               </div>
                             )}
@@ -1508,7 +1617,7 @@ export default function InvoiceFormDialog({
                             <span>
                               Taxable Value:{' '}
                               <strong className="text-slate-800 font-mono">
-                                ₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                {fmtMoney(taxable)}
                               </strong>
                             </span>
                             {taxRate > 0 && (
@@ -1517,7 +1626,7 @@ export default function InvoiceFormDialog({
                                 <span>
                                   GST Amount ({taxRate}%):{' '}
                                   <strong className="text-slate-800 font-mono">
-                                    ₹{taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    {fmtMoney(taxAmount)}
                                   </strong>
                                 </span>
                               </>
@@ -1526,7 +1635,7 @@ export default function InvoiceFormDialog({
                               <>
                                 <span className="text-slate-300">|</span>
                                 <span className="text-emerald-600 font-semibold font-mono">
-                                  Discount: −₹{disc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  Discount: −{fmtMoney(disc)}
                                 </span>
                               </>
                             )}
@@ -1534,7 +1643,7 @@ export default function InvoiceFormDialog({
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Line Total:</span>
                             <span className="text-base font-black font-mono text-[#1d61e7]">
-                              ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              {fmtMoney(lineTotal)}
                             </span>
                           </div>
                         </div>
@@ -1547,7 +1656,7 @@ export default function InvoiceFormDialog({
                 <div className="pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-end gap-5">
                   <div className="space-y-3 w-full md:w-72">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Extra Overall Discount (₹)</label>
+                      <label className="text-xs font-bold text-slate-700">Extra Overall Discount ({activeCurrency.symbol || activeCurrency.code})</label>
                       <input
                         type="number"
                         min="0"
@@ -1589,7 +1698,7 @@ export default function InvoiceFormDialog({
                     <div className="flex justify-between text-slate-600">
                       <span>Gross Item Total:</span>
                       <span className="font-semibold text-slate-800 font-mono">
-                        ₹{computedTotals.grossTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.grossTotal)}
                       </span>
                     </div>
 
@@ -1597,7 +1706,7 @@ export default function InvoiceFormDialog({
                       <div className="flex justify-between text-emerald-600">
                         <span>Total Item Discounts:</span>
                         <span className="font-semibold font-mono">
-                          -₹{computedTotals.itemDiscountsTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          -{fmtMoney(computedTotals.itemDiscountsTotal)}
                         </span>
                       </div>
                     )}
@@ -1605,7 +1714,7 @@ export default function InvoiceFormDialog({
                     <div className="flex justify-between text-slate-700 font-semibold pt-1 border-t border-slate-100">
                       <span>Net Taxable Value:</span>
                       <span className="font-bold text-slate-900 font-mono">
-                        ₹{computedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.subtotal)}
                       </span>
                     </div>
 
@@ -1613,7 +1722,7 @@ export default function InvoiceFormDialog({
                       <div className="flex justify-between text-emerald-600">
                         <span>Overall Invoice Discount:</span>
                         <span className="font-semibold font-mono">
-                          -₹{Number(totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          -{fmtMoney(totalDiscount)}
                         </span>
                       </div>
                     )}
@@ -1625,7 +1734,7 @@ export default function InvoiceFormDialog({
                             CGST (Central GST @ {(computedTotals.effectiveTaxRate / 2).toFixed(1).replace(/\.0$/, '')}%):
                           </span>
                           <span className="font-mono font-medium text-slate-800">
-                            ₹{computedTotals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {fmtMoney(computedTotals.cgst)}
                           </span>
                         </div>
                         <div className="flex justify-between text-slate-600 text-[11px]">
@@ -1633,7 +1742,7 @@ export default function InvoiceFormDialog({
                             SGST (State GST @ {(computedTotals.effectiveTaxRate / 2).toFixed(1).replace(/\.0$/, '')}%):
                           </span>
                           <span className="font-mono font-medium text-slate-800">
-                            ₹{computedTotals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {fmtMoney(computedTotals.sgst)}
                           </span>
                         </div>
                       </div>
@@ -1645,40 +1754,34 @@ export default function InvoiceFormDialog({
                           IGST (Integrated GST @ {computedTotals.effectiveTaxRate.toFixed(1).replace(/\.0$/, '')}%):
                         </span>
                         <span className="font-mono font-medium text-slate-800">
-                          ₹{computedTotals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {fmtMoney(computedTotals.igst)}
                         </span>
                       </div>
                     )}
 
                     <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center text-slate-900">
-                      <span className="font-bold text-xs uppercase tracking-wider">Grand Total (INR):</span>
+                      <span className="font-bold text-xs uppercase tracking-wider">Grand Total ({activeCurrency.code}):</span>
                       <span className="font-black text-xl text-[#1d61e7] font-mono">
-                        ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {fmtMoney(computedTotals.grandTotal)}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* 4. Notes & Terms */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800">Customer Notes</label>
-                  <textarea
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Instructions, project reference, or thank you note..."
-                    className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] text-slate-800"
-                  />
-                </div>
-
-                <TermsClauseManager
-                  value={terms}
-                  onChange={setTerms}
-                  label="Terms & Conditions"
-                  helperText="Each clause will appear as a separate numbered/bulleted line on customer invoice views and generated PDF."
+              {/* 3. Customer Notes */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-800">Customer Note (Thank You Note)</label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={settings?.defaultNotes || "Thank you and looking forward to a fruitful relationship with our company."}
+                  className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d61e7] text-slate-800"
                 />
+                <p className="text-[11px] text-slate-400">
+                  Note printed above the Authorized Signatory on customer invoices.
+                </p>
               </div>
             </>
           )}
@@ -1686,9 +1789,9 @@ export default function InvoiceFormDialog({
           {/* Sticky Modal Bottom Footer */}
           <div className="border-t border-slate-200 pt-4 flex items-center justify-between sticky bottom-0 bg-white">
             <div className="text-xs text-slate-500 font-medium">
-              Grand Total:{' '}
+              Grand Total ({activeCurrency.code}):{' '}
               <span className="font-black text-slate-900 font-mono">
-                ₹{computedTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {fmtMoney(computedTotals.grandTotal)}
               </span>
             </div>
 

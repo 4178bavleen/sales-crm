@@ -4,6 +4,7 @@ export const invoiceItemSchema = z.object({
   id: z.number().int().positive().optional(),
   productServiceId: z.number().int().positive().nullable().optional(),
   itemName: z.string().min(1, 'Item name is required'),
+  hsnCode: z.string().trim().max(50).nullable().optional(),
   description: z.string().nullable().optional(),
   quantity: z.number().positive('Quantity must be greater than 0'),
   unitPrice: z.number().min(0, 'Unit price must be non-negative'),
@@ -14,6 +15,7 @@ export const invoiceItemSchema = z.object({
 export const createInvoiceSchema = z.object({
   customerId: z.number().int().positive('Customer is required'),
   dealId: z.number().int().positive().nullable().optional(),
+  billingAddress: z.string().trim().max(500).nullable().optional(),
   invoiceNumber: z.string().trim().min(1).optional(),
   issueDate: z.string().or(z.date()).transform((val) => new Date(val)),
   dueDate: z.string().or(z.date()).transform((val) => new Date(val)),
@@ -74,7 +76,7 @@ export const recordPaymentSchema = z.object({
 export const updateInvoiceSettingsSchema = z.object({
   companyName: z.string().min(1).optional(),
   companyLogo: z.string().nullable().optional(),
-  companyEmail: z.string().email().optional(),
+  companyEmail: z.string().email().or(z.literal('')).optional(),
   companyPhone: z.string().optional(),
   whatsappNumber: z.string().optional(),
   addressLine1: z.string().nullable().optional(),
@@ -96,7 +98,7 @@ export const updateInvoiceSettingsSchema = z.object({
   defaultTemplate: z
     .enum(['MODERN_EXECUTIVE', 'CLASSIC_CORPORATE', 'MINIMALIST_CLEAN', 'VIBRANT_TECH'])
     .optional(),
-  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
+  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).or(z.literal('')).optional(),
   defaultNotes: z.string().nullable().optional(),
   defaultTerms: z.string().nullable().optional(),
 

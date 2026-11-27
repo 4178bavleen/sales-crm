@@ -63,6 +63,16 @@ export async function listAuditLogs(query: {
       where.entityType = { in: ['ACTIVITY', 'FOLLOWUP'] }
     } else if (et === 'USER') {
       where.entityType = { in: ['USER', 'AUTH'] }
+    } else if (et === 'DEAL') {
+      where.entityType = { in: ['DEAL', 'Deal'] }
+    } else if (et === 'INVOICE') {
+      where.entityType = { in: ['INVOICE', 'INVOICESETTING'] }
+    } else if (et === 'PROPOSAL') {
+      where.entityType = { in: ['PROPOSAL'] }
+    } else if (et === 'EXPENSE' || et === 'FINANCIAL_TRANSACTION') {
+      where.entityType = { in: ['FINANCIAL_TRANSACTION', 'EXPENSE'] }
+    } else if (et === 'SETTINGS') {
+      where.entityType = { in: ['INVOICESETTING', 'WHATSAPP_SETTING', 'EMAIL_SETTING', 'FACEBOOK_SETTING'] }
     } else {
       where.entityType = {
         equals: query.entityType.trim(),
@@ -146,9 +156,12 @@ export async function listAuditLogs(query: {
     stats: {
       total: allCount,
       leads: countsByType['LEAD'] || 0,
-      deals: countsByType['DEAL'] || 0,
+      deals: (countsByType['DEAL'] || 0) + (countsByType['Deal'] || 0),
       customers: countsByType['CUSTOMER'] || 0,
       users: (countsByType['USER'] || 0) + (countsByType['AUTH'] || 0),
+      invoices: (countsByType['INVOICE'] || 0) + (countsByType['INVOICESETTING'] || 0),
+      proposals: countsByType['PROPOSAL'] || 0,
+      expenses: (countsByType['FINANCIAL_TRANSACTION'] || 0) + (countsByType['EXPENSE'] || 0),
     },
   }
 }

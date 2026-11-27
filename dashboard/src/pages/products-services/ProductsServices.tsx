@@ -65,6 +65,7 @@ export default function ProductsServices() {
 
   // Form Fields
   const [formName, setFormName] = useState("");
+  const [formHsnCode, setFormHsnCode] = useState("");
   const [formType, setFormType] = useState<ProductServiceType>("PRODUCT");
   const [formDescription, setFormDescription] = useState("");
   const [formIsActive, setFormIsActive] = useState(true);
@@ -126,6 +127,7 @@ export default function ProductsServices() {
   const openCreateModal = () => {
     setEditingItem(null);
     setFormName("");
+    setFormHsnCode("");
     setFormType("PRODUCT");
     setFormDescription("");
     setFormIsActive(true);
@@ -137,6 +139,7 @@ export default function ProductsServices() {
   const openEditModal = (item: ProductService) => {
     setEditingItem(item);
     setFormName(item.name);
+    setFormHsnCode(item.hsnCode || "");
     setFormType(item.type);
     setFormDescription(item.description || "");
     setFormIsActive(item.isActive);
@@ -159,6 +162,7 @@ export default function ProductsServices() {
       const payload: CreateProductServicePayload = {
         name: formName.trim(),
         type: formType,
+        hsnCode: formHsnCode.trim() || null,
         description: formDescription.trim() || null,
         isActive: formIsActive,
       };
@@ -472,9 +476,16 @@ export default function ProductsServices() {
                               {isProduct ? <Package size={15} /> : <Wrench size={15} />}
                             </div>
                             <div>
-                              <span className="font-semibold text-slate-800">
-                                {item.name}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-800">
+                                  {item.name}
+                                </span>
+                                {item.hsnCode && (
+                                  <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
+                                    HSN: {item.hsnCode}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -708,6 +719,20 @@ export default function ProductsServices() {
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="e.g. Enterprise License or Implementation Consulting"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden transition"
+                />
+              </div>
+
+              {/* HSN Code */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  HSN Code <span className="text-slate-400 font-normal">(Optional, e.g. 8471 or 998314)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formHsnCode}
+                  onChange={(e) => setFormHsnCode(e.target.value)}
+                  placeholder="e.g. 8471"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden transition font-mono"
                 />
               </div>
 

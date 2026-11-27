@@ -187,6 +187,10 @@ export default function AuditLogs() {
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-[#1d61e7] focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Entities</option>
+            <option value="INVOICE">Invoices &amp; Billing</option>
+            <option value="PROPOSAL">Proposals &amp; Quotes</option>
+            <option value="EXPENSE">Expenses &amp; Financials</option>
+            <option value="SETTINGS">System Settings (Email / WhatsApp / Invoice)</option>
             <option value="AUTH">Authentication (Login / Logout)</option>
             <option value="ACTIVITY">Daily Calls &amp; Follow-ups</option>
             <option value="DOCUMENT">Documents &amp; Files</option>

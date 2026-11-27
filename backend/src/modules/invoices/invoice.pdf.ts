@@ -2,6 +2,29 @@ import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
 
+function resolveAssetBuffer(filename: string): Buffer | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'backend/assets', filename),
+    path.resolve(process.cwd(), 'assets', filename),
+    typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../../backend/assets', filename) : '',
+    typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../../assets', filename) : '',
+    typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../assets', filename) : '',
+    typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../assets', filename) : '',
+    typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../assets', filename) : '',
+    path.resolve('/home/gabrialdeora/Desktop/New VIS PROJECT FOLDER/sales-crm/backend/assets', filename),
+    path.resolve('/home/gabrialdeora/Desktop/New VIS PROJECT FOLDER/sales-crm/dashboard/public/logo', filename),
+  ].filter(Boolean)
+
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) {
+        return fs.readFileSync(c)
+      }
+    } catch {}
+  }
+  return null
+}
+
 async function resolveLogoBuffer(logoStr?: string | null): Promise<Buffer | null> {
   try {
     if (logoStr && typeof logoStr === 'string' && logoStr.trim()) {
@@ -31,6 +54,10 @@ async function resolveLogoBuffer(logoStr?: string | null): Promise<Buffer | null
       }
     }
 
+    // Default template logo candidate: vis-logo.png
+    const visLogo = resolveAssetBuffer('vis-logo.png')
+    if (visLogo) return visLogo
+
     // Default fallback logo candidates in workspace
     const defaultCandidates = [
       path.resolve(process.cwd(), '../dashboard/public/favicon/favicon.png'),
@@ -38,9 +65,6 @@ async function resolveLogoBuffer(logoStr?: string | null): Promise<Buffer | null
       '/home/gabrialdeora/Desktop/New VIS PROJECT FOLDER/sales-crm/dashboard/public/favicon/favicon.png',
       path.resolve(process.cwd(), 'assets/default-logo.png'),
       path.resolve(process.cwd(), 'backend/assets/default-logo.png'),
-      typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../../dashboard/public/favicon/favicon.png') : '',
-      typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../../assets/default-logo.png') : '',
-      typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../assets/default-logo.png') : '',
     ].filter(Boolean)
 
     for (const cand of defaultCandidates) {
@@ -52,6 +76,79 @@ async function resolveLogoBuffer(logoStr?: string | null): Promise<Buffer | null
     console.warn('[InvoicePdf] Error resolving logo:', err)
   }
   return null
+}
+
+export function numberToWords(num: number, currency: string = 'INR'): string {
+  if (isNaN(num) || num <= 0) return 'Zero Only'
+
+  const ones = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ]
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+  function convertUnderThousand(n: number): string {
+    let str = ''
+    if (n >= 100) {
+      str += ones[Math.floor(n / 100)] + ' Hundred '
+      n %= 100
+    }
+    if (n >= 20) {
+      str += tens[Math.floor(n / 10)] + ' '
+      n %= 10
+    }
+    if (n > 0) {
+      str += ones[n] + ' '
+    }
+    return str.trim()
+  }
+
+  const rounded = Math.round(num * 100) / 100
+  const integerPart = Math.floor(rounded)
+  const decimalPart = Math.round((rounded - integerPart) * 100)
+
+  let words = ''
+  if (currency.toUpperCase() === 'INR') {
+    const crore = Math.floor(integerPart / 10000000)
+    const lakh = Math.floor((integerPart % 10000000) / 100000)
+    const thousand = Math.floor((integerPart % 100000) / 1000)
+    const remainder = integerPart % 1000
+
+    if (crore > 0) words += convertUnderThousand(crore) + ' Crore '
+    if (lakh > 0) words += convertUnderThousand(lakh) + ' Lakh '
+    if (thousand > 0) words += convertUnderThousand(thousand) + ' Thousand '
+    if (remainder > 0) words += convertUnderThousand(remainder) + ' '
+  } else {
+    const billion = Math.floor(integerPart / 1000000000)
+    const million = Math.floor((integerPart % 1000000000) / 1000000)
+    const thousand = Math.floor((integerPart % 1000000) / 1000)
+    const remainder = integerPart % 1000
+
+    if (billion > 0) words += convertUnderThousand(billion) + ' Billion '
+    if (million > 0) words += convertUnderThousand(million) + ' Million '
+    if (thousand > 0) words += convertUnderThousand(thousand) + ' Thousand '
+    if (remainder > 0) words += convertUnderThousand(remainder) + ' '
+  }
+
+  words = words.trim() || 'Zero'
+
+  const subUnit = currency.toUpperCase() === 'INR' ? 'Paise' : 'Cents'
+  if (decimalPart > 0) {
+    const decWords = convertUnderThousand(decimalPart)
+    return `${words} and ${decWords} ${subUnit} Only`
+  }
+
+  return `${words} Only`
+}
+
+function formatInvoiceDate(d: Date | string): string {
+  const date = new Date(d)
+  if (isNaN(date.getTime())) return String(d)
+  const day = String(date.getDate()).padStart(2, '0')
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const month = months[date.getMonth()]
+  const year = date.getFullYear()
+  return `${day}-${month}-${year}`
 }
 
 function parseTermsList(rawTerms?: string | null): string[] {
@@ -118,6 +215,7 @@ interface InvoicePdfData {
   } | null
   items: Array<{
     itemName: string
+    hsnCode?: string | null
     description?: string | null
     quantity: number
     unitPrice: number
@@ -144,17 +242,68 @@ interface InvoicePdfData {
     bankBranch?: string | null
     upiId?: string | null
     brandColor?: string | null
+    defaultNotes?: string | null
     defaultTerms?: string | null
+  }
+}
+
+export function resolveOrderNotice(
+  terms?: string | null,
+  defaultTerms?: string | null,
+  companyName?: string | null
+): string {
+  const candidates = [terms, defaultTerms].filter(Boolean) as string[]
+
+  for (const cand of candidates) {
+    const lines = cand
+      .split('\n')
+      .map((l) => l.replace(/^[•\s\d.-]+/, '').trim())
+      .filter(Boolean)
+
+    const matched = lines.find((l) =>
+      /^order to be placed/i.test(l) || /^in favor of/i.test(l)
+    )
+    if (matched) {
+      return matched
+    }
+  }
+
+  const companyUpper = (companyName || 'Vibrantick Infotech Solutions').toUpperCase()
+  return `Order to be Placed - In favor of ${companyUpper}`
+}
+
+function getPdfCurrency(currency?: string): { code: string; label: string; locale: string } {
+  const c = (currency || 'INR').toUpperCase()
+  switch (c) {
+    case 'USD':
+      return { code: 'USD', label: '$', locale: 'en-US' }
+    case 'EUR':
+      return { code: 'EUR', label: 'EUR', locale: 'de-DE' }
+    case 'GBP':
+      return { code: 'GBP', label: 'GBP', locale: 'en-GB' }
+    case 'AED':
+      return { code: 'AED', label: 'AED', locale: 'en-AE' }
+    case 'CAD':
+      return { code: 'CAD', label: 'CA$', locale: 'en-CA' }
+    case 'AUD':
+      return { code: 'AUD', label: 'AU$', locale: 'en-AU' }
+    case 'SGD':
+      return { code: 'SGD', label: 'SG$', locale: 'en-SG' }
+    case 'INR':
+    default:
+      return { code: 'INR', label: 'Rs.', locale: 'en-IN' }
   }
 }
 
 export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Buffer> {
   const logoBuffer = await resolveLogoBuffer(data.settings.companyLogo)
+  const msmeBadgeBuffer = resolveAssetBuffer('msme-iso-badge.png')
+  const authSignatoryBuffer = resolveAssetBuffer('auth-signatory.png')
 
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
-        margin: 40,
+        margins: { top: 40, bottom: 25, left: 40, right: 40 },
         size: 'A4',
         info: {
           Title: `Invoice - ${data.invoiceNumber}`,
@@ -172,206 +321,168 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       const darkText = '#0f172a'
       const mutedText = '#64748b'
       const lightBg = '#f8fafc'
-      const borderColor = '#e2e8f0'
+      const borderColor = '#cbd5e1'
+      const pdfCurr = getPdfCurrency(data.currency)
 
       // ==========================================
       // 1. HEADER SECTION (Brand & Invoice Badge)
       // ==========================================
       const headerTop = 40
-      
-      // Top colored accent banner
-      doc.rect(40, headerTop, 515, 5).fill(accent)
 
-      let textX = 40
-      let logoYBottom = headerTop + 14
-
-      // Render custom/default Logo on the left side of company name (balanced brand size)
+      // Top-Left: Company Logo
       if (logoBuffer) {
         try {
-          const logoSize = 75
-          doc.image(logoBuffer, 40, headerTop + 12, { fit: [logoSize, logoSize] })
-          textX = 40 + logoSize + 14
-          logoYBottom = headerTop + 12 + logoSize
+          doc.image(logoBuffer, 40, headerTop, { fit: [160, 44] })
         } catch (imgErr) {
-          console.warn('[InvoicePdf] doc.image error:', imgErr)
-          textX = 40
+          console.warn('[InvoicePdf] doc.image logo error:', imgErr)
+          doc.font('Helvetica-Bold').fontSize(16).fillColor(darkText).text(data.settings.companyName || 'Vibrantick Infotech Solutions', 40, headerTop)
+        }
+      } else {
+        doc.font('Helvetica-Bold').fontSize(16).fillColor(darkText).text(data.settings.companyName || 'Vibrantick Infotech Solutions', 40, headerTop)
+      }
+
+      // Directly below Logo: Invoice No: VIS/...
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor(darkText)
+        .text('Invoice No: ', 40, headerTop + 52, { continued: true })
+        .font('Helvetica')
+        .text(data.invoiceNumber)
+
+      // Top-Right: MSME & ISO Certification Badge
+      if (msmeBadgeBuffer) {
+        try {
+          doc.image(msmeBadgeBuffer, 425, headerTop, { fit: [130, 48] })
+        } catch (bErr) {
+          console.warn('[InvoicePdf] doc.image msme badge error:', bErr)
         }
       }
 
-      // Invoice Details Block coordinates (Right column)
-      const rightColX = 355
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(22)
-        .fillColor(accent)
-        .text('TAX INVOICE', 320, headerTop + 14, { align: 'right' })
+      // Right Column Metadata: GSTIN, Date
+      const rightMetaX = 375
+      const rightMetaWidth = 180
+      let metaY = headerTop + 52
 
-      doc.font('Helvetica').fontSize(10).fillColor(darkText)
-      let invY = headerTop + 42
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
+      doc.text(`GSTIN- ${data.settings.gstin || '03BINPR6900A1ZK'}`, rightMetaX, metaY, { width: rightMetaWidth, align: 'right' })
+      metaY += 12
 
-      const addDetailRow = (label: string, val: string) => {
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(mutedText).text(label, rightColX, invY, { width: 85 })
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(val, rightColX + 85, invY, { width: 115, align: 'right' })
-        invY += 13.5
-      }
-
-      addDetailRow('Invoice No:', data.invoiceNumber)
-      addDetailRow('Issue Date:', new Date(data.issueDate).toLocaleDateString('en-IN'))
-      addDetailRow('Due Date:', new Date(data.dueDate).toLocaleDateString('en-IN'))
-      addDetailRow('Status:', data.status)
-      addDetailRow('Tax Type:', data.taxType.replace('_', ' '))
-
-      // Left Column: Company Name & Contact Info (Dynamically calculated heights)
-      const compWidth = rightColX - textX - 12
-      const compName = data.settings.companyName || 'Vibrantick Infotech Solutions'
-
-      doc.font('Helvetica-Bold').fontSize(15).fillColor(darkText)
-      const compNameHeight = doc.heightOfString(compName, { width: compWidth })
-      doc.text(compName, textX, headerTop + 14, { width: compWidth })
-
-      let companyY = headerTop + 14 + compNameHeight + 4
-
-      const addressParts = [
-        data.settings.addressLine1,
-        data.settings.city,
-        data.settings.state,
-        data.settings.country,
-        data.settings.pincode ? `- ${data.settings.pincode}` : null,
-      ]
-        .filter(Boolean)
-        .join(', ')
-
-      if (addressParts) {
-        doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
-        const addrHeight = doc.heightOfString(addressParts, { width: compWidth })
-        doc.text(addressParts, textX, companyY, { width: compWidth })
-        companyY += addrHeight + 3
-      }
-
-      if (data.settings.companyEmail || data.settings.companyPhone) {
-        const contactLine = [
-          data.settings.companyEmail,
-          data.settings.companyPhone ? `Ph: ${data.settings.companyPhone}` : null,
-        ]
-          .filter(Boolean)
-          .join(' | ')
-        doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
-        const contactHeight = doc.heightOfString(contactLine, { width: compWidth })
-        doc.text(contactLine, textX, companyY, { width: compWidth })
-        companyY += contactHeight + 3
-      }
-
-      if (data.settings.gstin || data.settings.panNumber) {
-        const taxIds = [
-          data.settings.gstin ? `GSTIN: ${data.settings.gstin}` : null,
-          data.settings.panNumber ? `PAN: ${data.settings.panNumber}` : null,
-        ]
-          .filter(Boolean)
-          .join(' | ')
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
-        const taxHeight = doc.heightOfString(taxIds, { width: compWidth })
-        doc.text(taxIds, textX, companyY, { width: compWidth })
-        companyY += taxHeight + 4
-      }
-
-      const finalCompanyY = Math.max(companyY, logoYBottom)
+      doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
+      doc.text(`Date: ${formatInvoiceDate(data.issueDate)}`, rightMetaX, metaY, { width: rightMetaWidth, align: 'right' })
+      metaY += 14
 
       // Divider Line between Header and Bill To
-      const billSectionY = Math.max(finalCompanyY + 14, invY + 10)
-      doc.moveTo(40, billSectionY).lineTo(555, billSectionY).strokeColor(borderColor).stroke()
+      const billSectionY = Math.max(headerTop + 68, metaY)
+      doc.moveTo(40, billSectionY).lineTo(555, billSectionY).strokeColor('#e2e8f0').lineWidth(0.75).stroke()
 
       // ==========================================
-      // 2. BILL TO SECTION
+      // 2. CLIENT INFO & INVOICE TIMELINE (Matching Webview)
       // ==========================================
-      const colWidth = 248
-      const colGap = 19
-      const billY = billSectionY + 12
-      const billBoxHeight = 78
+      const clientTop = billSectionY + 12
 
-      // Bill To Column
-      doc.rect(40, billY, colWidth, billBoxHeight).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BILLED TO', 52, billY + 8)
-      doc.font('Helvetica-Bold').fontSize(10.5).fillColor(darkText).text(data.customer?.companyName || 'Valued Customer', 52, billY + 22, { width: colWidth - 24 })
-      
-      doc.font('Helvetica').fontSize(8.5).fillColor(mutedText)
-      let bLineY = billY + 38
+      // Left Column: Billed To (Clean open layout matching webview)
+      const leftColX = 40
+      const leftColWidth = 280
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#94a3b8').text('BILLED TO', leftColX, clientTop)
+
+      const clientName = data.customer?.companyName || 'Valued Client'
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(darkText).text(clientName, leftColX, clientTop + 12, { width: leftColWidth })
+      const clientNameHeight = doc.heightOfString(clientName, { width: leftColWidth })
+
+      let clientCursorY = clientTop + 12 + clientNameHeight + 2
       if (data.customer?.contactPerson) {
-        doc.text(`Attn: ${data.customer.contactPerson}`, 52, bLineY, { width: colWidth - 24 })
-        bLineY += 12
+        doc.font('Helvetica').fontSize(8).fillColor('#475569').text(`Attn: ${data.customer.contactPerson}`, leftColX, clientCursorY, { width: leftColWidth })
+        clientCursorY += 11
       }
-      const custContact = [data.customer?.email, data.customer?.phone].filter(Boolean).join(' | ')
-      if (custContact) {
-        doc.text(custContact, 52, bLineY, { width: colWidth - 24 })
+      if (data.customer?.email) {
+        doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(data.customer.email, leftColX, clientCursorY, { width: leftColWidth })
+        clientCursorY += 11
       }
-
-      // Address Column
-      const rightBillX = 40 + colWidth + colGap
-      doc.rect(rightBillX, billY, colWidth, billBoxHeight).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BILLING ADDRESS', rightBillX + 12, billY + 8)
-      doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-
-      let addressText = data.customer?.address?.trim()
-      if (!addressText || addressText === 'Registered Office Address') {
-        const clientName = data.customer?.companyName || 'Corporate Client'
-        const region = [data.settings.city, data.settings.state].filter(Boolean).join(', ') || 'Mohali, Punjab'
-        addressText = `${clientName} Corporate Office\nPlot 12, Commercial Hub, ${region}, India`
+      if (data.customer?.phone) {
+        doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(data.customer.phone, leftColX, clientCursorY, { width: leftColWidth })
+        clientCursorY += 11
+      }
+      if (data.customer?.address) {
+        doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text(data.customer.address, leftColX, clientCursorY, { width: leftColWidth, lineGap: 1.5 })
+        clientCursorY += doc.heightOfString(data.customer.address, { width: leftColWidth, lineGap: 1.5 }) + 2
       }
 
-      doc.text(addressText, rightBillX + 12, billY + 22, { width: colWidth - 24, height: 48, lineGap: 1.5 })
+      // Right Column: Invoice Timeline (Matching Webview)
+      const rightTimelineX = 355
+      const rightTimelineWidth = 200
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#94a3b8').text('INVOICE TIMELINE', rightTimelineX, clientTop, { width: rightTimelineWidth, align: 'right' })
+
+      let timeY = clientTop + 14
+      const addTimelineRow = (label: string, val: string) => {
+        doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`${label}:`, rightTimelineX, timeY, { width: 110, align: 'right' })
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(darkText).text(val, rightTimelineX + 115, timeY, { width: 85, align: 'right' })
+        timeY += 13
+      }
+      addTimelineRow('Issue Date', formatInvoiceDate(data.issueDate))
+      addTimelineRow('Due Date', formatInvoiceDate(data.dueDate))
+      addTimelineRow('GST Tax Mode', data.taxType.replace('_', ' '))
+
+      const clientSectionBottom = Math.max(clientCursorY, timeY) + 6
+      doc.moveTo(40, clientSectionBottom).lineTo(555, clientSectionBottom).strokeColor('#f1f5f9').lineWidth(0.75).stroke()
 
       // ==========================================
-      // 3. LINE ITEMS TABLE
+      // 3. LINE ITEMS TABLE (Clean Minimalist Matching Webview)
       // ==========================================
-      const tableTop = billY + billBoxHeight + 14
-      
-      // Table Header Bar
-      doc.rect(40, tableTop, 515, 20).fill(accent)
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff')
-      
-      doc.text('ITEM & DESCRIPTION', 48, tableTop + 5, { width: 215 })
-      doc.text('QTY', 268, tableTop + 5, { width: 35, align: 'center' })
-      doc.text('RATE (Rs.)', 308, tableTop + 5, { width: 68, align: 'right' })
-      doc.text('DISC %', 382, tableTop + 5, { width: 42, align: 'center' })
-      doc.text('TAX %', 428, tableTop + 5, { width: 42, align: 'center' })
-      doc.text('TOTAL (Rs.)', 475, tableTop + 5, { width: 72, align: 'right' })
+      // 3. LINE ITEMS TABLE (Solid Brand Accent Header Bar)
+      // ==========================================
+      const tableTop = clientSectionBottom + 10
+      const tableHeaderHeight = 20
 
-      let itemY = tableTop + 22
+      // Table Header Bar (Original accent background with bold white text)
+      doc.rect(40, tableTop, 515, tableHeaderHeight).fill(accent)
+
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff')
+      doc.text('ITEM & DESCRIPTION', 48, tableTop + 6, { width: 215 })
+      doc.text('QTY', 268, tableTop + 6, { width: 35, align: 'center' })
+      doc.text(`RATE (${pdfCurr.label})`, 308, tableTop + 6, { width: 68, align: 'right' })
+      doc.text('DISC %', 382, tableTop + 6, { width: 42, align: 'center' })
+      doc.text('TAX %', 428, tableTop + 6, { width: 42, align: 'center' })
+      doc.text(`TOTAL (${pdfCurr.label})`, 475, tableTop + 6, { width: 72, align: 'right' })
+
+      let itemY = tableTop + tableHeaderHeight + 1
       data.items.forEach((item, index) => {
-        const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc'
-        
         doc.font('Helvetica-Bold').fontSize(8.5)
-        const nameHeight = doc.heightOfString(item.itemName, { width: 215 })
+        const nameHeight = doc.heightOfString(item.itemName, { width: 195 })
         let descHeight = 0
         if (item.description && item.description.trim()) {
           doc.font('Helvetica').fontSize(7.5)
-          descHeight = doc.heightOfString(item.description.trim(), { width: 215 }) + 1
+          descHeight = doc.heightOfString(item.description.trim(), { width: 195 }) + 1
         }
         const rowHeight = Math.max(26, nameHeight + descHeight + 10)
 
+        // Alternating row background
+        const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc'
         doc.rect(40, itemY, 515, rowHeight).fill(rowBg)
-        doc.moveTo(40, itemY + rowHeight).lineTo(555, itemY + rowHeight).strokeColor(borderColor).stroke()
+        doc.moveTo(40, itemY + rowHeight).lineTo(555, itemY + rowHeight).strokeColor('#e2e8f0').lineWidth(0.75).stroke()
 
-        // Name & Description
+        // Name & Description (with HSN Code)
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
-        doc.text(item.itemName, 48, itemY + 5, { width: 215 })
+        const nameText = item.hsnCode?.trim() ? `${item.itemName} (HSN: ${item.hsnCode.trim()})` : item.itemName
+        doc.text(nameText, 48, itemY + 5, { width: 215 })
         if (item.description && item.description.trim()) {
           doc.font('Helvetica').fontSize(7.5).fillColor(mutedText)
           doc.text(item.description.trim(), 48, itemY + 5 + nameHeight + 1, { width: 215 })
         }
 
         const midY = itemY + 6
-        doc.font('Helvetica').fontSize(8).fillColor(mutedText)
+        doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
         doc.text(item.quantity.toString(), 268, midY, { width: 35, align: 'center' })
         
-        doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-        doc.text(item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 308, midY, {
+        doc.text(item.unitPrice.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 308, midY, {
           width: 68,
           align: 'right',
         })
         
+        doc.font('Helvetica').fontSize(8).fillColor('#64748b')
         doc.text(`${item.discountPercent}%`, 382, midY, { width: 42, align: 'center' })
         doc.text(`${item.taxPercent}%`, 428, midY, { width: 42, align: 'center' })
-        doc.font('Helvetica-Bold').text(item.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 475, midY, {
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(item.lineTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 475, midY, {
           width: 72,
           align: 'right',
         })
@@ -380,141 +491,226 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       })
 
       // ==========================================
-      // 4. TOTALS & BANK / PAYMENT SUMMARY
+      // 4. TOTALS & SUMMARY FOOTER (Exact Webview Match)
       // ==========================================
-      const summaryTop = itemY + 14
+      // Anchor summary & signatory proportionally so they sit comfortably above Terms & Instructions
+      const summaryTop = Math.max(itemY + 16, 495)
 
-      // Left Box: Bank Details & UPI
-      const bankWidth = 265
-      const bankHeight = 118
-      doc.rect(40, summaryTop, bankWidth, bankHeight).fillAndStroke(lightBg, borderColor)
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(accent).text('BANK PAYMENT INSTRUCTIONS', 52, summaryTop + 8)
+      // Left Column: Thank You Note & Space for Signature (Dynamic Note)
+      const leftFootX = 40
+      const leftFootWidth = 240
+      const isCustomNote =
+        Boolean(data.notes &&
+        data.notes.trim().length > 0 &&
+        data.notes.trim() !== 'Thank you for partnering with Vibrantick Infotech Solutions.' &&
+        data.notes.trim() !== 'Thank you and looking forward to a fruitful relationship with our company.')
 
-      let bDetailsY = summaryTop + 24
-      const addBankRow = (label: string, value?: string | null) => {
-        if (!value) return
-        doc.font('Helvetica-Bold').fontSize(8).fillColor(mutedText).text(label, 52, bDetailsY, { width: 85 })
-        doc.font('Helvetica').fontSize(8).fillColor(darkText).text(value, 138, bDetailsY, { width: 160 })
-        bDetailsY += 13
-      }
+      const thankYouNote =
+        (isCustomNote ? data.notes?.trim() : null) ||
+        data.settings.defaultNotes?.trim() ||
+        data.notes?.trim() ||
+        'Thank you and looking forward to a fruitful relationship with our company.'
 
-      addBankRow('Bank Name:', data.settings.bankName || 'State Bank of India')
-      addBankRow('Account No:', data.settings.bankAccountNo || 'XXXXXXXXXXXX')
-      addBankRow('IFSC Code:', data.settings.bankIfsc || 'SBIN000XXXX')
-      addBankRow('Branch:', data.settings.bankBranch || 'Main Branch')
-      if (data.settings.upiId) {
-        addBankRow('UPI ID:', data.settings.upiId)
-      }
-      if (data.settings.whatsappNumber) {
-        addBankRow('WhatsApp Support:', `+91 ${data.settings.whatsappNumber}`)
-      }
+      doc
+        .font('Helvetica-Oblique')
+        .fontSize(8)
+        .fillColor('#475569')
+        .text(thankYouNote, leftFootX, summaryTop, {
+          width: leftFootWidth,
+          lineGap: 2,
+        })
 
-      // Right Box: Totals & Tax Calculations
-      const totX = 325
-      const valX = 445
-      const valWidth = 100
-      let tY = summaryTop + 4
+      const noteHeight = doc.heightOfString(thankYouNote, { width: leftFootWidth, lineGap: 2 })
 
-      const addTotalRow = (label: string, amount: number, isBold = false, isAccent = false) => {
+      // Designated Signature Space (Positioned right above Terms & Instructions)
+      const signY = summaryTop + Math.max(noteHeight + 14, 28)
+      const signLineY = signY + 38
+      doc.dash(3, { space: 3 }).moveTo(leftFootX, signLineY).lineTo(leftFootX + 130, signLineY).strokeColor('#cbd5e1').lineWidth(0.8).stroke().undash()
+      
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(darkText).text('Auth. Signatory', leftFootX, signLineY + 6)
+      doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text('Rakesh Kumar Rai\nFounder & CEO', leftFootX, signLineY + 18)
+      const signBottom = signLineY + 36
+
+      // Right Column: Totals & Tax Calculations
+      const totLabelX = 345
+      const totValX = 445
+      const totValWidth = 110
+      let tY = summaryTop
+
+      const addTotalLine = (label: string, valueStr: string, isBold = false) => {
         doc
           .font(isBold ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(isBold ? 9 : 8.5)
-          .fillColor(isAccent ? accent : isBold ? darkText : mutedText)
-          .text(label, totX, tY, { width: 120 })
+          .fontSize(isBold ? 9.5 : 8.5)
+          .fillColor(isBold ? darkText : '#475569')
+          .text(label, totLabelX, tY, { width: 95 })
 
         doc
           .font(isBold ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(isBold ? 9 : 8.5)
-          .fillColor(isAccent ? accent : darkText)
-          .text(`Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valX, tY, {
-            width: valWidth,
-            align: 'right',
-          })
+          .fontSize(isBold ? 9.5 : 8.5)
+          .fillColor(darkText)
+          .text(valueStr, totValX, tY, { width: totValWidth, align: 'right' })
 
-        tY += 15
+        tY += 13
       }
 
-      addTotalRow('Subtotal (Taxable):', data.subtotal)
-      if (data.totalDiscount > 0) {
-        addTotalRow('Discount:', -data.totalDiscount)
-      }
+      const discPct = data.totalDiscount > 0 && data.subtotal > 0
+        ? ((data.totalDiscount / data.subtotal) * 100).toFixed(2)
+        : '0.00'
+
+      addTotalLine('Sub Total:', `RS. ${data.subtotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}/-`)
+      addTotalLine('Discount:', `${discPct}%`)
 
       if (data.taxType === 'INTER_STATE') {
-        addTotalRow('Integrated GST (IGST):', data.taxAmount)
-      } else if (data.taxType === 'INTRA_STATE') {
-        addTotalRow('Central GST (CGST):', data.taxAmount / 2)
-        addTotalRow('State GST (SGST):', data.taxAmount / 2)
+        addTotalLine('IGST (18%):', `RS. ${data.taxAmount.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}`)
+      } else {
+        const halfTax = data.taxAmount / 2
+        addTotalLine('SGST (9%):', `RS. ${halfTax.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}`)
+        addTotalLine('CGST (9%):', `RS. ${halfTax.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}`)
       }
 
-      doc.moveTo(totX, tY).lineTo(555, tY).strokeColor(borderColor).stroke()
+      // Total Amount line
+      doc.moveTo(totLabelX - 5, tY + 2).lineTo(555, tY + 2).strokeColor('#cbd5e1').lineWidth(0.75).stroke()
       tY += 6
+      addTotalLine('Total Amount:', `RS. ${data.grandTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 })}/-`, true)
+      tY += 3
 
-      // Grand Total Box
-      doc.rect(totX - 10, tY - 4, 240, 26).fill(accent)
-      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text('TOTAL AMOUNT:', totX, tY + 4)
-      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#ffffff').text(
-        `Rs. ${data.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-        valX,
-        tY + 4,
-        { width: valWidth, align: 'right' }
-      )
-      tY += 30
-
-      if (data.amountPaid > 0) {
-        addTotalRow('Amount Paid:', data.amountPaid)
-        addTotalRow('Balance Due:', data.amountDue, true, true)
-      }
-
-      // ==========================================
-      // 5. NOTES, TERMS & SIGNATURE
-      // ==========================================
-      const footerY = Math.max(summaryTop + bankHeight + 18, tY + 16)
-
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text('Terms & Conditions:', 40, footerY)
-
-      const rawTerms =
-        data.terms ||
-        data.settings.defaultTerms ||
-        '• Payment is due within 15 days of invoice date.\n• Please quote the invoice number when making electronic transfer.\n• All disputes are subject to local jurisdiction.'
-
-      const termsList = parseTermsList(rawTerms)
-      let termsY = footerY + 13
-      doc.font('Helvetica').fontSize(7.5).fillColor(darkText)
-
-      termsList.forEach((term) => {
-        const clean = cleanTermClause(term)
-        const lineText = `•   ${clean}`
-        const itemHeight = doc.heightOfString(lineText, { width: 330 })
-        doc.text(lineText, 40, termsY, { width: 330 })
-        termsY += itemHeight + 3
+      // Total Amount In Words (Increased by 20% of previous size)
+      doc.font('Helvetica-Bold').fontSize(10.8).fillColor('#64748b').text('Total Amount In Words:', totLabelX - 50, tY, { width: 260, align: 'right' })
+      tY += 13.5
+      const wordsText = numberToWords(data.grandTotal, data.currency)
+      doc.font('Helvetica-Bold').fontSize(12).fillColor(darkText).text(wordsText, totLabelX - 50, tY, {
+        width: 260,
+        align: 'right',
+        lineGap: 2,
       })
+      const wordsHeight = doc.heightOfString(wordsText, { width: 260, lineGap: 2 })
+      tY += wordsHeight + 4
 
-      const notesY = Math.max(termsY + 6, footerY + 45)
-      if (data.notes) {
-        const noteText = data.notes
-        doc.font('Helvetica').fontSize(7.5)
-        const noteTextHeight = doc.heightOfString(noteText, { width: 320 })
-        const noteBoxHeight = Math.max(24, noteTextHeight + 14)
+      // Status Stamp (Enlarged & Tilted Rubber Stamp Style)
+      const rawStatus = (data.status || 'PAID').toUpperCase()
+      const stampText = rawStatus.replace(/_/g, ' ')
+      
+      let stampColor = '#1d61e7'
+      if (rawStatus === 'PAID') stampColor = '#15803d'
+      else if (rawStatus === 'DRAFT') stampColor = '#64748b'
+      else if (rawStatus === 'OVERDUE' || rawStatus === 'CANCELLED') stampColor = '#dc2626'
+      else if (rawStatus === 'PARTIALLY_PAID') stampColor = '#d97706'
+      else if (rawStatus === 'ISSUED') stampColor = '#1d61e7'
 
-        doc.rect(40, notesY, 340, noteBoxHeight).fillAndStroke('#f8fafc', borderColor)
-        doc.rect(40, notesY, 3, noteBoxHeight).fill(accent)
-        doc.font('Helvetica-Bold').fontSize(7).fillColor(darkText).text('NOTE:', 48, notesY + 3)
-        doc.font('Helvetica').fontSize(7).fillColor(mutedText).text(noteText, 48, notesY + 12, { width: 320 })
+      const stampWidth = stampText.length > 8 ? 124 : 104
+      const stampHeight = 31
+      const stampX = 555 - stampWidth
+      const stampY = tY + 4
+      const centerX = stampX + stampWidth / 2
+      const centerY = stampY + stampHeight / 2
+
+      doc.save()
+      doc.rotate(-9, { origin: [centerX, centerY] })
+      doc.roundedRect(stampX, stampY, stampWidth, stampHeight, 4).lineWidth(2).strokeColor(stampColor).stroke()
+      doc.font('Helvetica-Bold').fontSize(14).fillColor(stampColor).text(stampText, stampX, stampY + 8, {
+        width: stampWidth,
+        align: 'center',
+        lineBreak: false,
+        characterSpacing: 1.5,
+      })
+      doc.restore()
+      tY += stampHeight + 8
+
+      // ==========================================
+      // 5. FOOTER: TERMS & INSTRUCTIONS AND CONTACT (Directly below Auth. Signatory & Totals)
+      // ==========================================
+      // Terms & Instructions sits right below Auth. Signatory and Totals as a unified footer area
+      const sectionTop = Math.max(signBottom + 16, tY + 14)
+
+      // Section Heading: Terms & Instructions (Larger Prominent Size)
+      doc.font('Helvetica-Bold').fontSize(13).fillColor(darkText).text('Terms & Instructions', 40, sectionTop)
+
+      // Clean horizontal divider line right below Terms & Instructions across the page
+      const sectionLineY = sectionTop + 18
+      doc.moveTo(40, sectionLineY).lineTo(555, sectionLineY).strokeColor('#cbd5e1').lineWidth(0.75).stroke()
+
+      // Left Column: Terms & Bank Details (Open layout, fully dynamic)
+      let termLineY = sectionLineY + 7
+      const orderNotice = resolveOrderNotice(data.terms, data.settings.defaultTerms, data.settings.companyName)
+      doc.font('Helvetica').fontSize(8.5).fillColor(darkText).text(orderNotice, 40, termLineY, { width: 310 })
+      termLineY += 12
+
+      doc.font('Helvetica-Bold').fontSize(8.8).fillColor(darkText).text('Payment Details -', 40, termLineY)
+      termLineY += 11
+
+      const addPayDetail = (label: string, val: string) => {
+        doc.font('Helvetica').fontSize(8.2).fillColor(darkText).text(`${label} - ${val}`, 52, termLineY, { width: 298 })
+        termLineY += 10.5
+      }
+      addPayDetail('Name', data.settings.companyName || 'Vibrantick Infotech Solutions')
+      addPayDetail('Acc No.', data.settings.bankAccountNo || '50200012345678')
+      addPayDetail('IFSC Code', data.settings.bankIfsc || 'HDFC0001234')
+      addPayDetail('Bank Name', data.settings.bankName || 'HDFC Bank')
+      addPayDetail('Branch Name', data.settings.bankBranch || 'IT Park Branch')
+
+      // Right Column: Contact Details with Icon Badges (Open layout, fully dynamic)
+      const contactX = 385
+      const textX = contactX + 18
+      let contactLineY = sectionLineY + 7
+
+      // Helper to draw square icon badge
+      const drawIconBox = (boxX: number, boxY: number) => {
+        doc.roundedRect(boxX, boxY, 12, 12, 2).strokeColor('#64748b').lineWidth(0.6).stroke()
       }
 
-      // Authorized Signatory
-      const signX = 395
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(
-        `For ${data.settings.companyName || 'Vibrantick Infotech Solutions'}`,
-        signX,
-        footerY,
-        { width: 160, align: 'center' }
-      )
-      doc.moveTo(signX + 15, footerY + 50).lineTo(signX + 145, footerY + 50).strokeColor(borderColor).stroke()
-      doc.font('Helvetica').fontSize(7.5).fillColor(mutedText).text('Authorized Signatory', signX, footerY + 54, {
-        width: 160,
+      // 1. Phone
+      drawIconBox(contactX, contactLineY - 1)
+      doc.save()
+      doc.lineWidth(1.2).strokeColor('#334155').lineCap('round')
+      doc.moveTo(contactX + 3.5, contactLineY + 2.5).lineTo(contactX + 5, contactLineY + 2.5).lineTo(contactX + 4.5, contactLineY + 4.5).lineTo(contactX + 6.5, contactLineY + 6.5).lineTo(contactX + 8.5, contactLineY + 6).lineTo(contactX + 8.5, contactLineY + 7.5)
+      doc.stroke()
+      doc.restore()
+      doc.font('Helvetica').fontSize(8.2).fillColor(darkText).text(data.settings.companyPhone || '+91 8699792040', textX, contactLineY)
+      contactLineY += 14
+
+      // 2. Mobile
+      drawIconBox(contactX, contactLineY - 1)
+      doc.roundedRect(contactX + 3.5, contactLineY + 1.5, 5, 7.5, 1).strokeColor('#334155').lineWidth(0.8).stroke()
+      doc.moveTo(contactX + 5, contactLineY + 7).lineTo(contactX + 7, contactLineY + 7).strokeColor('#334155').lineWidth(0.5).stroke()
+      doc.font('Helvetica').fontSize(8.2).fillColor(darkText).text(data.settings.whatsappNumber || '8699792040', textX, contactLineY)
+      contactLineY += 14
+
+      // 3. Email
+      drawIconBox(contactX, contactLineY - 1)
+      doc.rect(contactX + 2.5, contactLineY + 2.5, 7.5, 5.5).strokeColor('#334155').lineWidth(0.7).stroke()
+      doc.moveTo(contactX + 2.5, contactLineY + 2.5).lineTo(contactX + 6.2, contactLineY + 5.2).lineTo(contactX + 10, contactLineY + 2.5).strokeColor('#334155').lineWidth(0.7).stroke()
+      doc.font('Helvetica').fontSize(8.2).fillColor(darkText).text(data.settings.companyEmail || 'info@vibrantick.in', textX, contactLineY)
+      contactLineY += 14
+
+      // 4. Address
+      const addrLine = [
+        data.settings.addressLine1 || 'Prosperity Square, Phase 8b',
+        data.settings.city ? (data.settings.city.toLowerCase().includes('sector') ? data.settings.city : `Sector 74, ${data.settings.city}`) : 'Sector 74, Mohali',
+        data.settings.state || 'Punjab',
+      ].filter(Boolean).join(', ')
+      drawIconBox(contactX, contactLineY - 1)
+      doc.circle(contactX + 6, contactLineY + 4, 2).strokeColor('#334155').lineWidth(0.7).stroke()
+      doc.moveTo(contactX + 4.2, contactLineY + 4.8).lineTo(contactX + 6, contactLineY + 8).lineTo(contactX + 7.8, contactLineY + 4.8).strokeColor('#334155').lineWidth(0.7).stroke()
+      doc.font('Helvetica').fontSize(8).fillColor(darkText).text(addrLine, textX, contactLineY, { width: 145, lineGap: 1.5 })
+      const addrH = doc.heightOfString(addrLine, { width: 145, lineGap: 1.5 })
+      contactLineY += addrH + 4
+
+      // ==========================================
+      // 6. TRUE PAGE FOOTER STRIP
+      // ==========================================
+      const footerDividerY = Math.max(termLineY + 8, contactLineY + 8, 770)
+      doc.moveTo(40, footerDividerY).lineTo(555, footerDividerY).strokeColor('#cbd5e1').lineWidth(0.5).stroke()
+
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(darkText).text('www.vibrantick.in', 40, footerDividerY + 4, {
+        width: 515,
         align: 'center',
       })
+      doc.font('Helvetica').fontSize(6.5).fillColor(mutedText).text(
+        'Cyber Security | Web Development | Digital Marketing | Cloud Mgt Services | Mobile Application',
+        40,
+        footerDividerY + 15,
+        { width: 515, align: 'center' }
+      )
 
       doc.end()
     } catch (err) {

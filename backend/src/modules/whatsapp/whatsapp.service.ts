@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.js'
 import { AppError } from '../../common/errors/AppErrors.js'
+import { logAudit } from '../audit/audit.service.js'
 
 export class WhatsAppServiceError extends AppError {
   constructor(message: string, statusCode = 400) {
@@ -127,6 +128,24 @@ export async function updateWhatsAppSettings(input: UpdateWhatsAppSettingsInput)
   const updated = await prisma.whatsAppSetting.update({
     where: { id: existing.id },
     data: dataToUpdate,
+  })
+
+  void logAudit({
+    action: 'UPDATE',
+    entityType: 'WHATSAPP_SETTING',
+    entityId: updated.id,
+    before: {
+      phoneNumberId: existing.phoneNumberId,
+      wabaId: existing.wabaId,
+      templateName: existing.templateName,
+      isEnabled: existing.isEnabled,
+    },
+    after: {
+      phoneNumberId: updated.phoneNumberId,
+      wabaId: updated.wabaId,
+      templateName: updated.templateName,
+      isEnabled: updated.isEnabled,
+    },
   })
 
   return {
