@@ -20,11 +20,14 @@ import {
   Bell,
   CreditCard,
   Receipt,
+  CalendarCheck2,
+  CalendarOff,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { request } from "./api";
 import { ENDPOINTS } from "./endpoints";
 import { getSession } from "./auth";
+import { hasPermission } from "../components/auth/ProtectedRoute";
 import type {
   GlobalSearchResults,
   SearchLeadResult,
@@ -42,41 +45,40 @@ import type {
 
 export const SYSTEM_PAGES: SystemPageItem[] = [
   { name: "Dashboard", path: "/", icon: Home, tags: ["home", "dashboard", "overview", "kpi", "analytics", "stats", "metrics"] },
-  { name: "Leads", path: "/leads", icon: Users, tags: ["leads", "prospects", "pipeline", "inquiries", "sales leads", "new leads", "sources"] },
-  { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock, tags: ["follow-ups", "followups", "scheduled calls", "pipeline follow-up", "reminders", "callbacks", "tasks"] },
-  { name: "Contacts", path: "/contacts", icon: Contact, tags: ["contacts", "people", "clients", "directory", "phonebook", "address book", "emails"] },
-  { name: "Customers", path: "/customers", icon: UserRound, tags: ["customers", "clients", "accounts", "organizations", "buyers", "companies"] },
-  { name: "Customer Proposals", path: "/proposals", icon: FileCheck, tags: ["proposals", "customer proposals", "quotes", "quotations", "pricing", "bids", "estimates", "contracts"] },
-  { name: "Deals & Pipeline", path: "/deals", icon: GitFork, tags: ["deals", "pipeline", "opportunities", "sales", "revenue", "stages", "forecast", "proposals"] },
-  { name: "Daily Calls", path: "/daily-calls", icon: PhoneCall, tags: ["daily calls", "calls", "phone", "telephony", "webphone", "outreach", "dialer", "call logs"] },
-  { name: "Tasks", path: "/tasks", icon: CheckSquare, tags: ["tasks", "todos", "action items", "to-do list", "assignments", "deadlines", "pending"] },
-  { name: "Meetings", path: "/meetings", icon: CalendarDays, tags: ["meetings", "demos", "calls", "calendar", "appointments", "conferences", "schedule"] },
-  { name: "Calendar", path: "/calendar", icon: Calendar, tags: ["calendar", "schedule", "events", "agenda", "month view", "week view", "timetable", "planner"] },
-  { name: "Products & Services", path: "/products-services", icon: Package, tags: ["products", "services", "catalog", "pricing", "inventory", "packages", "offerings", "rate card", "sku"] },
-  { name: "Sales Targets", path: "/targets", icon: Target, tags: ["targets", "goals", "quotas", "sales targets", "revenue quota", "attainment", "performance", "forecast"] },
-  { name: "Reports", path: "/reports", icon: BarChart3, tags: ["reports", "analytics", "charts", "performance", "metrics", "sales reports", "conversion", "trends"] },
-  { name: "Documents", path: "/documents", icon: FileText, tags: ["documents", "files", "contracts", "proposals", "agreements", "attachments", "vault", "docs", "versions"] },
-  { name: "Invoices", path: "/invoices", icon: Receipt, tags: ["invoices", "invoice", "billing", "bill", "tax", "gst", "receipts", "payments", "vibrantick"] },
-  { name: "Expense Management", path: "/expenses", icon: CreditCard, tags: ["expenses", "expense", "finance", "money", "received", "spent", "income", "transactions", "cashflow", "financial"] },
-  { name: "Employee Management", path: "/employees", icon: UserCog, tags: ["users", "team", "members", "staff", "employees", "user management", "employee management", "accounts", "reps", "admin"] },
-  { name: "Permissions", path: "/permissions", icon: ShieldCheck, tags: ["permissions", "roles", "access", "security", "privileges", "rbac", "authorization"] },
-  { name: "Audit Logs", path: "/audit-logs", icon: Shield, tags: ["audit logs", "audit", "system activity", "logs", "security logs", "compliance", "history", "actions", "events"] },
+  { name: "Leads", path: "/leads", icon: Users, tags: ["leads", "prospects", "pipeline", "inquiries", "sales leads", "new leads", "sources"], permission: "leads.view" },
+  { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock, tags: ["follow-ups", "followups", "scheduled calls", "pipeline follow-up", "reminders", "callbacks", "tasks"], permission: ["leads.view", "tasks.view"] },
+  { name: "Contacts", path: "/contacts", icon: Contact, tags: ["contacts", "people", "clients", "directory", "phonebook", "address book", "emails"], permission: "contacts.view" },
+  { name: "Customers", path: "/customers", icon: UserRound, tags: ["customers", "clients", "accounts", "organizations", "buyers", "companies"], permission: ["deals.view", "contacts.view", "leads.view"] },
+  { name: "Customer Proposals", path: "/proposals", icon: FileCheck, tags: ["proposals", "customer proposals", "quotes", "quotations", "pricing", "bids", "estimates", "contracts"], permission: "proposals.view" },
+  { name: "Deals & Pipeline", path: "/deals", icon: GitFork, tags: ["deals", "pipeline", "opportunities", "sales", "revenue", "stages", "forecast", "proposals"], permission: "deals.view" },
+  { name: "Daily Calls", path: "/daily-calls", icon: PhoneCall, tags: ["daily calls", "calls", "phone", "telephony", "webphone", "outreach", "dialer", "call logs"], permission: ["tasks.view", "leads.view"] },
+  { name: "Tasks", path: "/tasks", icon: CheckSquare, tags: ["tasks", "todos", "action items", "to-do list", "assignments", "deadlines", "pending"], permission: "tasks.view" },
+  { name: "Meetings", path: "/meetings", icon: CalendarDays, tags: ["meetings", "demos", "calls", "calendar", "appointments", "conferences", "schedule"], permission: "meetings.view" },
+  { name: "Calendar", path: "/calendar", icon: Calendar, tags: ["calendar", "schedule", "events", "agenda", "month view", "week view", "timetable", "planner"], permission: ["tasks.view", "meetings.view"] },
+  { name: "Products & Services", path: "/products-services", icon: Package, tags: ["products", "services", "catalog", "pricing", "inventory", "packages", "offerings", "rate card", "sku"], permission: "products_services.view" },
+  { name: "Sales Targets", path: "/targets", icon: Target, tags: ["targets", "goals", "quotas", "sales targets", "revenue quota", "attainment", "performance", "forecast"], permission: "targets.view" },
+  { name: "Reports", path: "/reports", icon: BarChart3, tags: ["reports", "analytics", "charts", "performance", "metrics", "sales reports", "conversion", "trends"], permission: "reports.view" },
+  { name: "Documents", path: "/documents", icon: FileText, tags: ["documents", "files", "contracts", "proposals", "agreements", "attachments", "vault", "docs", "versions"], permission: "documents.view" },
+  { name: "Invoices", path: "/invoices", icon: Receipt, tags: ["invoices", "invoice", "billing", "bill", "tax", "gst", "receipts", "payments", "vibrantick"], permission: "invoices.view" },
+  { name: "Expense Management", path: "/expenses", icon: CreditCard, tags: ["expenses", "expense", "finance", "money", "received", "spent", "income", "transactions", "cashflow", "financial"], permission: "expenses.view" },
+  { name: "Attendance", path: "/attendance", icon: CalendarCheck2, tags: ["attendance", "clock in", "check in", "presence", "leaves", "shifts"], permission: "attendance.view" },
+  { name: "Leave Requests", path: "/leaves", icon: CalendarOff, tags: ["leaves", "time off", "vacation", "sick leave", "holiday", "leave balance"], permission: "leave.view" },
+  { name: "Employee Management", path: "/employees", icon: UserCog, tags: ["users", "team", "members", "staff", "employees", "user management", "employee management", "accounts", "reps", "admin"], permission: "users.view" },
+  { name: "Roles & Permissions", path: "/permissions", icon: ShieldCheck, tags: ["permissions", "roles", "access", "security", "privileges", "rbac", "authorization"], permission: ["roles.view", "permissions.view"] },
+  { name: "Audit Logs", path: "/audit-logs", icon: Shield, tags: ["audit logs", "audit", "system activity", "logs", "security logs", "compliance", "history", "actions", "events"], adminOnly: true },
   { name: "Notifications", path: "/notifications", icon: Bell, tags: ["notifications", "alerts", "inbox", "reminders", "unread notifications", "activity feed"] },
-  { name: "Settings", path: "/settings", icon: SettingsIcon, tags: ["settings", "smtp", "email", "mail", "configuration", "email alerts", "admin settings", "server"] },
+  { name: "Settings", path: "/settings", icon: SettingsIcon, tags: ["settings", "smtp", "email", "mail", "configuration", "email alerts", "admin settings", "server"], adminOnly: true },
   { name: "Profile", path: "/profile", icon: UserRound, tags: ["profile", "settings", "account", "my profile", "user settings", "password", "preferences"] },
 ];
 
 export function matchSystemPages(query: string, limit = 6): SystemPageItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const session = getSession();
-  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
 
   return SYSTEM_PAGES.filter(
-    (p) => {
-      if (p.path === "/audit-logs" && !isAdmin) return false;
-      return p.name.toLowerCase().includes(q) || p.tags.some((t) => t.includes(q));
-    }
+    (p) =>
+      hasPermission(p.permission, p.adminOnly) &&
+      (p.name.toLowerCase().includes(q) || p.tags.some((t) => t.includes(q)))
   ).slice(0, limit);
 }
 

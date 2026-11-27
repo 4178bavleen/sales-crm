@@ -471,6 +471,8 @@ export default function Topbar() {
         return <Target size={16} className="text-emerald-600" />;
       case "followup":
         return <PhoneCall size={16} className="text-teal-600" />;
+      case "leave":
+        return <CalendarDays size={16} className="text-amber-600" />;
       default:
         return <Bell size={16} className="text-slate-600" />;
     }

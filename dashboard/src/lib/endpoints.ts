@@ -234,6 +234,10 @@ export const ENDPOINTS = {
     cancel: (id: number) => `/leaves/my/${id}/cancel`,
     list: "/leaves",
     review: (id: number) => `/leaves/${id}/review`,
+    document: (id: number) => `/leaves/${id}/document`,
+    policies: "/leaves/policies",
+    activePolicies: "/leaves/policies/active",
+    policyById: (id: number) => `/leaves/policies/${id}`,
   },
 
 } as const;

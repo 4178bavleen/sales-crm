@@ -9,7 +9,47 @@ export const LEAVE_TYPES = [
   'OTHER',
 ] as const;
 
-export type LeaveType = (typeof LEAVE_TYPES)[number];
+export type LeaveType = (typeof LEAVE_TYPES)[number] | (string & {});
+
+export const LEAVE_ACCRUAL_PERIODS = [
+  'YEARLY',
+  'HALF_YEARLY',
+  'QUARTERLY',
+  'MONTHLY',
+] as const;
+
+export type LeaveAccrualPeriod = (typeof LEAVE_ACCRUAL_PERIODS)[number];
+
+export type LeavePolicy = {
+  id: number;
+  name: string;
+  code: string;
+  quota: number;
+  period: LeaveAccrualPeriod;
+  isPaid: boolean;
+  requiresDocument: boolean;
+  documentDescription?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PolicyStatCard = {
+  id: number;
+  code: string;
+  name: string;
+  quota: number;
+  period: LeaveAccrualPeriod;
+  periodLabel: string;
+  isPaid: boolean;
+  requiresDocument: boolean;
+  documentDescription?: string | null;
+  description?: string | null;
+  usedDays: number;
+  remainingDays: number;
+};
 
 export const LEAVE_STATUSES = [
   'PENDING',
@@ -41,10 +81,14 @@ export type LeaveApprover = {
 export type LeaveRecord = {
   id: number;
   userId: number;
-  leaveType: LeaveType;
+  leaveType: string;
   startDate: string;
   endDate: string;
   reason: string;
+  documentPath?: string | null;
+  documentName?: string | null;
+  documentType?: string | null;
+  rejectionReason?: string | null;
   status: LeaveStatus;
   approvedById: number | null;
   approvedAt: string | null;
@@ -58,25 +102,34 @@ export type LeaveStats = {
   year: number;
   pendingRequests: number;
   totalApprovedDays: number;
-  daysByType: Record<LeaveType, number>;
-  remainingBalance: {
-    CASUAL: number;
-    SICK: number;
-    EARNED: number;
-  };
-  annualQuota: {
-    CASUAL: number;
-    SICK: number;
-    EARNED: number;
-  };
+  daysByType: Record<string, number>;
+  policies?: PolicyStatCard[];
+  remainingBalance: Record<string, number>;
+  annualQuota: Record<string, number>;
 };
 
 export type ApplyLeavePayload = {
-  leaveType: LeaveType;
+  leaveType: string;
   startDate: string;
   endDate: string;
   reason: string;
+  document?: File | null;
 };
+
+export type CreateLeavePolicyPayload = {
+  name: string;
+  code?: string;
+  quota: number;
+  period: LeaveAccrualPeriod;
+  isPaid: boolean;
+  requiresDocument: boolean;
+  documentDescription?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+export type UpdateLeavePolicyPayload = Partial<CreateLeavePolicyPayload>;
 
 export type ReviewLeavePayload = {
   action: 'APPROVE' | 'REJECT';

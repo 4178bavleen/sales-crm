@@ -11,10 +11,19 @@ import {
   RotateCw,
   CalendarCheck2,
   CalendarOff,
+  Calendar,
+  HeartPulse,
+  Palmtree,
   UserCheck,
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
+  Paperclip,
+  Eye,
+  Download,
+  ExternalLink,
+  FileText,
+  Settings2,
 } from "lucide-react";
 import { getSession } from "../../lib/auth";
 import {
@@ -27,6 +36,7 @@ import {
   calculateDaysBetween,
   getLeaveTypeDetails,
   getLeaveStatusBadge,
+  fetchLeaveDocumentBlob,
 } from "../../lib/leaves";
 import {
   LEAVE_TYPES,
@@ -36,7 +46,9 @@ import {
   type LeaveType,
   type LeaveStatus,
 } from "../../types/leave";
+import StatCard from "../../components/ui/StatCard";
 import ApplyLeaveModal from "./ApplyLeaveModal";
+import LeavePolicySettingsModal from "./LeavePolicySettingsModal";
 
 export default function Leaves() {
   const session = getSession();
@@ -67,11 +79,58 @@ export default function Leaves() {
 
   // Modals
   const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
+  const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
   const [rejectModalState, setRejectModalState] = useState<{
     leaveId: number;
     employeeName: string;
   } | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState<string>("");
+
+  // Document Preview Modal State
+  const [previewModalState, setPreviewModalState] = useState<{
+    leaveId: number;
+    leaveType: LeaveType;
+    employeeName: string;
+    documentName: string;
+    documentType?: string | null;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const handleOpenDocument = async (leave: LeaveRecord) => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewModalState({
+      leaveId: leave.id,
+      leaveType: leave.leaveType,
+      employeeName: leave.user?.name || "Employee",
+      documentName: leave.documentName || "document",
+      documentType: leave.documentType,
+    });
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewUrl(null);
+
+    try {
+      const { url } = await fetchLeaveDocumentBlob(leave.id);
+      setPreviewUrl(url);
+    } catch (err: any) {
+      setPreviewError(err?.message || "Failed to load attached document.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleCloseDocument = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewModalState(null);
+    setPreviewUrl(null);
+    setPreviewError(null);
+  };
 
   // Load Leave Stats (Balances)
   const loadStats = useCallback(async () => {
@@ -200,7 +259,7 @@ export default function Leaves() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 w-full pb-16">
       {/* Top Banner & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -220,6 +279,18 @@ export default function Leaves() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {canManageLeaves && (
+            <button
+              type="button"
+              onClick={() => setShowPolicyModal(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition cursor-pointer"
+              title="Configure Leave Categories, Quotas & Accrual Periods"
+            >
+              <Settings2 size={14} className="text-slate-500" />
+              <span>Leave Policies</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -269,115 +340,141 @@ export default function Leaves() {
         </div>
       )}
 
-      {/* Summary Cards: Annual Allowances & Balances */}
+      {/* KPI Cards Row (Global StatCard component with progress visual and no sparkline graph) */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Casual Leave */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-semibold text-slate-700">Casual Leave</span>
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100">
-                CL
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {stats.remainingBalance.CASUAL}
-              </span>
-              <span className="text-xs text-slate-400">
-                / {stats.annualQuota.CASUAL} days left
-              </span>
-            </div>
-            <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full bg-blue-600 rounded-full transition-all"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (stats.remainingBalance.CASUAL / stats.annualQuota.CASUAL) * 100
-                  )}%`,
-                }}
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {stats.policies && stats.policies.length > 0 ? (
+            stats.policies
+              .filter((p) => p.quota > 0 || p.usedDays > 0)
+              .slice(0, 3)
+              .map((policy) => {
+                const color =
+                  policy.code === "SICK"
+                    ? "rose"
+                    : policy.code === "EARNED"
+                    ? "emerald"
+                    : "blue";
+                const icon =
+                  policy.code === "SICK"
+                    ? HeartPulse
+                    : policy.code === "EARNED"
+                    ? Palmtree
+                    : Calendar;
 
-          {/* Sick Leave */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-semibold text-slate-700">Sick Leave</span>
-              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-100">
-                SL
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {stats.remainingBalance.SICK}
-              </span>
-              <span className="text-xs text-slate-400">
-                / {stats.annualQuota.SICK} days left
-              </span>
-            </div>
-            <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full bg-rose-500 rounded-full transition-all"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (stats.remainingBalance.SICK / stats.annualQuota.SICK) * 100
-                  )}%`,
-                }}
-              />
-            </div>
-          </div>
+                const percentUsed = policy.quota > 0 ? Math.min(100, Math.round((policy.usedDays / policy.quota) * 100)) : 0;
+                const barColor =
+                  policy.code === "SICK"
+                    ? "bg-rose-500"
+                    : policy.code === "EARNED"
+                    ? "bg-emerald-500"
+                    : "bg-blue-600";
 
-          {/* Earned Leave */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-semibold text-slate-700">Earned / Privilege</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
-                EL
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {stats.remainingBalance.EARNED}
-              </span>
-              <span className="text-xs text-slate-400">
-                / {stats.annualQuota.EARNED} days left
-              </span>
-            </div>
-            <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full bg-emerald-600 rounded-full transition-all"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (stats.remainingBalance.EARNED / stats.annualQuota.EARNED) * 100
-                  )}%`,
-                }}
+                return (
+                  <StatCard
+                    key={policy.id}
+                    label={policy.name}
+                    value={`${policy.remainingDays} Days Left`}
+                    subtext={
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                          <span>{policy.usedDays} of {policy.quota} used</span>
+                          <span className="font-semibold text-slate-700">{policy.periodLabel}</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                            style={{ width: `${percentUsed}%` }}
+                          />
+                        </div>
+                      </div>
+                    }
+                    icon={icon}
+                    color={color}
+                  />
+                );
+              })
+          ) : (
+            <>
+              <StatCard
+                label="Casual Leave (CL)"
+                value={`${stats.remainingBalance?.CASUAL ?? 12} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.CASUAL ?? 12) - (stats.remainingBalance?.CASUAL ?? 12)} of {stats.annualQuota?.CASUAL ?? 12} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-blue-600 w-1/4" />
+                    </div>
+                  </div>
+                }
+                icon={Calendar}
+                color="blue"
               />
-            </div>
-          </div>
 
-          {/* Pending Applications */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-semibold text-slate-700">Pending Requests</span>
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100">
-                Pending
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-amber-600">
-                {canManageLeaves ? pendingApprovalsCount || stats.pendingRequests : stats.pendingRequests}
-              </span>
-              <span className="text-xs text-slate-400">awaiting approval</span>
-            </div>
-            <p className="mt-2.5 text-[11px] text-slate-500 flex items-center gap-1">
-              <Clock className="h-3 w-3 text-amber-500" />
-              <span>{stats.totalApprovedDays} approved day(s) this year</span>
-            </p>
-          </div>
+              <StatCard
+                label="Sick Leave (SL)"
+                value={`${stats.remainingBalance?.SICK ?? 10} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.SICK ?? 10) - (stats.remainingBalance?.SICK ?? 10)} of {stats.annualQuota?.SICK ?? 10} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-rose-500 w-1/5" />
+                    </div>
+                  </div>
+                }
+                icon={HeartPulse}
+                color="rose"
+              />
+
+              <StatCard
+                label="Earned Leave (EL)"
+                value={`${stats.remainingBalance?.EARNED ?? 15} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.EARNED ?? 15) - (stats.remainingBalance?.EARNED ?? 15)} of {stats.annualQuota?.EARNED ?? 15} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 w-1/6" />
+                    </div>
+                  </div>
+                }
+                icon={Palmtree}
+                color="emerald"
+              />
+            </>
+          )}
+
+          <StatCard
+            label="Approved Days"
+            value={`${stats.totalApprovedDays} Days`}
+            subtext={
+              <div className="text-[11px] text-slate-500 font-medium pt-1">
+                Company time-off taken this year
+              </div>
+            }
+            icon={CheckCircle2}
+            color="sky"
+          />
+
+          <StatCard
+            label={canManageLeaves && activeTab === "approvals" ? "Team Approvals" : "Pending Requests"}
+            value={canManageLeaves ? (pendingApprovalsCount || stats.pendingRequests) : stats.pendingRequests}
+            subtext={
+              <div className="text-[11px] text-amber-700 font-medium pt-1 flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Awaiting review</span>
+              </div>
+            }
+            icon={Clock}
+            color="amber"
+          />
         </div>
       )}
 
@@ -476,11 +573,17 @@ export default function Leaves() {
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-700 font-medium focus:border-blue-500 focus:bg-white focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Categories</option>
-              {LEAVE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {getLeaveTypeDetails(t).label}
-                </option>
-              ))}
+              {stats?.policies && stats.policies.length > 0
+                ? stats.policies.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.name}
+                    </option>
+                  ))
+                : LEAVE_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {getLeaveTypeDetails(t).label}
+                    </option>
+                  ))}
             </select>
 
             {(statusFilter !== "ALL" || typeFilter !== "ALL" || search) && (
@@ -610,13 +713,44 @@ export default function Leaves() {
                         <div className="text-[10px] text-slate-400 mt-0.5">
                           Applied on {formatLeaveDate(leave.createdAt)}
                         </div>
+                        {leave.documentName && (
+                          <div className="mt-1.5 flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDocument(leave)}
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition cursor-pointer ${
+                                leave.leaveType === "SICK"
+                                  ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300"
+                                  : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
+                              }`}
+                              title={`View ${leave.documentName}`}
+                            >
+                              {leave.leaveType === "SICK" ? (
+                                <HeartPulse className="h-3 w-3 text-rose-600" />
+                              ) : (
+                                <Paperclip className="h-3 w-3 text-blue-600" />
+                              )}
+                              <span>
+                                {leave.leaveType === "SICK"
+                                  ? "Prescription"
+                                  : "Attachment"}
+                              </span>
+                              <Eye className="h-3 w-3 ml-0.5 opacity-70" />
+                            </button>
+                          </div>
+                        )}
                       </td>
 
                       {/* Reason */}
-                      <td className="py-3.5 px-4 max-w-xs">
+                      <td className="py-3.5 px-4 max-w-md lg:max-w-xl">
                         <p className="text-slate-700 line-clamp-2 leading-relaxed">
                           {leave.reason}
                         </p>
+                        {leave.rejectionReason && (
+                          <div className="mt-1 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                            Rejection Note: {leave.rejectionReason}
+                          </div>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -660,20 +794,42 @@ export default function Leaves() {
                       {/* Action Buttons */}
                       <td className="py-3.5 px-4 text-right">
                         {activeTab === "my" ? (
-                          isPending ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelLeave(leave.id)}
-                              disabled={isProcessing}
-                              className="text-xs text-rose-600 hover:text-rose-800 font-semibold transition disabled:opacity-50 cursor-pointer"
-                            >
-                              {isProcessing ? "Cancelling..." : "Cancel"}
-                            </button>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )
+                          <div className="flex items-center justify-end gap-2">
+                            {leave.documentName && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocument(leave)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition cursor-pointer"
+                                title="View attached document"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            )}
+                            {isPending ? (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelLeave(leave.id)}
+                                disabled={isProcessing}
+                                className="text-xs text-rose-600 hover:text-rose-800 font-semibold transition disabled:opacity-50 cursor-pointer"
+                              >
+                                {isProcessing ? "Cancelling..." : "Cancel"}
+                              </button>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
                         ) : isPending ? (
                           <div className="flex items-center justify-end gap-2">
+                            {leave.documentName && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocument(leave)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition cursor-pointer"
+                                title="View attached document"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleApprove(leave.id)}
@@ -700,9 +856,21 @@ export default function Leaves() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-[11px] italic">
-                            Reviewed
-                          </span>
+                          <div className="flex items-center justify-end gap-2">
+                            {leave.documentName && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocument(leave)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition cursor-pointer"
+                                title="View attached document"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            )}
+                            <span className="text-slate-400 text-[11px] italic">
+                              Reviewed
+                            </span>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -760,6 +928,18 @@ export default function Leaves() {
         }}
       />
 
+      {/* Leave Policy Settings Modal (Admin / Manager Only) */}
+      {canManageLeaves && (
+        <LeavePolicySettingsModal
+          isOpen={showPolicyModal}
+          onClose={() => setShowPolicyModal(false)}
+          onPoliciesChanged={() => {
+            loadStats();
+            loadRecords();
+          }}
+        />
+      )}
+
       {/* Reject Remarks Modal */}
       {rejectModalState && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
@@ -816,6 +996,165 @@ export default function Leaves() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document / Prescription Preview Modal */}
+      {previewModalState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/70 shrink-0">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+                    previewModalState.leaveType === "SICK"
+                      ? "bg-rose-50 border-rose-100 text-rose-600"
+                      : "bg-blue-50 border-blue-100 text-blue-600"
+                  }`}
+                >
+                  {previewModalState.leaveType === "SICK" ? (
+                    <HeartPulse className="h-5 w-5" />
+                  ) : (
+                    <FileText className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900 truncate max-w-md">
+                      {previewModalState.documentName}
+                    </h3>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                        previewModalState.leaveType === "SICK"
+                          ? "bg-rose-50 border-rose-200 text-rose-700"
+                          : "bg-blue-50 border-blue-200 text-blue-700"
+                      }`}
+                    >
+                      {previewModalState.leaveType === "SICK"
+                        ? "Doctor's Prescription"
+                        : "Supporting Document"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Attached by <span className="font-semibold text-slate-700">{previewModalState.employeeName}</span> for {previewModalState.leaveType.toLowerCase()} leave
+                  </p>
+                </div>
+              </div>
+
+              {/* Header Actions */}
+              <div className="flex items-center gap-2">
+                {previewUrl && (
+                  <>
+                    <a
+                      href={previewUrl}
+                      download={previewModalState.documentName}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs cursor-pointer"
+                      title="Download file to device"
+                    >
+                      <Download size={13} />
+                      <span>Download</span>
+                    </a>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs cursor-pointer"
+                      title="Open document in full new tab"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open in New Tab</span>
+                    </a>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCloseDocument}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Viewer */}
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col items-center justify-center min-h-[350px] bg-slate-50/40">
+              {previewLoading && (
+                <div className="flex flex-col items-center justify-center text-slate-500 py-12">
+                  <RotateCw className="h-8 w-8 animate-spin text-blue-600 mb-3" />
+                  <p className="text-xs font-semibold text-slate-700">Loading document...</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Fetching securely from server</p>
+                </div>
+              )}
+
+              {previewError && (
+                <div className="max-w-md w-full p-6 text-center rounded-2xl bg-white border border-rose-200 shadow-sm">
+                  <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-rose-50 text-rose-600 mb-3">
+                    <AlertCircle className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">Failed to load preview</h4>
+                  <p className="text-xs text-rose-600 mt-1">{previewError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const leave = leaves.find((l) => l.id === previewModalState.leaveId);
+                      if (leave) handleOpenDocument(leave);
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    <RotateCw size={13} />
+                    <span>Try Again</span>
+                  </button>
+                </div>
+              )}
+
+              {!previewLoading && !previewError && previewUrl && (
+                <>
+                  {previewModalState.documentType?.startsWith("image/") ||
+                  /\.(jpe?g|png|webp|gif)$/i.test(previewModalState.documentName) ? (
+                    <div className="flex flex-col items-center max-w-full">
+                      <img
+                        src={previewUrl}
+                        alt={previewModalState.documentName}
+                        className="max-h-[70vh] max-w-full w-auto object-contain rounded-xl shadow-md border border-slate-200 bg-white"
+                      />
+                    </div>
+                  ) : previewModalState.documentType === "application/pdf" ||
+                    /\.pdf$/i.test(previewModalState.documentName) ? (
+                    <div className="w-full h-[70vh] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-full"
+                        title={previewModalState.documentName}
+                      />
+                    </div>
+                  ) : (
+                    <div className="max-w-md w-full p-8 text-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+                      <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-4">
+                        <FileText className="h-7 w-7" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        {previewModalState.documentName}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Direct inline preview is not supported for this file type. You can download or open it directly in a new tab.
+                      </p>
+                      <div className="mt-5 flex items-center justify-center gap-3">
+                        <a
+                          href={previewUrl}
+                          download={previewModalState.documentName}
+                          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition cursor-pointer shadow-xs"
+                        >
+                          <Download size={14} />
+                          <span>Download File</span>
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

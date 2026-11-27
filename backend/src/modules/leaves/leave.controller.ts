@@ -8,6 +8,8 @@ import {
   listLeavesQuerySchema,
   reviewLeaveSchema,
   leaveIdSchema,
+  createLeavePolicySchema,
+  updateLeavePolicySchema,
 } from './leave.validation.js'
 
 function handleError(error: unknown, res: Response, next: NextFunction): void {
@@ -89,13 +91,46 @@ export async function applyLeaveController(
   try {
     const userId = req.user!.id
     const input = applyLeaveSchema.parse(req.body)
-    const leave = await leaveService.applyLeave(userId, input)
+    const docData = req.file
+      ? {
+          path: req.file.path,
+          name: req.file.originalname,
+          mimeType: req.file.mimetype,
+        }
+      : undefined
+
+    const leave = await leaveService.applyLeave(userId, input, docData)
 
     res.status(201).json({
       success: true,
       message: 'Leave application submitted successfully',
       data: { leave },
     })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * GET /api/v1/leaves/:id/document
+ * View or download the attached document/prescription
+ */
+export async function viewLeaveDocumentController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const leaveId = leaveIdSchema.parse(req.params.id)
+    const doc = await leaveService.getLeaveDocument(leaveId, {
+      id: req.user!.id,
+      role: req.user!.role,
+      permissions: req.user!.permissions,
+    })
+
+    res.setHeader('Content-Type', doc.documentType)
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.documentName)}"`)
+    res.sendFile(doc.filePath)
   } catch (error) {
     handleError(error, res, next)
   }
@@ -165,6 +200,113 @@ export async function reviewLeaveController(
       success: true,
       message: `Leave request has been ${result.status.toLowerCase()} successfully`,
       data: { leave: result },
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * GET /api/v1/leaves/policies
+ * Returns all configured leave policies.
+ */
+export async function getLeavePoliciesController(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const policies = await leaveService.getLeavePolicies()
+    res.status(200).json({
+      success: true,
+      data: policies,
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * GET /api/v1/leaves/policies/active
+ * Returns only active leave policies for dropdown selection.
+ */
+export async function getActiveLeavePoliciesController(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const policies = await leaveService.getActiveLeavePolicies()
+    res.status(200).json({
+      success: true,
+      data: policies,
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * POST /api/v1/leaves/policies
+ * Creates a new leave category / policy.
+ */
+export async function createLeavePolicyController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const input = createLeavePolicySchema.parse(req.body)
+    const policy = await leaveService.createLeavePolicy(input)
+    res.status(201).json({
+      success: true,
+      message: 'Leave category policy created successfully',
+      data: policy,
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * PATCH /api/v1/leaves/policies/:id
+ * Updates an existing leave policy.
+ */
+export async function updateLeavePolicyController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const policyId = leaveIdSchema.parse(req.params.id)
+    const input = updateLeavePolicySchema.parse(req.body)
+    const policy = await leaveService.updateLeavePolicy(policyId, input)
+    res.status(200).json({
+      success: true,
+      message: 'Leave category policy updated successfully',
+      data: policy,
+    })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * DELETE /api/v1/leaves/policies/:id
+ * Deletes or deactivates a leave policy.
+ */
+export async function deleteLeavePolicyController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const policyId = leaveIdSchema.parse(req.params.id)
+    const result = await leaveService.deleteLeavePolicy(policyId)
+    res.status(200).json({
+      success: true,
+      message: 'Leave category policy removed successfully',
+      data: result,
     })
   } catch (error) {
     handleError(error, res, next)

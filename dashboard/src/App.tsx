@@ -35,6 +35,7 @@ import InvoiceSettings from "./pages/invoices/InvoiceSettings";
 import FacebookOAuthCallback from "./pages/settings/FacebookOAuthCallback";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import "./App.css";
 
 /** The signed-in workspace: sidebar + topbar wrapped around the routed page. */
@@ -49,55 +50,55 @@ function AppShell() {
         <main className="flex-1 p-4 md:p-6 lg:p-7 print:p-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/proposals" element={<Proposals />} />
-            <Route path="/customer-proposals" element={<Proposals />} />
-            <Route path="/deals" element={<Deals />} />
-            <Route path="/products-services" element={<ProductsServices />} />
-            <Route path="/product-services" element={<ProductsServices />} />
-            <Route path="/product-service" element={<ProductsServices />} />
-            <Route path="/productservices" element={<ProductsServices />} />
-            <Route path="/products" element={<ProductsServices />} />
-            <Route path="/product" element={<ProductsServices />} />
-            <Route path="/services" element={<ProductsServices />} />
-            <Route path="/follow-ups" element={<FollowUps />} />
-            <Route path="/daily-calls" element={<DailyCalls />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/meetings" element={<Meetings />} />
-            <Route path="/targets" element={<Targets />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/leads" element={<ProtectedRoute permission="leads.view"><Leads /></ProtectedRoute>} />
+            <Route path="/contacts" element={<ProtectedRoute permission="contacts.view"><Contacts /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute permission={["deals.view", "contacts.view", "leads.view"]}><Customers /></ProtectedRoute>} />
+            <Route path="/proposals" element={<ProtectedRoute permission="proposals.view"><Proposals /></ProtectedRoute>} />
+            <Route path="/customer-proposals" element={<ProtectedRoute permission="proposals.view"><Proposals /></ProtectedRoute>} />
+            <Route path="/deals" element={<ProtectedRoute permission="deals.view"><Deals /></ProtectedRoute>} />
+            <Route path="/products-services" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/product-services" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/product-service" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/productservices" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/product" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/services" element={<ProtectedRoute permission="products_services.view"><ProductsServices /></ProtectedRoute>} />
+            <Route path="/follow-ups" element={<ProtectedRoute permission={["leads.view", "tasks.view"]}><FollowUps /></ProtectedRoute>} />
+            <Route path="/daily-calls" element={<ProtectedRoute permission={["tasks.view", "leads.view"]}><DailyCalls /></ProtectedRoute>} />
+            <Route path="/tasks" element={<ProtectedRoute permission="tasks.view"><Tasks /></ProtectedRoute>} />
+            <Route path="/meetings" element={<ProtectedRoute permission="meetings.view"><Meetings /></ProtectedRoute>} />
+            <Route path="/targets" element={<ProtectedRoute permission="targets.view"><Targets /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
+            <Route path="/calendar" element={<ProtectedRoute permission={["tasks.view", "meetings.view"]}><Calendar /></ProtectedRoute>} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route path="/audit-logs" element={<AuditLogs />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/employees" element={<Employees />} />
+            <Route path="/audit-logs" element={<ProtectedRoute adminOnly><AuditLogs /></ProtectedRoute>} />
+            <Route path="/documents" element={<ProtectedRoute permission="documents.view"><Documents /></ProtectedRoute>} />
+            <Route path="/employees" element={<ProtectedRoute permission="users.view"><Employees /></ProtectedRoute>} />
             <Route path="/employees/:id" element={<EmployeeDetails />} />
-            <Route path="/employee-management" element={<Employees />} />
-            <Route path="/users" element={<Employees />} />
+            <Route path="/employee-management" element={<ProtectedRoute permission="users.view"><Employees /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute permission="users.view"><Employees /></ProtectedRoute>} />
             <Route path="/users/:id" element={<EmployeeDetails />} />
-            <Route path="/user-management" element={<Employees />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/employee-attendance" element={<Attendance />} />
-            <Route path="/attendance-management" element={<Attendance />} />
-            <Route path="/leaves" element={<Leaves />} />
-            <Route path="/leave-management" element={<Leaves />} />
-            <Route path="/my-leaves" element={<Leaves />} />
-            <Route path="/permissions" element={<RolesAndPermissions />} />
-            <Route path="/roles-permissions" element={<RolesAndPermissions />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/expense" element={<Expenses />} />
-            <Route path="/expense-management" element={<Expenses />} />
-            <Route path="/invoices" element={<InvoicesList />} />
-            <Route path="/invoice" element={<InvoicesList />} />
-            <Route path="/invoices/new" element={<InvoiceForm />} />
-            <Route path="/invoices/settings" element={<InvoiceSettings />} />
-            <Route path="/invoices/:id" element={<InvoiceView />} />
-            <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
-            <Route path="/settings/facebook/callback" element={<FacebookOAuthCallback />} />
+            <Route path="/user-management" element={<ProtectedRoute permission="users.view"><Employees /></ProtectedRoute>} />
+            <Route path="/attendance" element={<ProtectedRoute permission="attendance.view"><Attendance /></ProtectedRoute>} />
+            <Route path="/employee-attendance" element={<ProtectedRoute permission="attendance.view"><Attendance /></ProtectedRoute>} />
+            <Route path="/attendance-management" element={<ProtectedRoute permission="attendance.view"><Attendance /></ProtectedRoute>} />
+            <Route path="/leaves" element={<ProtectedRoute permission="leave.view"><Leaves /></ProtectedRoute>} />
+            <Route path="/leave-management" element={<ProtectedRoute permission="leave.view"><Leaves /></ProtectedRoute>} />
+            <Route path="/my-leaves" element={<ProtectedRoute permission="leave.view"><Leaves /></ProtectedRoute>} />
+            <Route path="/permissions" element={<ProtectedRoute permission={["roles.view", "permissions.view"]}><RolesAndPermissions /></ProtectedRoute>} />
+            <Route path="/roles-permissions" element={<ProtectedRoute permission={["roles.view", "permissions.view"]}><RolesAndPermissions /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute permission="expenses.view"><Expenses /></ProtectedRoute>} />
+            <Route path="/expense" element={<ProtectedRoute permission="expenses.view"><Expenses /></ProtectedRoute>} />
+            <Route path="/expense-management" element={<ProtectedRoute permission="expenses.view"><Expenses /></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute permission="invoices.view"><InvoicesList /></ProtectedRoute>} />
+            <Route path="/invoice" element={<ProtectedRoute permission="invoices.view"><InvoicesList /></ProtectedRoute>} />
+            <Route path="/invoices/new" element={<ProtectedRoute permission={["invoices.create", "invoices.edit"]}><InvoiceForm /></ProtectedRoute>} />
+            <Route path="/invoices/settings" element={<ProtectedRoute adminOnly permission="invoices.settings"><InvoiceSettings /></ProtectedRoute>} />
+            <Route path="/invoices/:id" element={<ProtectedRoute permission="invoices.view"><InvoiceView /></ProtectedRoute>} />
+            <Route path="/invoices/:id/edit" element={<ProtectedRoute permission="invoices.edit"><InvoiceForm /></ProtectedRoute>} />
+            <Route path="/settings/facebook/callback" element={<ProtectedRoute adminOnly><FacebookOAuthCallback /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

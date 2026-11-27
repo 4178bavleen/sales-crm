@@ -118,6 +118,8 @@ export interface SystemPageItem {
   path: string;
   icon: ComponentType<{ size?: number; className?: string }>;
   tags: string[];
+  permission?: string | string[];
+  adminOnly?: boolean;
 }
 
 export interface GlobalSearchResults {
