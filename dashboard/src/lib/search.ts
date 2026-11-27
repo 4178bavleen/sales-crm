@@ -69,10 +69,14 @@ export const SYSTEM_PAGES: SystemPageItem[] = [
 export function matchSystemPages(query: string, limit = 6): SystemPageItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
+  const session = getSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+
   return SYSTEM_PAGES.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q) ||
-      p.tags.some((t) => t.includes(q))
+    (p) => {
+      if (p.path === "/audit-logs" && !isAdmin) return false;
+      return p.name.toLowerCase().includes(q) || p.tags.some((t) => t.includes(q));
+    }
   ).slice(0, limit);
 }
 

@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   List,
   X,
+  Bell,
 } from "lucide-react";
 import type { Priority, Task, TaskFormValues, TaskStatus } from "../../types/task";
 import { TASK_CANCEL_REASONS } from "../../types/task";
@@ -152,6 +153,10 @@ export default function Tasks() {
   const [cancelReasonPreset, setCancelReasonPreset] = useState<string>(TASK_CANCEL_REASONS[0]);
   const [customCancelReason, setCustomCancelReason] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [remindingTask, setRemindingTask] = useState<Task | null>(null);
+  const [remindCustomNote, setRemindCustomNote] = useState<string>("");
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [view, setView] = useState<"list" | "grid">("list");
@@ -590,6 +595,44 @@ export default function Tasks() {
     }
   }
 
+  const userPermissions = getSession()?.user?.permissions || [];
+  const canManageTasks =
+    userPermissions.length === 0 ||
+    userPermissions.includes("tasks.edit") ||
+    userPermissions.includes("tasks.manage");
+
+  async function handleSendManualReminder() {
+    if (!remindingTask) return;
+    const token = getSession()?.token;
+    if (!token) {
+      setApiError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      setIsSendingReminder(true);
+      setApiError(null);
+      await request(ENDPOINTS.tasks.remind(remindingTask.id), {
+        method: "POST",
+        token,
+        body: {
+          customNote: remindCustomNote.trim() || undefined,
+        },
+      });
+
+      setSuccessMessage(
+        `Reminder successfully sent to ${remindingTask.assignedTo || "assignee"} via in-app, email & WhatsApp!`
+      );
+      setTimeout(() => setSuccessMessage(null), 5000);
+      setRemindingTask(null);
+      setRemindCustomNote("");
+    } catch (err) {
+      setApiError(err instanceof ApiError ? err.message : "Failed to send task reminder");
+    } finally {
+      setIsSendingReminder(false);
+    }
+  }
+
   function exportCsv() {
     const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const csv = [
@@ -1022,6 +1065,19 @@ export default function Tasks() {
         </div>
       </div>
 
+      {successMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+          <span className="font-medium">{successMessage}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="font-semibold underline hover:no-underline cursor-pointer text-emerald-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {apiError && (
         <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
           <span>{apiError}</span>
@@ -1060,6 +1116,19 @@ export default function Tasks() {
                 >
                   Edit task
                 </button>
+                {canManageTasks && task.status !== "COMPLETED" && task.status !== "CANCELLED" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRemindingTask(task);
+                      setRemindCustomNote("");
+                    }}
+                    className="w-full rounded px-3 py-2 text-left text-xs font-semibold text-blue-600 hover:bg-blue-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Bell size={13} className="text-blue-600 shrink-0" />
+                    Send reminder
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleComplete(task)}
@@ -1363,6 +1432,96 @@ export default function Tasks() {
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-700 transition disabled:opacity-50 cursor-pointer"
               >
                 {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Manual Reminder Modal */}
+      {remindingTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+          onClick={() => !isSendingReminder && setRemindingTask(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#1d61e7]">
+                  <Bell size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Send Task Reminder</h3>
+                  <p className="text-xs text-slate-500">Nudge assignee with an instant alert</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isSendingReminder}
+                onClick={() => setRemindingTask(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3.5">
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Task:</span>
+                  <span className="font-semibold text-slate-800 truncate max-w-[200px]">{remindingTask.title}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Assignee:</span>
+                  <span className="font-semibold text-slate-900">{remindingTask.assignedTo || "Unassigned"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Due Date:</span>
+                  <span className={`font-semibold ${dueStyles(remindingTask)}`}>{dueLabel(remindingTask)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Custom Note <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={remindCustomNote}
+                  onChange={e => setRemindCustomNote(e.target.value)}
+                  placeholder="e.g., Please complete this before today's 4 PM client sync..."
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400"
+                  autoFocus
+                />
+                <p className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Dispatches in-app bell notification, plus Email & WhatsApp (if configured).
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                disabled={isSendingReminder}
+                onClick={() => setRemindingTask(null)}
+                className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSendingReminder}
+                onClick={handleSendManualReminder}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                <Bell size={13} />
+                {isSendingReminder ? "Sending..." : "Send Reminder Now"}
               </button>
             </div>
           </div>

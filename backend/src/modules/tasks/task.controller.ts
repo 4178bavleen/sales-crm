@@ -7,6 +7,7 @@ import {
   getFollowUpStats,
   getTaskOptions,
   listTasks,
+  sendManualTaskReminder,
   TaskServiceError,
   updateTask,
   updateTaskStatus,
@@ -77,8 +78,12 @@ export async function listTasksController(
     const query = req.query;
 
     const userId = Number(req.user?.id);
-    const userRole = req.user?.role?.toUpperCase();
-    const isAdmin = userRole === 'ADMIN' || userRole === 'SALES_MANAGER';
+    const userPermissions = req.user?.permissions || [];
+    const canManageAllTasks =
+      userPermissions.includes('tasks.edit') ||
+      userPermissions.includes('tasks.manage') ||
+      userPermissions.includes('tasks.delete');
+    const isAdmin = canManageAllTasks;
 
     if (!userId || !Number.isSafeInteger(userId)) {
       res.status(401).json({
@@ -272,8 +277,12 @@ export async function getFollowUpStatsController(
 ) {
   try {
     const userId = Number(req.user?.id);
-    const userRole = req.user?.role?.toUpperCase();
-    const isAdmin = userRole === 'ADMIN' || userRole === 'SALES_MANAGER';
+    const userPermissions = req.user?.permissions || [];
+    const canManageAllTasks =
+      userPermissions.includes('tasks.edit') ||
+      userPermissions.includes('tasks.manage') ||
+      userPermissions.includes('tasks.delete');
+    const isAdmin = canManageAllTasks;
 
     if (!userId || !Number.isSafeInteger(userId)) {
       res.status(401).json({
@@ -288,6 +297,44 @@ export async function getFollowUpStatsController(
     res.json({
       success: true,
       data: stats,
+    });
+  } catch (error) {
+    handleError(error, res, next);
+  }
+}
+
+export async function sendManualTaskReminderController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const taskId = parseId(req.params.id, 'taskId');
+    const userId = Number(req.user?.id);
+
+    if (!userId || !Number.isSafeInteger(userId)) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+      return;
+    }
+
+    const customNote =
+      typeof req.body?.customNote === 'string' && req.body.customNote.trim()
+        ? req.body.customNote.trim()
+        : undefined;
+
+    const result = await sendManualTaskReminder({
+      taskId,
+      senderUserId: userId,
+      customNote,
+    });
+
+    res.json({
+      success: true,
+      message: result.message,
+      data: result,
     });
   } catch (error) {
     handleError(error, res, next);

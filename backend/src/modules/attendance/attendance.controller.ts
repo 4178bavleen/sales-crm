@@ -21,12 +21,7 @@ async function attendanceViewer(
   return {
     id: req.user.id,
     role: req.user.role,
-    canViewAll:
-      permissions.includes('attendance.viewAll') ||
-      permissions.includes('attendance.manage') ||
-      permissions.includes('attendance.create') ||
-      permissions.includes('attendance.edit') ||
-      permissions.includes('attendance.delete'),
+    permissions,
   }
 }
 

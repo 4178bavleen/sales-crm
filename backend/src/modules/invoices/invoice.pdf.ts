@@ -438,21 +438,22 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
       doc.rect(40, tableTop, 515, tableHeaderHeight).fill(accent)
 
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff')
-      doc.text('ITEM & DESCRIPTION', 48, tableTop + 6, { width: 215 })
-      doc.text('QTY', 268, tableTop + 6, { width: 35, align: 'center' })
-      doc.text(`RATE (${pdfCurr.label})`, 308, tableTop + 6, { width: 68, align: 'right' })
-      doc.text('DISC %', 382, tableTop + 6, { width: 42, align: 'center' })
-      doc.text('TAX %', 428, tableTop + 6, { width: 42, align: 'center' })
-      doc.text(`TOTAL (${pdfCurr.label})`, 475, tableTop + 6, { width: 72, align: 'right' })
+      doc.text('ITEM & DESCRIPTION', 48, tableTop + 6, { width: 175 })
+      doc.text('HSN CODE', 228, tableTop + 6, { width: 48, align: 'center' })
+      doc.text('QTY', 280, tableTop + 6, { width: 32, align: 'center' })
+      doc.text(`RATE (${pdfCurr.label})`, 316, tableTop + 6, { width: 60, align: 'right' })
+      doc.text('DISC %', 380, tableTop + 6, { width: 40, align: 'center' })
+      doc.text('TAX %', 424, tableTop + 6, { width: 40, align: 'center' })
+      doc.text(`TOTAL (${pdfCurr.label})`, 468, tableTop + 6, { width: 79, align: 'right' })
 
       let itemY = tableTop + tableHeaderHeight + 1
       data.items.forEach((item, index) => {
         doc.font('Helvetica-Bold').fontSize(8.5)
-        const nameHeight = doc.heightOfString(item.itemName, { width: 195 })
+        const nameHeight = doc.heightOfString(item.itemName, { width: 175 })
         let descHeight = 0
         if (item.description && item.description.trim()) {
           doc.font('Helvetica').fontSize(7.5)
-          descHeight = doc.heightOfString(item.description.trim(), { width: 195 }) + 1
+          descHeight = doc.heightOfString(item.description.trim(), { width: 175 }) + 1
         }
         const rowHeight = Math.max(26, nameHeight + descHeight + 10)
 
@@ -461,29 +462,37 @@ export async function generateInvoicePdfBuffer(data: InvoicePdfData): Promise<Bu
         doc.rect(40, itemY, 515, rowHeight).fill(rowBg)
         doc.moveTo(40, itemY + rowHeight).lineTo(555, itemY + rowHeight).strokeColor('#e2e8f0').lineWidth(0.75).stroke()
 
-        // Name & Description (with HSN Code)
+        // Name & Description
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText)
-        const nameText = item.hsnCode?.trim() ? `${item.itemName} (HSN: ${item.hsnCode.trim()})` : item.itemName
-        doc.text(nameText, 48, itemY + 5, { width: 215 })
+        doc.text(item.itemName, 48, itemY + 5, { width: 175 })
         if (item.description && item.description.trim()) {
           doc.font('Helvetica').fontSize(7.5).fillColor(mutedText)
-          doc.text(item.description.trim(), 48, itemY + 5 + nameHeight + 1, { width: 215 })
+          doc.text(item.description.trim(), 48, itemY + 5 + nameHeight + 1, { width: 175 })
         }
 
         const midY = itemY + 6
+        // HSN CODE
+        doc.font('Helvetica').fontSize(8).fillColor(darkText)
+        doc.text(item.hsnCode?.trim() || '—', 228, midY, { width: 48, align: 'center' })
+
+        // Quantity
         doc.font('Helvetica').fontSize(8.5).fillColor(darkText)
-        doc.text(item.quantity.toString(), 268, midY, { width: 35, align: 'center' })
+        doc.text(item.quantity.toString(), 280, midY, { width: 32, align: 'center' })
         
-        doc.text(item.unitPrice.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 308, midY, {
-          width: 68,
+        // Rate
+        doc.text(item.unitPrice.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 316, midY, {
+          width: 60,
           align: 'right',
         })
         
+        // Discount & Tax
         doc.font('Helvetica').fontSize(8).fillColor('#64748b')
-        doc.text(`${item.discountPercent}%`, 382, midY, { width: 42, align: 'center' })
-        doc.text(`${item.taxPercent}%`, 428, midY, { width: 42, align: 'center' })
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(item.lineTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 475, midY, {
-          width: 72,
+        doc.text(`${item.discountPercent}%`, 380, midY, { width: 40, align: 'center' })
+        doc.text(`${item.taxPercent}%`, 424, midY, { width: 40, align: 'center' })
+
+        // Total
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(darkText).text(item.lineTotal.toLocaleString(pdfCurr.locale, { minimumFractionDigits: 2 }), 468, midY, {
+          width: 79,
           align: 'right',
         })
 

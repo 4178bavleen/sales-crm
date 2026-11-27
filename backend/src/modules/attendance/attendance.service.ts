@@ -21,7 +21,7 @@ export class AttendanceServiceError extends AppError {
 export type AttendanceViewer = {
   id: number
   role: string
-  canViewAll: boolean
+  permissions?: string[]
 }
 
 export type AttendanceSummary = Record<AttendanceStatus, number> & { total: number }
@@ -106,7 +106,17 @@ function buildWhere(
     }
   }
 
-  if (viewer && !viewer.canViewAll) {
+  const permissions = viewer?.permissions ?? []
+  const canViewAll =
+    viewer?.role === 'ADMIN' ||
+    [
+      'attendance.viewAll',
+      'attendance.manage',
+      'attendance.create',
+      'attendance.edit',
+      'attendance.delete',
+    ].some((code) => permissions.includes(code))
+  if (viewer && !canViewAll) {
     where.userId = viewer.id
   }
 
@@ -163,32 +173,31 @@ export async function ensureAttendancePermissions() {
       select: { id: true, code: true },
     })
 
-    const managers = await prisma.role.findMany({
-      where: { name: { in: ['ADMIN', 'SALES_MANAGER'] } },
-      select: { id: true },
+    const allRoles = await prisma.role.findMany({
+      select: { id: true, name: true },
     })
 
-    for (const role of managers) {
-      await prisma.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          roleId: role.id,
-          permissionId: permission.id,
-        })),
-        skipDuplicates: true,
-      })
-    }
+    for (const role of allRoles) {
+      const isManager = role.name === 'ADMIN' || role.name === 'SALES_MANAGER'
+      const rolePermissions = isManager
+        ? permissions
+        : permissions.filter((permission) => permission.code === 'attendance.view')
 
-    const employeeRole = await prisma.role.findUnique({
-      where: { name: 'SALES_EMPLOYEE' },
-      select: { id: true },
-    })
-    const viewPermission = permissions.find((permission) => permission.code === 'attendance.view')
-
-    if (employeeRole && viewPermission) {
-      await prisma.rolePermission.createMany({
-        data: [{ roleId: employeeRole.id, permissionId: viewPermission.id }],
-        skipDuplicates: true,
-      })
+      for (const permission of rolePermissions) {
+        await prisma.rolePermission.upsert({
+          where: {
+            roleId_permissionId: {
+              roleId: role.id,
+              permissionId: permission.id,
+            },
+          },
+          update: {},
+          create: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        })
+      }
     }
   } catch (error) {
     console.error('[AttendanceService] Failed to ensure attendance permissions:', error)
@@ -226,11 +235,22 @@ export async function listAttendance(input: ListAttendanceInput, viewer?: Attend
 }
 
 export async function getAttendanceOptions(viewer?: AttendanceViewer) {
+  const permissions = viewer?.permissions ?? []
+  const canViewAll =
+    viewer?.role === 'ADMIN' ||
+    [
+      'attendance.viewAll',
+      'attendance.manage',
+      'attendance.create',
+      'attendance.edit',
+      'attendance.delete',
+    ].some((code) => permissions.includes(code))
+
   const employees = await prisma.user.findMany({
     where: {
       deletedAt: null,
       isActive: true,
-      ...(viewer && !viewer.canViewAll ? { id: viewer.id } : {}),
+      ...(viewer && !canViewAll ? { id: viewer.id } : {}),
     },
     select: {
       id: true,
@@ -255,7 +275,18 @@ export async function getAttendanceById(id: number, viewer?: AttendanceViewer) {
     throw new AttendanceServiceError('Attendance record not found', 404)
   }
 
-  if (viewer && !viewer.canViewAll && record.userId !== viewer.id) {
+  const permissions = viewer?.permissions ?? []
+  const canViewAll =
+    viewer?.role === 'ADMIN' ||
+    [
+      'attendance.viewAll',
+      'attendance.manage',
+      'attendance.create',
+      'attendance.edit',
+      'attendance.delete',
+    ].some((code) => permissions.includes(code))
+
+  if (viewer && !canViewAll && record.userId !== viewer.id) {
     throw new AttendanceServiceError('You can only view your own attendance', 403)
   }
 

@@ -9,6 +9,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: number;
     role: string;
+    permissions: string[];
   };
 }
 
@@ -47,6 +48,7 @@ export async function authenticateToken(
     req.user = {
       id: user.id,
       role: user.role,
+      permissions: user.permissions,
     };
 
     const ctx = getRequestContext();

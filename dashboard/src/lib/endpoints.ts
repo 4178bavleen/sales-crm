@@ -63,6 +63,7 @@ export const ENDPOINTS = {
     update: (id: number) => `/tasks/${id}`,
     updateStatus: (id: number) => `/tasks/${id}/status`,
     delete: (id: number) => `/tasks/${id}`,
+    remind: (id: number) => `/tasks/${id}/remind`,
   },
 
   activities: {
@@ -224,6 +225,15 @@ export const ENDPOINTS = {
     create: "/attendance",
     update: (id: number) => `/attendance/${id}`,
     delete: (id: number) => `/attendance/${id}`,
+  },
+
+  leaves: {
+    my: "/leaves/my",
+    myStats: "/leaves/my/stats",
+    apply: "/leaves/my",
+    cancel: (id: number) => `/leaves/my/${id}/cancel`,
+    list: "/leaves",
+    review: (id: number) => `/leaves/${id}/review`,
   },
 
 } as const;

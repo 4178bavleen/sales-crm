@@ -1,6 +1,7 @@
 
 import type { ErrorRequestHandler } from 'express'
 import fs from 'fs'
+import path from 'path'
 import { AppError } from '../errors/AppErrors.js'
 
 export const errorMiddleware: ErrorRequestHandler = (
@@ -41,8 +42,10 @@ export const errorMiddleware: ErrorRequestHandler = (
     console.error(`\x1b[31m[${timestamp}] [ERROR ${statusCode}] ${req.method} ${req.originalUrl || req.url}\x1b[0m`)
     console.error(error)
     try {
+      const logPath = path.resolve(process.cwd(), 'logs', 'crm_last_error.log')
+      fs.mkdirSync(path.dirname(logPath), { recursive: true })
       fs.appendFileSync(
-        '/tmp/crm_last_error.log',
+        logPath,
         `\n[${timestamp}] [ERROR ${statusCode}] ${req.method} ${req.originalUrl || req.url}\n${error && (error as any).stack ? (error as any).stack : String(error)}\nPayload: ${JSON.stringify(req.body)}\n`
       )
     } catch (e) {

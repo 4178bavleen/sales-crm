@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   History,
   Shield,
@@ -13,10 +14,34 @@ import {
   Eye,
 } from "lucide-react";
 import { fetchAuditLogs, getActionBadgeClass, formatAuditSummary, type AuditLogItem } from "../../lib/auditLogs";
+import { getSession } from "../../lib/auth";
 import AuditLogDetailDialog from "../../components/ui/AuditLogDetailDialog";
 import StatCard from "../../components/ui/StatCard";
 
 export default function AuditLogs() {
+  const session = getSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 mb-4 border border-rose-100">
+          <Shield className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+        <p className="text-sm text-slate-500 max-w-md mb-6">
+          System audit logs and security trails are restricted to Administrators only.
+        </p>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
+        >
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
   const [loading, setLoading] = useState(true);

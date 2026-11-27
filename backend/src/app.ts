@@ -34,6 +34,7 @@ import facebookWebhookRoutes from './modules/facebook/webhook.routes.js'
 import expenseRoutes from './modules/expenses/expense.routes.js'
 import invoiceRoutes from './modules/invoices/invoice.routes.js'
 import attendanceRoutes from './modules/attendance/attendance.routes.js'
+import leaveRoutes from './modules/leaves/leave.routes.js'
 
 
 const app = express()
@@ -111,6 +112,7 @@ app.use('/api/v1/webhooks/facebook', facebookWebhookRoutes)
 app.use('/api/v1/expenses', expenseRoutes)
 app.use('/api/v1/invoices', invoiceRoutes)
 app.use('/api/v1/attendance', attendanceRoutes)
+app.use('/api/v1/leaves', leaveRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
