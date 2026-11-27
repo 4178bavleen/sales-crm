@@ -20,6 +20,7 @@ import {
   FolderGit2,
   CheckSquare,
   CalendarDays,
+  CalendarCheck2,
   BarChart3,
   Sparkles,
   Plus,
@@ -42,7 +43,6 @@ import {
   fetchPermissions,
   fetchRolePermissions,
   updateRolePermissions,
-  createRole,
   updateRole,
   deleteRole,
   type RoleItem,
@@ -61,6 +61,7 @@ const CATEGORY_ICONS: Record<string, typeof Shield> = {
   deals: FolderGit2,
   tasks: CheckSquare,
   meetings: CalendarDays,
+  attendance: CalendarCheck2,
   targets: Target,
   reports: BarChart3,
   users: UserCheck,
@@ -227,14 +228,6 @@ export default function RolesAndPermissions() {
     type: "success" | "error";
     message: string;
   } | null>(null);
-
-  // Create role dialog state
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
-  const [newRoleDesc, setNewRoleDesc] = useState("");
-  const [copyFromRoleId, setCopyFromRoleId] = useState<number | "none">("none");
-  const [creatingRole, setCreatingRole] = useState(false);
-  const [createError, setCreateError] = useState("");
 
   // Edit role dialog state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -445,45 +438,6 @@ export default function RolesAndPermissions() {
 
   const handleReset = () => {
     setAssignedCodes(originalCodes);
-  };
-
-  const handleCreateRole = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRoleName.trim()) {
-      setCreateError("Role name is required");
-      return;
-    }
-
-    setCreatingRole(true);
-    setCreateError("");
-    try {
-      let initialCodes: string[] = [];
-      if (copyFromRoleId !== "none") {
-        const source = await fetchRolePermissions(copyFromRoleId);
-        initialCodes = source.permissions.map((p) => p.code);
-      }
-
-      const created = await createRole({
-        name: newRoleName.trim(),
-        description: newRoleDesc.trim() || undefined,
-        codes: initialCodes,
-      });
-
-      setRoles((prev) => [...prev, created]);
-      setSelectedRoleId(created.id);
-      setAssignedCodes(initialCodes);
-      setOriginalCodes(initialCodes);
-      setCreateModalOpen(false);
-      setNewRoleName("");
-      setNewRoleDesc("");
-      setCopyFromRoleId("none");
-
-      showToast("success", `Role "${roleLabel(created.name)}" created successfully.`);
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create role.");
-    } finally {
-      setCreatingRole(false);
-    }
   };
 
   const handleOpenEdit = (role: RoleItem, e: React.MouseEvent) => {
@@ -702,17 +656,6 @@ export default function RolesAndPermissions() {
             <span>Refresh</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setCreateError("");
-              setCreateModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Create Role</span>
-          </button>
         </div>
       </div>
 
@@ -769,17 +712,6 @@ export default function RolesAndPermissions() {
                 <h3 className="text-sm font-bold text-slate-900">Access Roles</h3>
                 <p className="text-[11px] text-slate-400">Select a role to inspect or edit permissions</p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateError("");
-                  setCreateModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition cursor-pointer"
-              >
-                <Plus size={13} />
-                <span>New</span>
-              </button>
             </div>
 
             <div className="mt-3 space-y-2">
@@ -1248,7 +1180,7 @@ export default function RolesAndPermissions() {
                         const createPerm = items.find((p) => p.code === `${category}.create`);
                         const editPerm = items.find((p) => p.code === `${category}.edit`);
                         const deletePerm = items.find((p) => p.code === `${category}.delete`);
-                        const specialPerm = items.find(
+                        const specialPerms = items.filter(
                           (p) =>
                             p.code !== `${category}.view` &&
                             p.code !== `${category}.create` &&
@@ -1335,12 +1267,16 @@ export default function RolesAndPermissions() {
 
                             {/* Special (Assign / Manage / etc.) */}
                             <td className="py-3 px-3 text-center">
-                              {specialPerm ? (
-                                <div className="flex flex-col items-center gap-1">
-                                  {renderCell(specialPerm)}
-                                  <span className="text-[9px] font-mono text-slate-400 uppercase tracking-tight">
-                                    {getActionFromCode(specialPerm.code)}
-                                  </span>
+                              {specialPerms.length ? (
+                                <div className="flex flex-wrap items-center justify-center gap-2">
+                                  {specialPerms.map((perm) => (
+                                    <div key={perm.code} className="flex flex-col items-center gap-0.5">
+                                      {renderCell(perm)}
+                                      <span className="text-[9px] font-mono text-slate-400 uppercase tracking-tight">
+                                        {getActionFromCode(perm.code)}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               ) : (
                                 <span className="text-slate-200 select-none font-bold">—</span>
@@ -1541,121 +1477,6 @@ export default function RolesAndPermissions() {
           )}
         </div>
       </div>
-
-      {/* Create Role Modal */}
-      {createModalOpen && (
-        <div
-          className="dialog-overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => !creatingRole && setCreateModalOpen(false)}
-        >
-          <div
-            className="dialog-enter flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <Shield size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Create New Access Role
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Define a new role and baseline permissions
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCreateModalOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRole} className="p-6 space-y-4">
-              {createError && (
-                <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                  <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                  <span>{createError}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Role Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MARKETING_DIRECTOR"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Briefly describe responsibilities and permissions..."
-                  value={newRoleDesc}
-                  onChange={(e) => setNewRoleDesc(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Copy Permissions From Template
-                </label>
-                <select
-                  value={copyFromRoleId}
-                  onChange={(e) =>
-                    setCopyFromRoleId(
-                      e.target.value === "none" ? "none" : Number(e.target.value),
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="none">Start with 0 permissions (Clean slate)</option>
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Clone from {roleLabel(r.name)} ({r._count.permissions} perms)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(false)}
-                  disabled={creatingRole}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingRole}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d61e7] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
-                >
-                  {creatingRole && <Loader2 size={14} className="animate-spin" />}
-                  <span>Create Role</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Edit Role Modal */}
       {editModalOpen && editingRole && (

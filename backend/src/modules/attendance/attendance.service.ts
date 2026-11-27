@@ -21,6 +21,7 @@ export class AttendanceServiceError extends AppError {
 export type AttendanceViewer = {
   id: number
   role: string
+  canViewAll: boolean
 }
 
 export type AttendanceSummary = Record<AttendanceStatus, number> & { total: number }
@@ -105,7 +106,7 @@ function buildWhere(
     }
   }
 
-  if (viewer?.role === 'SALES_EMPLOYEE') {
+  if (viewer && !viewer.canViewAll) {
     where.userId = viewer.id
   }
 
@@ -141,8 +142,12 @@ function isUniqueConstraintError(error: unknown): boolean {
 export async function ensureAttendancePermissions() {
   try {
     const definitions = [
-      ['attendance.view', 'View employee attendance records'],
-      ['attendance.manage', 'Create, edit and delete employee attendance records'],
+      ['attendance.view', 'View own attendance record'],
+      ['attendance.viewAll', 'View attendance records of all employees'],
+      ['attendance.create', 'Create attendance records'],
+      ['attendance.edit', 'Edit attendance records'],
+      ['attendance.delete', 'Delete attendance records'],
+      ['attendance.manage', 'Full attendance management (view, create, edit and delete)'],
     ] as const
 
     for (const [code, description] of definitions) {
@@ -220,9 +225,13 @@ export async function listAttendance(input: ListAttendanceInput, viewer?: Attend
   }
 }
 
-export async function getAttendanceOptions() {
+export async function getAttendanceOptions(viewer?: AttendanceViewer) {
   const employees = await prisma.user.findMany({
-    where: { deletedAt: null, isActive: true },
+    where: {
+      deletedAt: null,
+      isActive: true,
+      ...(viewer && !viewer.canViewAll ? { id: viewer.id } : {}),
+    },
     select: {
       id: true,
       name: true,
@@ -236,7 +245,7 @@ export async function getAttendanceOptions() {
   return { employees }
 }
 
-export async function getAttendanceById(id: number) {
+export async function getAttendanceById(id: number, viewer?: AttendanceViewer) {
   const record = await prisma.attendance.findUnique({
     where: { id },
     select: attendanceSelect,
@@ -244,6 +253,10 @@ export async function getAttendanceById(id: number) {
 
   if (!record) {
     throw new AttendanceServiceError('Attendance record not found', 404)
+  }
+
+  if (viewer && !viewer.canViewAll && record.userId !== viewer.id) {
+    throw new AttendanceServiceError('You can only view your own attendance', 403)
   }
 
   return record

@@ -1,8 +1,9 @@
 import type { Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 import type { AuthenticatedRequest } from '../auth/auth.middleware.js'
+import { getUserPermissions } from '../permission/permission.service.js'
 import * as attendanceService from './attendance.service.js'
-import { AttendanceServiceError } from './attendance.service.js'
+import { AttendanceServiceError, type AttendanceViewer } from './attendance.service.js'
 import {
   bulkAttendanceSchema,
   createAttendanceSchema,
@@ -10,6 +11,24 @@ import {
   listAttendanceSchema,
   attendanceIdSchema,
 } from './attendance.validation.js'
+
+async function attendanceViewer(
+  req: AuthenticatedRequest,
+): Promise<AttendanceViewer | undefined> {
+  if (!req.user) return undefined
+
+  const { permissions } = await getUserPermissions(req.user.id)
+  return {
+    id: req.user.id,
+    role: req.user.role,
+    canViewAll:
+      permissions.includes('attendance.viewAll') ||
+      permissions.includes('attendance.manage') ||
+      permissions.includes('attendance.create') ||
+      permissions.includes('attendance.edit') ||
+      permissions.includes('attendance.delete'),
+  }
+}
 
 function handleError(error: unknown, res: Response, next: NextFunction): void {
   if (error instanceof ZodError) {
@@ -42,7 +61,7 @@ export async function listAttendanceController(
 ): Promise<void> {
   try {
     const input = listAttendanceSchema.parse(req.query)
-    const viewer = req.user ? { id: req.user.id, role: req.user.role } : undefined
+    const viewer = await attendanceViewer(req)
     const result = await attendanceService.listAttendance(input, viewer)
 
     res.status(200).json({
@@ -59,12 +78,12 @@ export async function listAttendanceController(
 }
 
 export async function getAttendanceOptionsController(
-  _req: AuthenticatedRequest,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const options = await attendanceService.getAttendanceOptions()
+    const options = await attendanceService.getAttendanceOptions(await attendanceViewer(req))
     res.status(200).json({
       success: true,
       data: options,
@@ -81,7 +100,7 @@ export async function getAttendanceByIdController(
 ): Promise<void> {
   try {
     const id = attendanceIdSchema.parse(req.params.id)
-    const record = await attendanceService.getAttendanceById(id)
+    const record = await attendanceService.getAttendanceById(id, await attendanceViewer(req))
 
     res.status(200).json({
       success: true,

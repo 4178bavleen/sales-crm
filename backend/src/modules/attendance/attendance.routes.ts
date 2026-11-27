@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authenticateToken } from '../auth/auth.middleware.js'
-import { requirePermission } from '../permission/permission.middleware.js'
+import { requireAnyPermission } from '../permission/permission.middleware.js'
 import {
   listAttendanceController,
   getAttendanceOptionsController,
@@ -17,12 +17,28 @@ void ensureAttendancePermissions()
 const router = Router()
 router.use(authenticateToken)
 
-router.get('/options', requirePermission('attendance.view'), getAttendanceOptionsController)
-router.post('/bulk', requirePermission('attendance.manage'), saveBulkAttendanceController)
-router.get('/:id', requirePermission('attendance.view'), getAttendanceByIdController)
-router.get('/', requirePermission('attendance.view'), listAttendanceController)
-router.post('/', requirePermission('attendance.manage'), createAttendanceController)
-router.patch('/:id', requirePermission('attendance.manage'), updateAttendanceController)
-router.delete('/:id', requirePermission('attendance.manage'), deleteAttendanceController)
+router.get(
+  '/options',
+  requireAnyPermission('attendance.view', 'attendance.viewAll', 'attendance.manage'),
+  getAttendanceOptionsController,
+)
+router.post(
+  '/bulk',
+  requireAnyPermission('attendance.manage', 'attendance.create', 'attendance.edit', 'attendance.delete'),
+  saveBulkAttendanceController,
+)
+router.get(
+  '/:id',
+  requireAnyPermission('attendance.view', 'attendance.viewAll', 'attendance.manage'),
+  getAttendanceByIdController,
+)
+router.get(
+  '/',
+  requireAnyPermission('attendance.view', 'attendance.viewAll', 'attendance.manage'),
+  listAttendanceController,
+)
+router.post('/', requireAnyPermission('attendance.manage', 'attendance.create'), createAttendanceController)
+router.patch('/:id', requireAnyPermission('attendance.manage', 'attendance.edit'), updateAttendanceController)
+router.delete('/:id', requireAnyPermission('attendance.manage', 'attendance.delete'), deleteAttendanceController)
 
 export default router

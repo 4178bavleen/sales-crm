@@ -18,6 +18,7 @@ import {
   Tag,
   ShieldCheck,
   RotateCcw,
+  MailCheck,
 } from 'lucide-react'
 import StatCard from '../../components/ui/StatCard'
 import { useSession } from '../../lib/useSession'
@@ -416,11 +417,9 @@ export default function Proposals() {
   // Status Actions
   const handleMarkSent = async (proposalId: number) => {
     try {
-      await sendProposal(proposalId)
+      const updated = await sendProposal(proposalId)
       loadData(true)
-      if (selectedProposal && selectedProposal.id === proposalId) {
-        setSelectedProposal((prev) => (prev ? { ...prev, status: 'SENT', sentAt: new Date().toISOString() } : null))
-      }
+      setSelectedProposal((prev) => (prev?.id === proposalId ? updated : prev))
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to mark as sent')
     }
@@ -510,6 +509,17 @@ export default function Proposals() {
     }).format(val)
   }
 
+  const formatDateTime = (value?: string | null) =>
+    value
+      ? new Date(value).toLocaleString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : ''
+
   // Status Badge Component
   const renderStatusBadge = (status: ProposalStatus) => {
     switch (status) {
@@ -537,7 +547,7 @@ export default function Proposals() {
       case 'SENT':
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <Send size={11} />
             Sent
           </span>
         )
@@ -896,7 +906,17 @@ export default function Proposals() {
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3">{renderStatusBadge(prop.status)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          {renderStatusBadge(prop.status)}
+                          {prop.sentAt && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600">
+                              <MailCheck size={11} />
+                              Sent {formatDateTime(prop.sentAt)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
                       {/* Valid Until */}
                       <td className="px-4 py-3">
@@ -989,11 +1009,23 @@ export default function Proposals() {
                             <button
                               type="button"
                               title="Send to Customer"
+                              aria-label="Send to Customer"
                               onClick={() => handleMarkSent(prop.id)}
-                              className="rounded-lg p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100 hover:text-blue-800 cursor-pointer"
                             >
                               <Send size={14} />
+                              <span>Send</span>
                             </button>
+                          )}
+
+                          {prop.status !== 'APPROVED' && prop.sentAt && (
+                            <span
+                              title={`Sent to customer on ${formatDateTime(prop.sentAt)}`}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200"
+                            >
+                              <MailCheck size={14} />
+                              <span>Sent</span>
+                            </span>
                           )}
 
                           <button
@@ -1619,6 +1651,16 @@ export default function Proposals() {
                   </>
                 )}
 
+                {selectedProposal.sentAt && (
+                  <span
+                    title={`Sent to customer on ${formatDateTime(selectedProposal.sentAt)}`}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                  >
+                    <MailCheck size={13} />
+                    Sent {formatDateTime(selectedProposal.sentAt)}
+                  </span>
+                )}
+
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -1875,7 +1917,8 @@ export default function Proposals() {
               {/* Admin approval trail */}
               {(selectedProposal.submittedForApprovalAt ||
                 selectedProposal.approvedBy ||
-                selectedProposal.approvalNote) && (
+                selectedProposal.approvalNote ||
+                selectedProposal.sentAt) && (
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 print:border-slate-200 print:bg-transparent">
                   {selectedProposal.status === 'PENDING_APPROVAL' &&
                     selectedProposal.submittedForApprovalAt && (
@@ -1891,6 +1934,12 @@ export default function Proposals() {
                       {selectedProposal.approvedAt
                         ? ` on ${new Date(selectedProposal.approvedAt).toLocaleString()}`
                         : ''}
+                    </p>
+                  )}
+
+                  {selectedProposal.sentAt && (
+                    <p className="mt-1 text-xs font-semibold text-blue-700">
+                      Sent to customer on {formatDateTime(selectedProposal.sentAt)}
                     </p>
                   )}
 

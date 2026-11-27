@@ -124,7 +124,7 @@ const navSections: NavSection[] = [
         aliases: ["/employee-attendance", "/attendance-management"],
       },
       {
-        name: "Roles & Permissions",
+        name: "Permissions",
         path: "/permissions",
         icon: ShieldCheck,
         aliases: ["/roles-permissions"],

@@ -61,6 +61,12 @@ const permissions = [
   ['proposals.delete', 'Delete customer proposals'],
   ['proposals.approve', 'Approve customer proposals before sending'],
   ['proposals.send', 'Send customer proposals'],
+  ['attendance.view', 'View own attendance record'],
+  ['attendance.viewAll', 'View attendance records of all employees'],
+  ['attendance.create', 'Create attendance records'],
+  ['attendance.edit', 'Edit attendance records'],
+  ['attendance.delete', 'Delete attendance records'],
+  ['attendance.manage', 'Full attendance management (view, create, edit and delete)'],
 ]
 
 export async function seedPermissions() {
@@ -130,6 +136,12 @@ export async function seedPermissions() {
             'products_services.view',
             'products_services.create',
             'products_services.edit',
+            'attendance.view',
+            'attendance.viewAll',
+            'attendance.create',
+            'attendance.edit',
+            'attendance.delete',
+            'attendance.manage',
           ],
         },
       },
@@ -166,6 +178,7 @@ export async function seedPermissions() {
             'meetings.create',
             'meetings.edit',
             'products_services.view',
+            'attendance.view',
           ],
         },
       },

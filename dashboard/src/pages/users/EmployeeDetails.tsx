@@ -1,18 +1,62 @@
 ﻿import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Building2, CreditCard, UserRound } from 'lucide-react'
-import type { EmployeeDetailUser } from '../../types/employeeDetail'
+import { ArrowLeft, Building2, Camera, CreditCard, FileText, Loader2, UserRound } from 'lucide-react'
+import type { EmployeeDetailUser, EmployeeProfileDetails } from '../../types/employeeDetail'
 import { fetchEmployeeDetail, saveEmployeeBank, saveEmployeeCompany, saveEmployeePersonal, uploadEmployeeAvatar, uploadEmployeeIdCard } from '../../lib/employeeDetails'
 import { API_URL } from '../../lib/endpoints'
 
 type Tab = 'personal' | 'bank' | 'company'
-const inputCls = 'w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none'
-const labelCls = 'block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5'
+const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 [color-scheme:light]'
+const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700'
+
+type FilePickerProps = {
+  id: string
+  label: string
+  action: string
+  detail: string
+  icon: typeof Camera
+  accept?: string
+  onChange: (file: File) => void
+}
+
+function FilePicker({ id, label, action, detail, icon: Icon, accept, onChange }: FilePickerProps) {
+  return (
+    <div>
+      <label htmlFor={id} className={`${labelCls} cursor-pointer`}>
+        {label}
+      </label>
+      <label
+        htmlFor={id}
+        className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition hover:border-blue-400 hover:bg-blue-50/60 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <Icon size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-blue-600">{action}</span>
+          <span className="block truncate text-xs text-slate-500">{detail}</span>
+        </span>
+      </label>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onChange(file)
+          e.target.value = ''
+        }}
+      />
+    </div>
+  )
+}
+
 
 function fileUrl(path?: string | null) {
   if (!path) return ''
   if (/^https?:\/\//.test(path)) return path
-  const base = API_URL.replace(/\/api\/v1\/?$/, '')
+  const base = (API_URL || '').replace(/\/api\/v1\/?$/, '')
   return `${base}${path.startsWith('/') ? path : `/${path}`}`
 }
 
@@ -26,12 +70,12 @@ export default function EmployeeDetails() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const [personal, setPersonal] = useState<any>({})
-  const [bank, setBank] = useState<any>({})
-  const [company, setCompany] = useState<any>({})
+  const [personal, setPersonal] = useState<Record<string, string>>({})
+  const [bank, setBank] = useState<Record<string, string>>({})
+  const [company, setCompany] = useState<Record<string, string>>({})
 
   const hydrate = (u: EmployeeDetailUser) => {
-    const p = u.employeeProfile || {}
+    const p: EmployeeProfileDetails = u.employeeProfile ?? ({} as EmployeeProfileDetails)
     setUser(u)
     setPersonal({
       fullName: u.name || '', fatherName: p.fatherName || '', mobileNumber: u.phone || '',
@@ -84,10 +128,31 @@ export default function EmployeeDetails() {
 
       {tab === 'personal' && (
         <form onSubmit={(e) => { e.preventDefault(); run(() => saveEmployeePersonal(userId, personal), 'Personal details saved') }} className="rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
-          <div className="flex items-center gap-4">
-            <div className="h-20 w-20 overflow-hidden rounded-full bg-slate-100 border border-slate-200">{personal.avatarPath ? <img src={fileUrl(personal.avatarPath)} alt="avatar" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-slate-400"><UserRound /></div>}</div>
-            <div><label className={labelCls}>Image</label><input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; if (f) await run(() => uploadEmployeeAvatar(userId, f), 'Image uploaded') }} className="text-sm" /></div>
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center">
+            <div className="relative h-24 w-24 shrink-0">
+              <div className="h-full w-full overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-sm ring-1 ring-slate-200">
+                {personal.avatarPath ? (
+                  <img src={fileUrl(personal.avatarPath)} alt="Employee profile" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-slate-400"><UserRound size={32} /></div>
+                )}
+              </div>
+              {saving && <span className="absolute inset-0 flex items-center justify-center rounded-full bg-white/70 text-blue-600"><Loader2 size={20} className="animate-spin" /></span>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="mb-2 text-sm font-semibold text-slate-900">Profile photo</p>
+              <FilePicker
+                id="employee-avatar"
+                label="Image"
+                action={personal.avatarPath ? 'Change photo' : 'Upload photo'}
+                detail={personal.avatarPath ? personal.avatarPath.split('/').pop() || 'Current photo' : 'JPG, PNG or WEBP up to 5 MB'}
+                icon={Camera}
+                accept="image/*"
+                onChange={(file) => run(() => uploadEmployeeAvatar(userId, file), 'Image uploaded')}
+              />
+            </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[['fullName','Full Name'],['fatherName',"Father's Name"],['mobileNumber','Mobile Number'],['emergencyMobileNumber','Emergency Mobile Number'],['email','Email'],['aadharNumber','Aadhar Number'],['panNumber','PAN Number'],['bloodGroup','Blood Group'],['state','State'],['city','City']].map(([k,l]) => (
               <div key={k}><label className={labelCls}>{l}</label><input className={inputCls} value={personal[k] || ''} onChange={(e) => setPersonal({ ...personal, [k]: e.target.value })} /></div>
@@ -117,7 +182,18 @@ export default function EmployeeDetails() {
             <div><label className={labelCls}>Designation / Role</label><input className={inputCls} value={company.designation || ''} onChange={(e) => setCompany({ ...company, designation: e.target.value })} placeholder="e.g. Sales Executive" /></div>
             <div><label className={labelCls}>Joining Date</label><input type="date" className={inputCls} value={company.joiningDate || ''} onChange={(e) => setCompany({ ...company, joiningDate: e.target.value })} /></div>
             <div><label className={labelCls}>Official Mail</label><input className={inputCls} value={company.officialMail || ''} onChange={(e) => setCompany({ ...company, officialMail: e.target.value })} /></div>
-            <div><label className={labelCls}>ID Card</label><input type="file" className="text-sm" onChange={async (e) => { const f = e.target.files?.[0]; if (f) await run(() => uploadEmployeeIdCard(userId, f), 'ID card uploaded') }} />{company.idCardPath && <a href={fileUrl(company.idCardPath)} target="_blank" className="mt-1 block text-xs text-blue-600 underline">{company.idCardName || 'View ID Card'}</a>}</div>
+            <div>
+              <FilePicker
+                id="employee-id-card"
+                label="ID Card"
+                action={company.idCardPath ? 'Replace ID card' : 'Upload ID card'}
+                detail={company.idCardPath ? 'ID card uploaded' : 'PDF, JPG or PNG up to 5 MB'}
+                icon={FileText}
+                onChange={(file) => run(() => uploadEmployeeIdCard(userId, file), 'ID card uploaded')}
+              />
+              {company.idCardPath && <a href={fileUrl(company.idCardPath)} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-medium text-blue-600 hover:underline">{company.idCardName || 'View ID Card'}</a>}
+            </div>
+
             <div><label className={labelCls}>Laptop / Mobile</label><input className={inputCls} value={company.laptopOrMobile || ''} onChange={(e) => setCompany({ ...company, laptopOrMobile: e.target.value })} /></div>
             <div><label className={labelCls}>Employment Type</label><select className={inputCls} value={company.employmentType || 'FULL_TIME'} onChange={(e) => setCompany({ ...company, employmentType: e.target.value })}><option value="FULL_TIME">Full Time</option><option value="PART_TIME">Part Time</option><option value="CONTRACT">Contract</option><option value="INTERN">Intern</option></select></div>
             <div><label className={labelCls}>Employment Status</label><select className={inputCls} value={company.employmentStatus || 'ACTIVE'} onChange={(e) => setCompany({ ...company, employmentStatus: e.target.value })}><option value="ACTIVE">Active</option><option value="PROBATION">Probation</option><option value="ON_LEAVE">On Leave</option><option value="NOTICE_PERIOD">Notice Period</option><option value="RESIGNED">Resigned</option><option value="TERMINATED">Terminated</option><option value="INACTIVE">Inactive</option></select></div>

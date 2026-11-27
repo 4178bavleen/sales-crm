@@ -25,6 +25,7 @@ import {
   saveBulkAttendance,
   todayInputValue,
 } from "../../lib/attendance";
+import { fetchMyPermissions } from "../../lib/permissions";
 
 const STATUS_BUTTONS = [
   {
@@ -112,6 +113,31 @@ export default function Attendance() {
   const [dirty, setDirty] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [canWrite, setCanWrite] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchMyPermissions()
+      .then((perms) => {
+        if (!active) return;
+        setCanWrite(
+          perms.permissions.some((code) =>
+            [
+              "attendance.manage",
+              "attendance.create",
+              "attendance.edit",
+              "attendance.delete",
+            ].includes(code),
+          ),
+        );
+      })
+      .catch(() => {
+        if (active) setCanWrite(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -246,7 +272,9 @@ export default function Attendance() {
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Attendance</h1>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             {activeTab === "register"
-              ? "Mark attendance employee-by-employee, like a classroom register."
+              ? canWrite
+                ? "Mark attendance employee-by-employee, like a classroom register."
+                : "View your attendance record for the selected date."
               : "Review and export saved attendance records."}
           </p>
         </div>
@@ -260,24 +288,28 @@ export default function Attendance() {
               <Printer size={15} />
               Print
             </button>
-            <button
-              type="button"
-              onClick={markAllPresent}
-              disabled={!employees.length || saving}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-            >
-              <Check size={15} />
-              Mark All Present
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!dirty || saving}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d61e7] px-4 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-50 lg:flex-none"
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              Save
-            </button>
+            {canWrite && (
+              <>
+                <button
+                  type="button"
+                  onClick={markAllPresent}
+                  disabled={!employees.length || saving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                >
+                  <Check size={15} />
+                  Mark All Present
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!dirty || saving}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d61e7] px-4 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-50 lg:flex-none"
+                >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -404,15 +436,17 @@ export default function Attendance() {
               ))}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={clearRegister}
-            disabled={!dirty || saving}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            <Eraser size={14} />
-            Clear Marks
-          </button>
+          {canWrite && (
+            <button
+              type="button"
+              onClick={clearRegister}
+              disabled={!dirty || saving}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              <Eraser size={14} />
+              Clear Marks
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -476,10 +510,11 @@ export default function Attendance() {
                             <button
                               type="button"
                               onClick={() => toggleStatus(employee.id, button.status)}
+                              disabled={!canWrite}
                               title={button.label}
                               aria-label={`${button.label} for ${employee.name}`}
                               aria-pressed={selected}
-                              className={`h-8 w-9 rounded-lg border text-[11px] font-bold transition ${
+                              className={`h-8 w-9 rounded-lg border text-[11px] font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                                 selected
                                   ? `${button.selected} shadow-md`
                                   : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-600"
@@ -494,7 +529,7 @@ export default function Attendance() {
                         <input
                           type="time"
                           value={entry.checkIn}
-                          disabled={timesDisabled}
+                          disabled={!canWrite || timesDisabled}
                           onChange={(event) => updateEntry(employee.id, { checkIn: event.target.value })}
                           className="w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] text-slate-700 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-300"
                         />
@@ -503,7 +538,7 @@ export default function Attendance() {
                         <input
                           type="time"
                           value={entry.checkOut}
-                          disabled={timesDisabled}
+                          disabled={!canWrite || timesDisabled}
                           onChange={(event) => updateEntry(employee.id, { checkOut: event.target.value })}
                           className="w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] text-slate-700 outline-none transition focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-300"
                         />
@@ -512,9 +547,10 @@ export default function Attendance() {
                         <input
                           type="text"
                           value={entry.notes}
+                          disabled={!canWrite}
                           onChange={(event) => updateEntry(employee.id, { notes: event.target.value })}
                           placeholder="Remarks"
-                          className="w-40 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-100"
+                          className="w-40 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-[#1d61e7] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
                         />
                       </td>
                     </tr>

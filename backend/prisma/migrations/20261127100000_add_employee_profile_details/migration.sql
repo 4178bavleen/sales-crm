@@ -1,4 +1,4 @@
-﻿DO $$ BEGIN
+DO $$ BEGIN
     CREATE TYPE "EmploymentStatus" AS ENUM ('ACTIVE', 'PROBATION', 'ON_LEAVE', 'NOTICE_PERIOD', 'RESIGNED', 'TERMINATED', 'INACTIVE');
 EXCEPTION
     WHEN duplicate_object THEN null;
