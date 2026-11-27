@@ -1,6 +1,6 @@
 import { getSession } from "./auth";
-import { request } from "./api";
-import { ENDPOINTS } from "./endpoints";
+import { request, ApiError } from "./api";
+import { ENDPOINTS, apiUrl } from "./endpoints";
 import type {
   LeaveRecord,
   LeaveStats,
@@ -49,12 +49,74 @@ export async function fetchMyLeaveStats(year?: number): Promise<LeaveStats> {
 }
 
 export async function applyLeave(payload: ApplyLeavePayload): Promise<LeaveRecord> {
+  if (payload.document) {
+    const formData = new FormData();
+    formData.append("leaveType", payload.leaveType);
+    formData.append("startDate", payload.startDate);
+    formData.append("endDate", payload.endDate);
+    formData.append("reason", payload.reason);
+    formData.append("document", payload.document);
+
+    const token = authToken();
+    const res = await fetch(apiUrl(ENDPOINTS.leaves.apply), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const text = await res.text();
+    let body: any = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = null;
+    }
+
+    if (!res.ok) {
+      const msg = body?.message || "Failed to submit leave application";
+      throw new ApiError(msg, res.status);
+    }
+
+    return body?.data?.leave || body?.leave || body;
+  }
+
   const res = await request<{ leave: LeaveRecord }>(ENDPOINTS.leaves.apply, {
     method: "POST",
-    body: payload,
+    body: {
+      leaveType: payload.leaveType,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      reason: payload.reason,
+    },
     token: authToken(),
   });
   return res.leave;
+}
+
+export function getLeaveDocumentEndpoint(id: number): string {
+  return apiUrl(ENDPOINTS.leaves.document(id));
+}
+
+export async function fetchLeaveDocumentBlob(
+  id: number
+): Promise<{ blob: Blob; url: string; mimeType: string }> {
+  const token = authToken();
+  const res = await fetch(apiUrl(ENDPOINTS.leaves.document(id)), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new ApiError("Failed to fetch attached leave document", res.status);
+  }
+
+  const mimeType = res.headers.get("content-type") || "application/octet-stream";
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  return { blob, url, mimeType };
 }
 
 export async function cancelMyLeave(id: number): Promise<LeaveRecord> {

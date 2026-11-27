@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   CalendarDays,
   X,
@@ -7,6 +7,12 @@ import {
   RotateCw,
   Send,
   Info,
+  Paperclip,
+  UploadCloud,
+  FileText,
+  HeartPulse,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import {
   LEAVE_TYPES,
@@ -36,12 +42,46 @@ export default function ApplyLeaveModal({
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
   const [reason, setReason] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
 
+  const isSickLeave = leaveType === "SICK";
   const daysCount = calculateDaysBetween(startDate, endDate);
+
+  const handleFileChange = (incomingFile: File | null) => {
+    if (!incomingFile) return;
+
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/jpg",
+    ];
+    if (!allowedTypes.includes(incomingFile.type)) {
+      setError("Only PDF, JPG, PNG, and WEBP files are allowed.");
+      return;
+    }
+
+    if (incomingFile.size > 10 * 1024 * 1024) {
+      setError("Attachment size exceeds 10MB limit.");
+      return;
+    }
+
+    setError(null);
+    setFile(incomingFile);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +109,7 @@ export default function ApplyLeaveModal({
         startDate,
         endDate,
         reason: reason.trim(),
+        document: file,
       };
       const created = await applyLeave(payload);
       onSuccess(created);
@@ -82,7 +123,7 @@ export default function ApplyLeaveModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-8">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4.5 bg-slate-50/50">
           <div className="flex items-center gap-2.5">
@@ -116,7 +157,7 @@ export default function ApplyLeaveModal({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4.5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Leave Type Selector */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -201,13 +242,115 @@ export default function ApplyLeaveModal({
               Reason / Remarks <span className="text-rose-500">*</span>
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Briefly describe the reason for your leave request..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.5 text-xs text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition"
               required
             />
+          </div>
+
+          {/* Document / Medical Prescription Upload */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                {isSickLeave ? (
+                  <>
+                    <HeartPulse className="h-3.5 w-3.5 text-rose-500" />
+                    <span>Doctor&apos;s Prescription / Medical Slip</span>
+                  </>
+                ) : (
+                  <>
+                    <Paperclip className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Supporting Document (Optional)</span>
+                  </>
+                )}
+              </label>
+              {isSickLeave && (
+                <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                  Recommended for Sick Leave
+                </span>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+
+            {!file ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  handleFileChange(e.dataTransfer.files?.[0] || null);
+                }}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed transition cursor-pointer text-center ${
+                  isDragging
+                    ? "border-blue-500 bg-blue-50/50"
+                    : isSickLeave
+                    ? "border-rose-200/80 bg-rose-50/30 hover:bg-rose-50/60"
+                    : "border-slate-200 bg-slate-50/40 hover:bg-slate-50/80"
+                }`}
+              >
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl mb-2 ${
+                    isSickLeave
+                      ? "bg-rose-100 text-rose-600"
+                      : "bg-blue-50 text-blue-600"
+                  }`}
+                >
+                  <UploadCloud className="h-5 w-5" />
+                </div>
+                <div className="text-xs font-semibold text-slate-800">
+                  {isSickLeave
+                    ? "Upload prescription or doctor's note"
+                    : "Upload supporting document"}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Click to browse or drag & drop (PDF, PNG, JPG up to 10MB)
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 rounded-xl border border-blue-200 bg-blue-50/50">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="overflow-hidden text-left">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 truncate">
+                      <span className="truncate">{file.name}</span>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      {formatFileSize(file.size)}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                  title="Remove attachment"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-start gap-2 rounded-xl bg-blue-50/60 p-3 text-[11px] text-blue-700 border border-blue-100">

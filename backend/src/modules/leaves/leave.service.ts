@@ -1,3 +1,4 @@
+import fs from 'fs'
 import { prisma } from '../../config/database.js'
 import { AppError } from '../../common/errors/AppErrors.js'
 import { logAudit } from '../audit/audit.service.js'
@@ -17,6 +18,12 @@ export class LeaveServiceError extends AppError {
   }
 }
 
+export interface LeaveDocumentData {
+  path: string
+  name: string
+  mimeType: string
+}
+
 const leaveSelect = {
   id: true,
   userId: true,
@@ -24,6 +31,10 @@ const leaveSelect = {
   startDate: true,
   endDate: true,
   reason: true,
+  documentPath: true,
+  documentName: true,
+  documentType: true,
+  rejectionReason: true,
   status: true,
   approvedById: true,
   approvedAt: true,
@@ -116,8 +127,13 @@ export async function ensureLeavePermissions(): Promise<void> {
         })
       }
 
-      // ADMIN role gets leave.manage by default
-      if (role.name === 'ADMIN' && managePermission) {
+      // ADMIN and MANAGER roles get leave.manage by default
+      const roleNameUpper = role.name.toUpperCase()
+      const isManagementRole =
+        ['ADMIN', 'MANAGER', 'HR_MANAGER', 'SUPER_ADMIN'].includes(roleNameUpper) ||
+        roleNameUpper.includes('MANAGER')
+
+      if (isManagementRole && managePermission) {
         await prisma.rolePermission.upsert({
           where: {
             roleId_permissionId: {
@@ -141,7 +157,11 @@ export async function ensureLeavePermissions(): Promise<void> {
 /**
  * Submits a new leave application for the current user.
  */
-export async function applyLeave(userId: number, input: ApplyLeaveInput) {
+export async function applyLeave(
+  userId: number,
+  input: ApplyLeaveInput,
+  document?: LeaveDocumentData
+) {
   const user = await prisma.user.findFirst({
     where: { id: userId, deletedAt: null, isActive: true },
     select: { id: true, name: true, email: true },
@@ -186,6 +206,9 @@ export async function applyLeave(userId: number, input: ApplyLeaveInput) {
       endDate,
       reason: input.reason.trim(),
       status: 'PENDING',
+      documentPath: document?.path || null,
+      documentName: document?.name || null,
+      documentType: document?.mimeType || null,
     },
     select: leaveSelect,
   })
@@ -206,27 +229,40 @@ export async function applyLeave(userId: number, input: ApplyLeaveInput) {
 
   // Notify Managers / Admins
   try {
+    const employeeWithManager = await prisma.employeeProfile.findUnique({
+      where: { userId },
+      select: { managerId: true },
+    })
+
     const managers = await prisma.user.findMany({
       where: {
+        id: { not: userId }, // Don't notify the applicant themself
         deletedAt: null,
         isActive: true,
-        role: {
-          OR: [
-            { name: 'ADMIN' },
-            { rolePermissions: { some: { permission: { code: 'leave.manage' } } } },
-          ],
-        },
+        OR: [
+          {
+            role: {
+              OR: [
+                { name: { in: ['ADMIN', 'MANAGER', 'HR_MANAGER'], mode: 'insensitive' } },
+                { name: { contains: 'MANAGER', mode: 'insensitive' } },
+                { rolePermissions: { some: { permission: { code: 'leave.manage' } } } },
+              ],
+            },
+          },
+          ...(employeeWithManager?.managerId ? [{ id: employeeWithManager.managerId }] : []),
+        ],
       },
       select: { id: true },
     })
 
     if (managers.length > 0) {
+      const recipientIds = Array.from(new Set(managers.map((m) => m.id)))
       await prisma.notification.createMany({
-        data: managers.map((m) => ({
-          userId: m.id,
+        data: recipientIds.map((mId) => ({
+          userId: mId,
           type: 'LEAVE_REQUESTED',
           title: `New Leave Request from ${user.name}`,
-          body: `${user.name} applied for ${input.leaveType} leave from ${input.startDate} to ${input.endDate}.`,
+          body: `${user.name} applied for ${input.leaveType} leave from ${input.startDate} to ${input.endDate}.${document ? ' (Supporting document attached)' : ''}`,
           entityType: 'LEAVE_REQUEST',
           entityId: leave.id,
         })),
@@ -473,6 +509,7 @@ export async function reviewLeave(
         approvedById: adminId,
         approvedAt: new Date(),
         reason: reasonWithRemarks,
+        rejectionReason: newStatus === 'REJECTED' ? (input.remarks || 'Rejected by reviewer') : null,
       },
       select: leaveSelect,
     })
@@ -531,4 +568,50 @@ export async function reviewLeave(
   }
 
   return updated
+}
+
+/**
+ * Retrieves the document file path and metadata for a leave request.
+ * Authorizes the leave owner, admin, or users with leave.manage permission.
+ */
+export async function getLeaveDocument(
+  leaveId: number,
+  viewer: { id: number; role?: string; permissions?: string[] }
+) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: leaveId },
+    select: {
+      id: true,
+      userId: true,
+      documentPath: true,
+      documentName: true,
+      documentType: true,
+    },
+  })
+
+  if (!leave) {
+    throw new LeaveServiceError('Leave request not found', 404)
+  }
+
+  const isOwner = leave.userId === viewer.id
+  const isAdmin = viewer.role?.toUpperCase() === 'ADMIN'
+  const canManage = Boolean(viewer.permissions?.includes('leave.manage'))
+
+  if (!isOwner && !isAdmin && !canManage) {
+    throw new LeaveServiceError('You do not have permission to view this document', 403)
+  }
+
+  if (!leave.documentPath) {
+    throw new LeaveServiceError('No document attached to this leave request', 404)
+  }
+
+  if (!fs.existsSync(leave.documentPath)) {
+    throw new LeaveServiceError('Attached document file was not found on server', 404)
+  }
+
+  return {
+    filePath: leave.documentPath,
+    documentName: leave.documentName || 'leave-document',
+    documentType: leave.documentType || 'application/octet-stream',
+  }
 }

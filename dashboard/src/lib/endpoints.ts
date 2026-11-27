@@ -234,6 +234,7 @@ export const ENDPOINTS = {
     cancel: (id: number) => `/leaves/my/${id}/cancel`,
     list: "/leaves",
     review: (id: number) => `/leaves/${id}/review`,
+    document: (id: number) => `/leaves/${id}/document`,
   },
 
 } as const;

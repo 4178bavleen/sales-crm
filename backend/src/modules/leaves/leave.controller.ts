@@ -89,13 +89,46 @@ export async function applyLeaveController(
   try {
     const userId = req.user!.id
     const input = applyLeaveSchema.parse(req.body)
-    const leave = await leaveService.applyLeave(userId, input)
+    const docData = req.file
+      ? {
+          path: req.file.path,
+          name: req.file.originalname,
+          mimeType: req.file.mimetype,
+        }
+      : undefined
+
+    const leave = await leaveService.applyLeave(userId, input, docData)
 
     res.status(201).json({
       success: true,
       message: 'Leave application submitted successfully',
       data: { leave },
     })
+  } catch (error) {
+    handleError(error, res, next)
+  }
+}
+
+/**
+ * GET /api/v1/leaves/:id/document
+ * View or download the attached document/prescription
+ */
+export async function viewLeaveDocumentController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const leaveId = leaveIdSchema.parse(req.params.id)
+    const doc = await leaveService.getLeaveDocument(leaveId, {
+      id: req.user!.id,
+      role: req.user!.role,
+      permissions: req.user!.permissions,
+    })
+
+    res.setHeader('Content-Type', doc.documentType)
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.documentName)}"`)
+    res.sendFile(doc.filePath)
   } catch (error) {
     handleError(error, res, next)
   }

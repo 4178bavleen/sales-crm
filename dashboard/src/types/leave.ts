@@ -45,6 +45,10 @@ export type LeaveRecord = {
   startDate: string;
   endDate: string;
   reason: string;
+  documentPath?: string | null;
+  documentName?: string | null;
+  documentType?: string | null;
+  rejectionReason?: string | null;
   status: LeaveStatus;
   approvedById: number | null;
   approvedAt: string | null;
@@ -76,6 +80,7 @@ export type ApplyLeavePayload = {
   startDate: string;
   endDate: string;
   reason: string;
+  document?: File | null;
 };
 
 export type ReviewLeavePayload = {

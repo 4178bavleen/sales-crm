@@ -416,17 +416,21 @@ model Attendance {
 }
 
 model LeaveRequest {
-  id           Int         @id @default(autoincrement())
-  userId       Int
-  leaveType    LeaveType
-  startDate    DateTime    @db.Date
-  endDate      DateTime    @db.Date
-  reason       String?
-  status       LeaveStatus @default(PENDING)
-  approvedById Int?
-  approvedAt   DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  leaveType       LeaveType
+  startDate       DateTime    @db.Date
+  endDate         DateTime    @db.Date
+  reason          String?
+  documentPath    String?
+  documentName    String?
+  documentType    String?
+  rejectionReason String?
+  status          LeaveStatus @default(PENDING)
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   user       User @relation("HRLeaveEmployee", fields: [userId], references: [id], onDelete: Cascade)
   approvedBy User? @relation("HRLeaveApprover", fields: [approvedById], references: [id])
