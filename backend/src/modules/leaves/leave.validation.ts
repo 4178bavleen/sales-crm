@@ -23,9 +23,17 @@ export type LeaveStatus = (typeof LEAVE_STATUSES)[number]
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
+export const LEAVE_ACCRUAL_PERIODS = [
+  'YEARLY',
+  'HALF_YEARLY',
+  'QUARTERLY',
+  'MONTHLY',
+] as const
+export type LeaveAccrualPeriod = (typeof LEAVE_ACCRUAL_PERIODS)[number]
+
 export const applyLeaveSchema = z
   .object({
-    leaveType: z.enum(LEAVE_TYPES),
+    leaveType: z.string().trim().min(1, 'Leave category is required'),
     startDate: z
       .string()
       .regex(dateRegex, 'Start date must be in YYYY-MM-DD format'),
@@ -44,6 +52,24 @@ export const applyLeaveSchema = z
   })
 
 export type ApplyLeaveInput = z.infer<typeof applyLeaveSchema>
+
+export const createLeavePolicySchema = z.object({
+  name: z.string().trim().min(2, 'Category name must be at least 2 characters').max(60),
+  code: z.string().trim().min(2).max(40).optional(),
+  quota: z.coerce.number().min(0).max(365).default(12),
+  period: z.enum(LEAVE_ACCRUAL_PERIODS).default('YEARLY'),
+  isPaid: z.boolean().default(true),
+  requiresDocument: z.boolean().default(false),
+  documentDescription: z.string().trim().max(255).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  isActive: z.boolean().default(true),
+  sortOrder: z.coerce.number().int().default(0),
+})
+
+export const updateLeavePolicySchema = createLeavePolicySchema.partial()
+
+export type CreateLeavePolicyInput = z.infer<typeof createLeavePolicySchema>
+export type UpdateLeavePolicyInput = z.infer<typeof updateLeavePolicySchema>
 
 export const listLeavesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

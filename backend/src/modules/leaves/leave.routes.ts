@@ -9,14 +9,27 @@ import {
   getAllLeavesController,
   reviewLeaveController,
   viewLeaveDocumentController,
+  getLeavePoliciesController,
+  getActiveLeavePoliciesController,
+  createLeavePolicyController,
+  updateLeavePolicyController,
+  deleteLeavePolicyController,
 } from './leave.controller.js'
 import { uploadLeaveDocument } from './leave.upload.js'
-import { ensureLeavePermissions } from './leave.service.js'
+import { ensureLeavePermissions, ensureDefaultLeavePolicies } from './leave.service.js'
 
 void ensureLeavePermissions()
+void ensureDefaultLeavePolicies()
 
 const router = Router()
 router.use(authenticateToken)
+
+// Leave Categories / Policies endpoints
+router.get('/policies', getLeavePoliciesController)
+router.get('/policies/active', getActiveLeavePoliciesController)
+router.post('/policies', requirePermission('leave.manage'), createLeavePolicyController)
+router.patch('/policies/:id', requirePermission('leave.manage'), updateLeavePolicyController)
+router.delete('/policies/:id', requirePermission('leave.manage'), deleteLeavePolicyController)
 
 // Employee Self-Service endpoints (Accessible to all authenticated employees)
 router.get('/my', getMyLeavesController)

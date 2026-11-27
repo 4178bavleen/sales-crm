@@ -188,6 +188,13 @@ enum LeaveStatus {
   CANCELLED
 }
 
+enum LeaveAccrualPeriod {
+  YEARLY
+  HALF_YEARLY
+  QUARTERLY
+  MONTHLY
+}
+
 enum PayrollStatus {
   DRAFT
   PROCESSED
@@ -415,27 +422,49 @@ model Attendance {
   @@map("hr_attendance")
 }
 
+model LeaveTypePolicy {
+  id                  Int                 @id @default(autoincrement())
+  name                String              @unique
+  code                String              @unique
+  quota               Decimal             @default(12.0) @db.Decimal(5, 1)
+  period              LeaveAccrualPeriod  @default(YEARLY)
+  isPaid              Boolean             @default(true)
+  requiresDocument    Boolean             @default(false)
+  documentDescription String?
+  description         String?
+  isActive            Boolean             @default(true)
+  sortOrder           Int                 @default(0)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  leaveRequests       LeaveRequest[]
+
+  @@map("leave_type_policies")
+}
+
 model LeaveRequest {
-  id              Int         @id @default(autoincrement())
+  id              Int              @id @default(autoincrement())
   userId          Int
-  leaveType       LeaveType
-  startDate       DateTime    @db.Date
-  endDate         DateTime    @db.Date
+  leaveType       String
+  policyId        Int?
+  policy          LeaveTypePolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  startDate       DateTime         @db.Date
+  endDate         DateTime         @db.Date
   reason          String?
   documentPath    String?
   documentName    String?
   documentType    String?
   rejectionReason String?
-  status          LeaveStatus @default(PENDING)
+  status          LeaveStatus      @default(PENDING)
   approvedById    Int?
   approvedAt      DateTime?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  user       User @relation("HRLeaveEmployee", fields: [userId], references: [id], onDelete: Cascade)
+  user       User  @relation("HRLeaveEmployee", fields: [userId], references: [id], onDelete: Cascade)
   approvedBy User? @relation("HRLeaveApprover", fields: [approvedById], references: [id])
 
   @@index([userId, status])
+  @@index([policyId])
   @@map("hr_leave_requests")
 }
 

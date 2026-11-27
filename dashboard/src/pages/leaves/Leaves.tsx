@@ -23,6 +23,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Settings2,
 } from "lucide-react";
 import { getSession } from "../../lib/auth";
 import {
@@ -47,6 +48,7 @@ import {
 } from "../../types/leave";
 import StatCard from "../../components/ui/StatCard";
 import ApplyLeaveModal from "./ApplyLeaveModal";
+import LeavePolicySettingsModal from "./LeavePolicySettingsModal";
 
 export default function Leaves() {
   const session = getSession();
@@ -77,6 +79,7 @@ export default function Leaves() {
 
   // Modals
   const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
+  const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
   const [rejectModalState, setRejectModalState] = useState<{
     leaveId: number;
     employeeName: string;
@@ -276,6 +279,18 @@ export default function Leaves() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {canManageLeaves && (
+            <button
+              type="button"
+              onClick={() => setShowPolicyModal(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition cursor-pointer"
+              title="Configure Leave Categories, Quotas & Accrual Periods"
+            >
+              <Settings2 size={14} className="text-slate-500" />
+              <span>Leave Policies</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -325,37 +340,125 @@ export default function Leaves() {
         </div>
       )}
 
-      {/* KPI Cards Row (Global StatCard component without sparkline graph) */}
+      {/* KPI Cards Row (Global StatCard component with progress visual and no sparkline graph) */}
       {stats && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <StatCard
-            label="Casual Leave (CL)"
-            value={`${stats.remainingBalance.CASUAL} Days`}
-            subtext={`${stats.annualQuota.CASUAL - stats.remainingBalance.CASUAL} of ${stats.annualQuota.CASUAL} days used`}
-            icon={Calendar}
-            color="blue"
-          />
+          {stats.policies && stats.policies.length > 0 ? (
+            stats.policies
+              .filter((p) => p.quota > 0 || p.usedDays > 0)
+              .slice(0, 3)
+              .map((policy) => {
+                const color =
+                  policy.code === "SICK"
+                    ? "rose"
+                    : policy.code === "EARNED"
+                    ? "emerald"
+                    : "blue";
+                const icon =
+                  policy.code === "SICK"
+                    ? HeartPulse
+                    : policy.code === "EARNED"
+                    ? Palmtree
+                    : Calendar;
 
-          <StatCard
-            label="Sick Leave (SL)"
-            value={`${stats.remainingBalance.SICK} Days`}
-            subtext={`${stats.annualQuota.SICK - stats.remainingBalance.SICK} of ${stats.annualQuota.SICK} days used`}
-            icon={HeartPulse}
-            color="rose"
-          />
+                const percentUsed = policy.quota > 0 ? Math.min(100, Math.round((policy.usedDays / policy.quota) * 100)) : 0;
+                const barColor =
+                  policy.code === "SICK"
+                    ? "bg-rose-500"
+                    : policy.code === "EARNED"
+                    ? "bg-emerald-500"
+                    : "bg-blue-600";
 
-          <StatCard
-            label="Earned Leave (EL)"
-            value={`${stats.remainingBalance.EARNED} Days`}
-            subtext={`${stats.annualQuota.EARNED - stats.remainingBalance.EARNED} of ${stats.annualQuota.EARNED} days used`}
-            icon={Palmtree}
-            color="emerald"
-          />
+                return (
+                  <StatCard
+                    key={policy.id}
+                    label={policy.name}
+                    value={`${policy.remainingDays} Days Left`}
+                    subtext={
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                          <span>{policy.usedDays} of {policy.quota} used</span>
+                          <span className="font-semibold text-slate-700">{policy.periodLabel}</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                            style={{ width: `${percentUsed}%` }}
+                          />
+                        </div>
+                      </div>
+                    }
+                    icon={icon}
+                    color={color}
+                  />
+                );
+              })
+          ) : (
+            <>
+              <StatCard
+                label="Casual Leave (CL)"
+                value={`${stats.remainingBalance?.CASUAL ?? 12} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.CASUAL ?? 12) - (stats.remainingBalance?.CASUAL ?? 12)} of {stats.annualQuota?.CASUAL ?? 12} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-blue-600 w-1/4" />
+                    </div>
+                  </div>
+                }
+                icon={Calendar}
+                color="blue"
+              />
+
+              <StatCard
+                label="Sick Leave (SL)"
+                value={`${stats.remainingBalance?.SICK ?? 10} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.SICK ?? 10) - (stats.remainingBalance?.SICK ?? 10)} of {stats.annualQuota?.SICK ?? 10} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-rose-500 w-1/5" />
+                    </div>
+                  </div>
+                }
+                icon={HeartPulse}
+                color="rose"
+              />
+
+              <StatCard
+                label="Earned Leave (EL)"
+                value={`${stats.remainingBalance?.EARNED ?? 15} Days Left`}
+                subtext={
+                  <div className="space-y-1 pt-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>{(stats.annualQuota?.EARNED ?? 15) - (stats.remainingBalance?.EARNED ?? 15)} of {stats.annualQuota?.EARNED ?? 15} used</span>
+                      <span className="font-semibold text-slate-700">Per Year</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 w-1/6" />
+                    </div>
+                  </div>
+                }
+                icon={Palmtree}
+                color="emerald"
+              />
+            </>
+          )}
 
           <StatCard
             label="Approved Days"
             value={`${stats.totalApprovedDays} Days`}
-            subtext="Total taken this year"
+            subtext={
+              <div className="text-[11px] text-slate-500 font-medium pt-1">
+                Company time-off taken this year
+              </div>
+            }
             icon={CheckCircle2}
             color="sky"
           />
@@ -363,7 +466,12 @@ export default function Leaves() {
           <StatCard
             label={canManageLeaves && activeTab === "approvals" ? "Team Approvals" : "Pending Requests"}
             value={canManageLeaves ? (pendingApprovalsCount || stats.pendingRequests) : stats.pendingRequests}
-            subtext="Awaiting review"
+            subtext={
+              <div className="text-[11px] text-amber-700 font-medium pt-1 flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Awaiting review</span>
+              </div>
+            }
             icon={Clock}
             color="amber"
           />
@@ -465,11 +573,17 @@ export default function Leaves() {
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-700 font-medium focus:border-blue-500 focus:bg-white focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Categories</option>
-              {LEAVE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {getLeaveTypeDetails(t).label}
-                </option>
-              ))}
+              {stats?.policies && stats.policies.length > 0
+                ? stats.policies.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.name}
+                    </option>
+                  ))
+                : LEAVE_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {getLeaveTypeDetails(t).label}
+                    </option>
+                  ))}
             </select>
 
             {(statusFilter !== "ALL" || typeFilter !== "ALL" || search) && (
@@ -813,6 +927,18 @@ export default function Leaves() {
           loadStats();
         }}
       />
+
+      {/* Leave Policy Settings Modal (Admin / Manager Only) */}
+      {canManageLeaves && (
+        <LeavePolicySettingsModal
+          isOpen={showPolicyModal}
+          onClose={() => setShowPolicyModal(false)}
+          onPoliciesChanged={() => {
+            loadStats();
+            loadRecords();
+          }}
+        />
+      )}
 
       {/* Reject Remarks Modal */}
       {rejectModalState && (

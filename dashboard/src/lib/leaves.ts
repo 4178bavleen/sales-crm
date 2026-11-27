@@ -8,8 +8,10 @@ import type {
   ReviewLeavePayload,
   LeaveFilters,
   LeaveListResponse,
-  LeaveType,
   LeaveStatus,
+  LeavePolicy,
+  CreateLeavePolicyPayload,
+  UpdateLeavePolicyPayload,
 } from "../types/leave";
 
 function authToken(): string {
@@ -148,6 +150,51 @@ export async function reviewLeave(
   return res.leave;
 }
 
+export async function fetchLeavePolicies(): Promise<LeavePolicy[]> {
+  return request<LeavePolicy[]>(ENDPOINTS.leaves.policies, {
+    token: authToken(),
+  });
+}
+
+export async function fetchActiveLeavePolicies(): Promise<LeavePolicy[]> {
+  return request<LeavePolicy[]>(ENDPOINTS.leaves.activePolicies, {
+    token: authToken(),
+  });
+}
+
+export async function createLeavePolicy(
+  payload: CreateLeavePolicyPayload
+): Promise<LeavePolicy> {
+  return request<LeavePolicy>(ENDPOINTS.leaves.policies, {
+    method: "POST",
+    body: payload,
+    token: authToken(),
+  });
+}
+
+export async function updateLeavePolicy(
+  id: number,
+  payload: UpdateLeavePolicyPayload
+): Promise<LeavePolicy> {
+  return request<LeavePolicy>(ENDPOINTS.leaves.policyById(id), {
+    method: "PATCH",
+    body: payload,
+    token: authToken(),
+  });
+}
+
+export async function deleteLeavePolicy(
+  id: number
+): Promise<{ success: boolean; softDeleted?: boolean; message?: string }> {
+  return request<{ success: boolean; softDeleted?: boolean; message?: string }>(
+    ENDPOINTS.leaves.policyById(id),
+    {
+      method: "DELETE",
+      token: authToken(),
+    }
+  );
+}
+
 export function formatLeaveDate(dateStr: string): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
@@ -168,50 +215,73 @@ export function calculateDaysBetween(startDate: string, endDate: string): number
   return Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
 }
 
-export function getLeaveTypeDetails(type: LeaveType): {
+export function getLeaveTypeDetails(type: string): {
   label: string;
   badgeClass: string;
 } {
-  switch (type) {
+  const normalized = (type || "").toUpperCase().trim();
+  switch (normalized) {
     case "CASUAL":
+    case "CASUAL LEAVE":
       return {
         label: "Casual Leave",
         badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
       };
     case "SICK":
+    case "SICK LEAVE":
       return {
         label: "Sick Leave",
         badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
       };
     case "EARNED":
+    case "EARNED LEAVE":
+    case "PRIVILEGE":
       return {
         label: "Earned / Privilege",
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
       };
     case "UNPAID":
+    case "UNPAID LEAVE":
+    case "LWP":
       return {
         label: "Loss of Pay (LWP)",
         badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
       };
     case "MATERNITY":
+    case "MATERNITY LEAVE":
       return {
         label: "Maternity Leave",
         badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
       };
     case "PATERNITY":
+    case "PATERNITY LEAVE":
       return {
         label: "Paternity Leave",
         badgeClass: "bg-sky-50 text-sky-700 border-sky-200",
       };
     case "COMP_OFF":
+    case "COMPENSATORY OFF":
       return {
         label: "Compensatory Off",
         badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
       };
-    case "OTHER":
+    case "BEREAVEMENT":
+    case "BEREAVEMENT LEAVE":
+      return {
+        label: "Bereavement Leave",
+        badgeClass: "bg-neutral-100 text-neutral-800 border-neutral-300",
+      };
+    case "MARRIAGE":
+    case "MARRIAGE LEAVE":
+      return {
+        label: "Marriage Leave",
+        badgeClass: "bg-pink-50 text-pink-700 border-pink-200",
+      };
     default:
       return {
-        label: "Other Special",
+        label: type
+          ? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "Other Leave",
         badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
       };
   }
