@@ -414,6 +414,7 @@ export default function InvoiceView() {
                 <tr className="border-b-2 border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
                   <th className="py-3 px-3">#</th>
                   <th className="py-3 px-4">Item & Description</th>
+                  <th className="py-3 px-3 text-center">HSN CODE</th>
                   <th className="py-3 px-3 text-center">Qty</th>
                   <th className="py-3 px-4 text-right">Unit Price</th>
                   <th className="py-3 px-3 text-center">Disc %</th>
@@ -426,15 +427,11 @@ export default function InvoiceView() {
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="py-4 px-3 text-slate-400 text-xs font-mono">{idx + 1}</td>
                     <td className="py-4 px-4">
-                      <div className="font-semibold text-slate-900 flex items-center gap-2">
-                        <span>{item.itemName}</span>
-                        {item.hsnCode && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 font-normal">
-                            HSN: {item.hsnCode}
-                          </span>
-                        )}
-                      </div>
+                      <div className="font-semibold text-slate-900">{item.itemName}</div>
                       {item.description && <div className="text-xs text-slate-500 mt-0.5">{item.description}</div>}
+                    </td>
+                    <td className="py-4 px-3 text-center font-mono text-xs text-slate-700 font-medium">
+                      {item.hsnCode || '—'}
                     </td>
                     <td className="py-4 px-3 text-center text-slate-700">{Number(item.quantity)}</td>
                     <td className="py-4 px-4 text-right font-mono text-slate-700">

@@ -873,6 +873,7 @@ export default function InvoiceFormDialog({
                         <tr className="border-b-2 border-slate-200 bg-slate-50/70 text-slate-600">
                           <th className="py-2.5 px-3 font-bold">#</th>
                           <th className="py-2.5 px-3 font-bold">Description</th>
+                          <th className="py-2.5 px-3 text-center font-bold">HSN CODE</th>
                           <th className="py-2.5 px-3 text-right font-bold">Qty</th>
                           <th className="py-2.5 px-3 text-right font-bold">Rate</th>
                           <th className="py-2.5 px-3 text-right font-bold">Disc</th>
@@ -892,17 +893,13 @@ export default function InvoiceFormDialog({
                             <tr key={idx} className="hover:bg-slate-50/50">
                               <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
                               <td className="py-2.5 px-3">
-                                <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                                  <span>{it.itemName || 'Untitled Item'}</span>
-                                  {it.hsnCode && (
-                                    <span className="text-[10px] font-mono px-1 py-0.2 bg-slate-100 text-slate-600 rounded">
-                                      HSN: {it.hsnCode}
-                                    </span>
-                                  )}
-                                </div>
+                                <div className="font-semibold text-slate-900">{it.itemName || 'Untitled Item'}</div>
                                 {it.description && (
                                   <div className="text-[11px] text-slate-500 mt-0.5">{it.description}</div>
                                 )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-mono text-slate-600">
+                                {it.hsnCode || '—'}
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">{it.quantity}</td>
                               <td className="py-2.5 px-3 text-right font-mono text-slate-700">
