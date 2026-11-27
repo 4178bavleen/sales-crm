@@ -1,0 +1,25 @@
+﻿DO $$ BEGIN
+    CREATE TYPE "EmploymentStatus" AS ENUM ('ACTIVE', 'PROBATION', 'ON_LEAVE', 'NOTICE_PERIOD', 'RESIGNED', 'TERMINATED', 'INACTIVE');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+ALTER TABLE "employee_profiles"
+  ADD COLUMN IF NOT EXISTS "employmentStatus" "EmploymentStatus" NOT NULL DEFAULT 'ACTIVE',
+  ADD COLUMN IF NOT EXISTS "permanentAddress" TEXT,
+  ADD COLUMN IF NOT EXISTS "fatherName" TEXT,
+  ADD COLUMN IF NOT EXISTS "avatarPath" TEXT,
+  ADD COLUMN IF NOT EXISTS "aadharNumber" TEXT,
+  ADD COLUMN IF NOT EXISTS "panNumber" TEXT,
+  ADD COLUMN IF NOT EXISTS "emergencyMobile" TEXT,
+  ADD COLUMN IF NOT EXISTS "officialMail" TEXT,
+  ADD COLUMN IF NOT EXISTS "idCardPath" TEXT,
+  ADD COLUMN IF NOT EXISTS "idCardName" TEXT,
+  ADD COLUMN IF NOT EXISTS "laptopOrMobile" TEXT,
+  ADD COLUMN IF NOT EXISTS "assignedClient" TEXT,
+  ADD COLUMN IF NOT EXISTS "workAssigned" TEXT,
+  ADD COLUMN IF NOT EXISTS "lastWorkingDate" DATE,
+  ADD COLUMN IF NOT EXISTS "handoverName" TEXT,
+  ADD COLUMN IF NOT EXISTS "handoverDate" DATE,
+  ADD COLUMN IF NOT EXISTS "designationTitle" TEXT;
+

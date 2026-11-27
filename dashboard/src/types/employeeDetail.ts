@@ -1,0 +1,42 @@
+﻿export type EmployeeProfileDetails = {
+  id: number;
+  employeeCode?: string | null;
+  designationTitle?: string | null;
+  employmentType?: string | null;
+  employmentStatus?: string | null;
+  dateOfBirth?: string | null;
+  bloodGroup?: string | null;
+  city?: string | null;
+  state?: string | null;
+  permanentAddress?: string | null;
+  fatherName?: string | null;
+  avatarPath?: string | null;
+  aadharNumber?: string | null;
+  panNumber?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyMobile?: string | null;
+  officialMail?: string | null;
+  idCardPath?: string | null;
+  idCardName?: string | null;
+  laptopOrMobile?: string | null;
+  assignedClient?: string | null;
+  workAssigned?: string | null;
+  lastWorkingDate?: string | null;
+  handoverName?: string | null;
+  handoverDate?: string | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfscCode?: string | null;
+};
+
+export type EmployeeDetailUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  joiningDate?: string | null;
+  isActive: boolean;
+  role?: { id: number; name: string };
+  employeeProfile?: EmployeeProfileDetails | null;
+};

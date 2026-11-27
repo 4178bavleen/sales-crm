@@ -29,7 +29,7 @@ export function handleFacebookError(res: Response, error: unknown) {
 export async function getFacebookSettingsHandler(_req: Request, res: Response) {
   try {
     const settings = await getFacebookSettings()
-    return res.status(200).json({ success: true, data: { settings } })
+    return res.status(200).json({ success: true, data: settings })
   } catch (error) {
     return handleFacebookError(res, error)
   }
@@ -42,7 +42,7 @@ export async function updateFacebookSettingsHandler(req: Request, res: Response)
     return res.status(200).json({
       success: true,
       message: 'Facebook settings saved successfully',
-      data: { settings },
+      data: settings,
     })
   } catch (error) {
     return handleFacebookError(res, error)

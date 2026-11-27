@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   UserPlus,
@@ -58,6 +59,7 @@ import UserDetailDialog from "../../components/ui/UserDetailDialog";
 import EmployeeRolesPanel from "./EmployeeRolesPanel";
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"employees" | "roles">("employees");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
@@ -847,10 +849,11 @@ export default function UsersPage() {
                   const isToggling = togglingId === user.id;
 
                   return (
-                    <tr
-                      key={user.id}
-                      className="group transition hover:bg-slate-50/80"
-                    >
+                      <tr
+                        key={user.id}
+                        className="group transition hover:bg-slate-50/80 cursor-pointer"
+                        onClick={() => navigate(`/employees/${user.id}`)}
+                      >
                       {/* Serial Number */}
                       <td className="px-4 py-3 text-center text-xs font-semibold text-slate-700 font-mono">
                         {index + 1}
@@ -947,47 +950,9 @@ export default function UsersPage() {
                       {!hiddenColumns.includes("actions") && (
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDetailUser(user);
-                                setDetailOpen(true);
-                              }}
-                              title="View employee details & permissions"
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
-                            >
-                              <Eye size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingUser(user);
-                                setFormMode("edit");
-                                setFormOpen(true);
-                              }}
-                              title="Edit employee & role"
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
-                            >
-                              <Pencil size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUserToDelete(user);
-                                setDeleteOpen(true);
-                              }}
-                              disabled={isSelf}
-                              title={
-                                isSelf
-                                  ? "Cannot delete own account"
-                                  : "Deactivate & remove employee"
-                              }
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/employees/${user.id}`); }} title="View employee details" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"><Eye size={15} /></button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingUser(user); setFormMode("edit"); setFormOpen(true); }} title="Edit employee & role" className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"><Pencil size={15} /></button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setUserToDelete(user); setDeleteOpen(true); }} disabled={isSelf} title={isSelf ? "Cannot delete own account" : "Deactivate & remove employee"} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Trash2 size={15} /></button>
                           </div>
                         </td>
                       )}
