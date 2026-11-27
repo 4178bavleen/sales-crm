@@ -148,12 +148,6 @@ const navSections: NavSection[] = [
         permission: "users.view",
       },
       {
-        name: "Attendance",
-        path: "/attendance",
-        icon: CalendarCheck2,
-        aliases: ["/employee-attendance", "/attendance-management"],
-      },
-      {
         name: "Permissions",
       
         path: "/permissions",
