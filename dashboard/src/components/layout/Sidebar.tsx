@@ -31,6 +31,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { useSession } from "../../lib/useSession";
 import { useNotifications } from "../../context/NotificationContext";
+import { hasPermission } from "../auth/ProtectedRoute";
 
 interface NavItem {
   name: string;
@@ -39,6 +40,8 @@ interface NavItem {
   aliases?: string[];
   /** When true, the item is only shown to users with the ADMIN role. */
   adminOnly?: boolean;
+  /** Dynamic permission code or codes required to view this item */
+  permission?: string | string[];
 }
 
 interface NavSection {
@@ -53,36 +56,37 @@ const navSections: NavSection[] = [
     title: "OVERVIEW",
     items: [
       { name: "Dashboard", path: "/", icon: Home },
-      { name: "Calendar", path: "/calendar", icon: Calendar },
-      { name: "Tasks", path: "/tasks", icon: CheckSquare },
-      { name: "Meetings", path: "/meetings", icon: CalendarDays },
-      { name: "Daily Calls", path: "/daily-calls", icon: PhoneCall },
+      { name: "Calendar", path: "/calendar", icon: Calendar, permission: ["tasks.view", "meetings.view"] },
+      { name: "Tasks", path: "/tasks", icon: CheckSquare, permission: "tasks.view" },
+      { name: "Meetings", path: "/meetings", icon: CalendarDays, permission: "meetings.view" },
+      { name: "Daily Calls", path: "/daily-calls", icon: PhoneCall, permission: ["tasks.view", "leads.view"] },
     ],
   },
   {
     key: "sales",
     title: "SALES",
     items: [
-      { name: "Leads", path: "/leads", icon: Users },
-      { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock },
-      { name: "Deals & Pipeline", path: "/deals", icon: GitFork },
+      { name: "Leads", path: "/leads", icon: Users, permission: "leads.view" },
+      { name: "Follow-ups", path: "/follow-ups", icon: CalendarClock, permission: ["leads.view", "tasks.view"] },
+      { name: "Deals & Pipeline", path: "/deals", icon: GitFork, permission: "deals.view" },
       {
         name: "Products & Services",
         path: "/products-services",
         icon: Package,
         aliases: ["/product-services", "/product-service", "/productservices", "/products", "/product", "/services"],
+        permission: "products_services.view",
       },
-      { name: "Sales Targets", path: "/targets", icon: Target },
-      { name: "Reports", path: "/reports", icon: BarChart3 },
+      { name: "Sales Targets", path: "/targets", icon: Target, permission: "targets.view" },
+      { name: "Reports", path: "/reports", icon: BarChart3, permission: "reports.view" },
     ],
   },
   {
     key: "crm",
     title: "CRM",
     items: [
-      { name: "Contacts", path: "/contacts", icon: Contact },
-      { name: "Customers", path: "/customers", icon: UserRound },
-  { name: "Proposals", path: "/proposals", icon: FileCheck },
+      { name: "Contacts", path: "/contacts", icon: Contact, permission: "contacts.view" },
+      { name: "Customers", path: "/customers", icon: UserRound, permission: ["deals.view", "contacts.view", "leads.view"] },
+      { name: "Proposals", path: "/proposals", icon: FileCheck, permission: "proposals.view" },
     ],
   },
   {
@@ -94,18 +98,21 @@ const navSections: NavSection[] = [
         path: "/invoices",
         icon: Receipt,
         aliases: ["/invoice", "/invoices/new"],
+        permission: "invoices.view",
       },
       {
         name: "Invoice Settings",
         path: "/invoices/settings",
         icon: SlidersHorizontal,
         adminOnly: true,
+        permission: "invoices.settings",
       },
       {
         name: "Expense Management",
         path: "/expenses",
         icon: CreditCard,
         aliases: ["/expense", "/expense-management"],
+        permission: "expenses.view",
       },
     ],
   },
@@ -118,12 +125,14 @@ const navSections: NavSection[] = [
         path: "/attendance",
         icon: CalendarCheck2,
         aliases: ["/employee-attendance", "/attendance-management"],
+        permission: "attendance.view",
       },
       {
         name: "Leave Requests",
         path: "/leaves",
         icon: CalendarOff,
         aliases: ["/leave-management", "/leaves-management", "/my-leaves"],
+        permission: "leave.view",
       },
     ],
   },
@@ -136,17 +145,19 @@ const navSections: NavSection[] = [
         path: "/employees",
         icon: UserCog,
         aliases: ["/user-management", "/employee-management", "/users"],
+        permission: "users.view",
       },
       {
         name: "Roles & Permissions",
         path: "/permissions",
         icon: ShieldCheck,
         aliases: ["/roles-permissions"],
+        permission: ["roles.view", "permissions.view"],
       },
       { name: "Audit Logs", path: "/audit-logs", icon: Shield, adminOnly: true },
-      { name: "Documents", path: "/documents", icon: FileText },
+      { name: "Documents", path: "/documents", icon: FileText, permission: "documents.view" },
       { name: "Notifications", path: "/notifications", icon: Bell },
-      { name: "Settings", path: "/settings", icon: SettingsIcon },
+      { name: "Settings", path: "/settings", icon: SettingsIcon, adminOnly: true },
     ],
   },
 ];
@@ -243,6 +254,11 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-4 [&::-webkit-scrollbar]:hidden">
         {navSections.map((section) => {
+          const visibleItems = section.items.filter((item) =>
+            hasPermission(item.permission, item.adminOnly)
+          );
+          if (visibleItems.length === 0) return null;
+
           const isCollapsed = !!collapsedSections[section.key];
           const sectionId = `sidebar-section-${section.key}`;
 
@@ -277,10 +293,7 @@ export default function Sidebar() {
               {/* Collapsible Nav Links */}
               {!isCollapsed && (
                 <div id={sectionId} className="space-y-1 pt-0.5">
-                  {section.items.map(({ name, path, icon: Icon, aliases, adminOnly }) => {
-                    // Hide admin-only items for non-admin users
-                    if (adminOnly && userRole?.toUpperCase() !== "ADMIN") return null;
-
+                  {visibleItems.map(({ name, path, icon: Icon, aliases }) => {
                     const currentPath = location.pathname;
                     const isAliasActive =
                       aliases &&
