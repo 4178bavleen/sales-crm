@@ -83,6 +83,8 @@ function formatDateKey(dateStr?: string | null): string {
 }
 
 export default function Dashboard() {
+  const session = getSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
   const [period, setPeriod] = useState<ReportPeriod>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +122,9 @@ export default function Dashboard() {
     if (showRefreshing) setIsRefreshing(true);
     setError(null);
 
-    const token = getSession()?.token;
+    const session = getSession();
+    const token = session?.token;
+    const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
 
     try {
       const [overviewRes, repsRes, leadsRes, meetingsRes, tasksRes, dealOptionsRes, auditLogsRes] =
@@ -143,7 +147,7 @@ export default function Dashboard() {
             method: "GET",
             token,
           }),
-          fetchAuditLogs({ limit: 8 }),
+          isAdmin ? fetchAuditLogs({ limit: 8 }) : Promise.resolve({ items: [] } as any),
         ]);
 
       if (overviewRes.status === "fulfilled") {
@@ -1207,8 +1211,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 3. FULL WIDTH AUDIT LOGS & SYSTEM ACTIVITY */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+      {/* 3. FULL WIDTH AUDIT LOGS & SYSTEM ACTIVITY (Admin Only) */}
+      {isAdmin && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-[#1d61e7]" />
@@ -1329,6 +1334,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      )}
 
       {/* CREATE LEAD MODAL */}
       {isCreateLeadOpen && (

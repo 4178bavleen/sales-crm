@@ -143,7 +143,7 @@ const navSections: NavSection[] = [
         icon: ShieldCheck,
         aliases: ["/roles-permissions"],
       },
-      { name: "Audit Logs", path: "/audit-logs", icon: Shield },
+      { name: "Audit Logs", path: "/audit-logs", icon: Shield, adminOnly: true },
       { name: "Documents", path: "/documents", icon: FileText },
       { name: "Notifications", path: "/notifications", icon: Bell },
       { name: "Settings", path: "/settings", icon: SettingsIcon },
@@ -279,7 +279,7 @@ export default function Sidebar() {
                 <div id={sectionId} className="space-y-1 pt-0.5">
                   {section.items.map(({ name, path, icon: Icon, aliases, adminOnly }) => {
                     // Hide admin-only items for non-admin users
-                    if (adminOnly && userRole !== "ADMIN") return null;
+                    if (adminOnly && userRole?.toUpperCase() !== "ADMIN") return null;
 
                     const currentPath = location.pathname;
                     const isAliasActive =
