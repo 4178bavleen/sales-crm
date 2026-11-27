@@ -8,6 +8,7 @@ import {
   getFollowUpStatsController,
   getTaskOptionsController,
   listTasksController,
+  sendManualTaskReminderController,
   updateTaskController,
   updateTaskStatusController,
 } from './task.controller.js'
@@ -21,6 +22,11 @@ router.get('/', requirePermission('tasks.view'), listTasksController)
 router.get('/options', requirePermission('tasks.view'), getTaskOptionsController)
 router.get('/follow-up-stats', requirePermission('tasks.view'), getFollowUpStatsController)
 router.get('/:id', requirePermission('tasks.view'), getTaskController)
+router.post(
+  '/:id/remind',
+  requirePermission('tasks.edit'),
+  sendManualTaskReminderController,
+)
 router.patch('/:id', requirePermission('tasks.edit'), updateTaskController)
 router.patch(
   '/:id/status',

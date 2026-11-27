@@ -63,6 +63,7 @@ export const ENDPOINTS = {
     update: (id: number) => `/tasks/${id}`,
     updateStatus: (id: number) => `/tasks/${id}/status`,
     delete: (id: number) => `/tasks/${id}`,
+    remind: (id: number) => `/tasks/${id}/remind`,
   },
 
   activities: {

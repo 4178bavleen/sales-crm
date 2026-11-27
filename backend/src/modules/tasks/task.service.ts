@@ -570,3 +570,89 @@ export async function getFollowUpStats(userId: number, isAdmin: boolean) {
         all,
     }
 }
+
+export async function sendManualTaskReminder(input: {
+    taskId: number
+    senderUserId: number
+    customNote?: string
+}) {
+    const task = await prisma.task.findUnique({
+        where: { id: input.taskId },
+        include: {
+            assignedTo: { select: { id: true, name: true, email: true, phone: true } },
+            createdBy: { select: { id: true, name: true } },
+        },
+    })
+
+    if (!task) {
+        throw new TaskServiceError('Task not found', 404)
+    }
+
+    if (task.status === 'COMPLETED' || task.status === 'CANCELLED') {
+        throw new TaskServiceError(`Cannot send reminder for a ${task.status.toLowerCase()} task`, 400)
+    }
+
+    const sender = await prisma.user.findFirst({
+        where: { id: input.senderUserId, isActive: true, deletedAt: null },
+        select: { id: true, name: true, email: true },
+    })
+
+    if (!sender) {
+        throw new TaskServiceError('Sender user was not found or is inactive', 400)
+    }
+
+    const senderName = sender.name || 'Manager'
+    const notifTitle = `Reminder: ${task.title}`
+    const notifBody = input.customNote?.trim()
+        ? `Reminder from ${senderName}: ${input.customNote.trim()}`
+        : `Reminder from ${senderName}: Task "${task.title}" requires your attention.`
+
+    // 1. Dispatch in-app notification (which automatically dispatches Email and WhatsApp if enabled)
+    const notification = await createInAppNotification({
+        userId: task.assignedToId,
+        type: 'TASK_MANUAL_REMINDER',
+        title: notifTitle,
+        body: notifBody,
+        entityType: 'task',
+        entityId: task.id,
+    })
+
+    // 2. Log Activity in Task timeline
+    await prisma.activity.create({
+        data: {
+            type: 'REMINDER',
+            outcome: 'MANUAL_REMINDER_SENT',
+            notes: input.customNote?.trim()
+                ? `Manual reminder sent by ${senderName}: ${input.customNote.trim()}`
+                : `Manual reminder sent by ${senderName}`,
+            occurredAt: new Date(),
+            performedById: sender.id,
+            taskId: task.id,
+            leadId: task.leadId,
+            dealId: task.dealId,
+            customerId: task.customerId,
+            companyId: task.companyId,
+        },
+    })
+
+    // 3. Log Audit
+    await logAudit({
+        actorId: sender.id,
+        action: 'TASK_MANUAL_REMINDER',
+        entityType: 'Task',
+        entityId: task.id,
+        after: {
+            taskId: task.id,
+            recipientId: task.assignedToId,
+            recipientName: task.assignedTo.name,
+            customNote: input.customNote?.trim() || null,
+        },
+    })
+
+    return {
+        success: true,
+        message: `Reminder sent to ${task.assignedTo.name}`,
+        recipientName: task.assignedTo.name,
+        notificationId: notification.id,
+    }
+}
